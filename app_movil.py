@@ -1,88 +1,41 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import os
-from datetime import datetime
-import plotly.express as px # Para los gráficos
 
-# Configuración profesional
-st.set_page_config(page_title="D'UNIG PRO", page_icon="📈", layout="centered")
+# Configuración de la página
+st.set_page_config(page_title="D'UNIG - Guía Espiritual y Práctica", layout="wide")
 
-# --- SISTEMA DE SEGURIDAD SIMPLE ---
-def check_password():
-    if "autenticado" not in st.session_state:
-        st.session_state["autenticado"] = False
+# Nombre del archivo de Excel
+EXCEL_FILE = 'ventas_d_unig.xlsx'
 
-    if not st.session_state["autenticado"]:
-        st.title("🔐 Acceso D'UNIG")
-        clave = st.text_input("Introduce tu clave de acceso", type="password")
-        if st.button("Entrar"):
-            if clave == "admin123": # <--- CAMBIA TU CLAVE AQUÍ
-                st.session_state["autenticado"] = True
-                st.rerun()
-            else:
-                st.error("Clave incorrecta")
-        return False
-    return True
+st.title("D'UNIG: Tu Asistente Digital")
 
-if check_password():
-    # --- INTERFAZ PRINCIPAL ---
-    st.title("🚀 D'UNIG Business Pro")
-    st.sidebar.button("Cerrar Sesión")
-    
-    archivo = "ventas_d_unig.xlsx"
+# Función para cargar datos
+def cargar_datos():
+    if os.path.exists(EXCEL_FILE):
+        try:
+            return pd.read_excel(EXCEL_FILE)
+        except Exception:
+            return pd.DataFrame(columns=['Fecha', 'Producto', 'Monto'])
+    else:
+        return pd.DataFrame(columns=['Fecha', 'Producto', 'Monto'])
 
-    # Pestañas para organizar la app
-    tab1, tab2, tab3 = st.tabs(["📝 Registrar", "📊 Reportes", "📂 Historial"])
+# Carga de datos corregida
+df_analisis = cargar_datos()
 
-    with tab1:
-        with st.form("venta_pro"):
-            st.write("### Nueva Venta")
-            col1, col2 = st.columns(2)
-            with col1:
-                cliente = st.text_input("Cliente")
-                producto = st.selectbox("Categoría", ["Servicio", "Producto", "Asesoría", "Otro"])
-            with col2:
-                cant = st.number_input("Cantidad", min_value=1)
-                precio = st.number_input("Precio Unitario $", min_value=0.0)
-            
-            submit = st.form_submit_button("Guardar Registro")
+# Interfaz de la App
+st.subheader("Registro de Ventas")
+if not df_analisis.empty:
+    st.dataframe(df_analisis)
+    # Solo graficar si hay datos numéricos en 'Monto'
+    try:
+        fig = px.bar(df_analisis, x='Fecha', y='Monto', title="Ventas por Día")
+        st.plotly_chart(fig)
+    except Exception:
+        st.warning("Agrega datos al Excel para ver las gráficas.")
+else:
+    st.info("Aún no hay datos cargados en el archivo Excel.")
 
-        if submit:
-            total = cant * precio
-            nueva_fila = pd.DataFrame([{
-                "Fecha": datetime.now().strftime("%d/%m/%Y"),
-                "Cliente": cliente, "Categoría": producto, 
-                "Cantidad": cant, "Total $": total
-            }])
-            
-            if os.path.exists(archivo):
-                df = pd.concat([pd.read_excel(archivo), nueva_fila], ignore_index=True)
-            else:
-                df = nueva_fila
-            df.to_excel(archivo, index=False)
-            st.success(f"✅ ¡Venta de ${total} registrada exitosamente!")
-
-    with tab2:
-        st.write("### Análisis de Ingresos")
-        if os.path.exists(archivo):
-            df_analisis = pd.read_excel(archivo)
-            ingreso_total = df_analisis["Total $"].sum()
-            
-            # Métrica destacada
-            st.metric("Ingresos Totales", f"${ingreso_total:,.2f}")
-            
-            # Gráfico de barras por cliente o categoría
-            fig = px.bar(df_analisis, x="Fecha", y="Total $", color="Categoría", title="Ventas por Día")
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Aún no hay datos para mostrar gráficos.")
-
-    with tab3:
-        st.write("### Base de Datos")
-        if os.path.exists(archivo):
-            df_historial = pd.read_excel(archivo)
-            st.dataframe(df_historial, use_container_width=True)
-            
-            # Botón para descargar el Excel
-            with open(archivo, "rb") as f:
-                st.download_button("📥 Descargar Excel para Contador", f, file_name=archivo)
+st.sidebar.markdown("---")
+st.sidebar.info("Guardar los mandamientos de Dios y su ley como la niña de los ojos.")
