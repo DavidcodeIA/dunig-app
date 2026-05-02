@@ -28,12 +28,15 @@ with st.form("registro_luxury"):
     nombre = st.text_input("Nombre del Cliente")
     detalle = st.text_area("Información del Servicio")
     
-    if st.form_submit_button("GUARDAR EN LA NUBE"):
-        # Esto envía los datos directamente a Supabase
-        data = {"nombre": nombre, "detalle": detalle}
-        supabase.table("registros").insert(data).execute()
-        st.success("✅ Datos sincronizados correctamente.")
-
+if st.form_submit_button("GUARDAR EN LA NUBE"):
+        try:
+            data = {"nombre": nombre, "detalle": detalle}
+            # Intentamos guardar
+            supabase.table("registros").insert(data).execute()
+            st.success("✨ ¡Registro guardado exitosamente en D'UNIG Platinum!")
+        except Exception as e:
+            st.error(f"Error de conexión: {e}")
+            st.info("Revisa si desactivaste el RLS en Supabase o si la URL es correcta.")
 # 4. Mostrar los datos guardados
 st.write("---")
 st.write("### 📊 Registros Actuales")
