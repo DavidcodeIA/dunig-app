@@ -35,13 +35,14 @@ with st.form("mi_formulario_luxury"):
 
 # 4. Lógica fuera del formulario (se ejecuta al presionar el botón)
 if boton_enviar:
-    if nombre_cliente and detalle_servicio:
-        try:
-            data = {"nombre": nombre_cliente, "detalle": detalle_servicio}
-            supabase.table("registros").insert(data).execute()
-            st.success("✨ ¡Gloria a Dios! Datos guardados en Supabase.")
-        except Exception as e:
-            st.error(f"Error al conectar con Supabase: {e}")
+        if nombre_cliente and detalle_servicio:
+            try:
+                # Usamos los nombres exactos de tu SQL: NOMBRE y DETALLE
+                data = {"NOMBRE": nombre_cliente, "DETALLE": detalle_servicio}
+                supabase.table("registros").insert(data).execute()
+                st.success("✨ ¡Gloria a Dios! Datos guardados en Supabase.")
+            except Exception as e:
+                st.error(f"Error: {e}")
     else:
         st.warning("Por favor, rellena todos los campos antes de guardar.")
 
