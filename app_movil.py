@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.express as px  
 import os
 
 # Configuración de la página
@@ -9,7 +9,7 @@ st.set_page_config(page_title="D'UNIG - Guía Espiritual y Práctica", layout="w
 # Nombre del archivo de Excel
 EXCEL_FILE = 'ventas_d_unig.xlsx'
 
-st.title("D'UNIG: Tu Asistente Digital")
+st.title("🚀 D'UNIG: Tu Guía Espiritual y Práctica")
 
 # Función para cargar datos
 def cargar_datos():
