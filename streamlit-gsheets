@@ -1,12 +1,14 @@
-from streamlit_gsheets import GSheetsConnection
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 
-# Crear la conexión con Google Sheets
+st.title("D'UNIG: Tu Asistente en la Nube")
+
+# Crear la conexión
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Leer los datos directamente de la URL de Google Drive
-# Solo necesitas poner la URL de tu hoja aquí o en los secretos
-df_analisis = conn.read(spreadsheet="https://docs.google.com/spreadsheets/d/1CEUJ61N4e28FqjMUhCB8c4YPNzl8u8nlqYjf8kmVVqk/edit?usp=sharing")
+# Leer los datos (Asegúrate de que el link sea el correcto)
+url = "https://docs.google.com/spreadsheets/d/1CEUJ61N4e28FqjMUhCB8c4YPNzl8u8nlqYjf8kmVVqk/edit?usp=sharing"
+df_analisis = conn.read(spreadsheet=url, ttl=0)
 
 st.write("Datos desde Google Drive:")
 st.dataframe(df_analisis)
