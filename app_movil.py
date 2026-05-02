@@ -10,7 +10,7 @@ st.set_page_config(page_title="D'UNIG - Guía Espiritual y Práctica", layout="w
 EXCEL_FILE = 'ventas_d_unig.xlsx'
 
 st.title("🚀 D'UNIG: Tu Guía Espiritual y Práctica")
-
+st.write("Archivos detectados:", os.listdir())
 # Función para cargar datos
 def cargar_datos():
     if os.path.exists(EXCEL_FILE):
