@@ -6,7 +6,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Leer los datos directamente de la URL de Google Drive
 # Solo necesitas poner la URL de tu hoja aquí o en los secretos
-df_analisis = conn.read(spreadsheet="TU_URL_DE_GOOGLE_SHEETS_AQUI")
+df_analisis = conn.read(spreadsheet="https://docs.google.com/spreadsheets/d/1CEUJ61N4e28FqjMUhCB8c4YPNzl8u8nlqYjf8kmVVqk/edit?usp=sharing")
 
 st.write("Datos desde Google Drive:")
 st.dataframe(df_analisis)
