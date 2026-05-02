@@ -1,41 +1,43 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px  
+import plotly.express as px
 import os
 
-# Configuración de la página
-st.set_page_config(page_title="D'UNIG - Guía Espiritual y Práctica", layout="wide")
-
-# Nombre del archivo de Excel
+# Configuración
+st.set_page_config(page_title="D'UNIG - Asistente", layout="wide", page_icon="🙏")
 EXCEL_FILE = 'ventas_d_unig.xlsx'
 
 st.title("🚀 D'UNIG: Tu Guía Espiritual y Práctica")
-st.write("Archivos detectados:", os.listdir())
-# Función para cargar datos
-def cargar_datos():
-    if os.path.exists(EXCEL_FILE):
-        try:
-            return pd.read_excel(EXCEL_FILE)
-        except Exception:
-            return pd.DataFrame(columns=['Fecha', 'Producto', 'Monto'])
-    else:
-        return pd.DataFrame(columns=['Fecha', 'Producto', 'Monto'])
 
-# Carga de datos corregida
-df_analisis = cargar_datos()
-
-# Interfaz de la App
-st.subheader("Registro de Ventas")
-if not df_analisis.empty:
-    st.dataframe(df_analisis)
-    # Solo graficar si hay datos numéricos en 'Monto'
+# 1. VERIFICACIÓN DE ARCHIVO (Para saber si la app lo ve)
+if os.path.exists(EXCEL_FILE):
     try:
-        fig = px.bar(df_analisis, x='Fecha', y='Monto', title="Ventas por Día")
-        st.plotly_chart(fig)
-    except Exception:
-        st.warning("Agrega datos al Excel para ver las gráficas.")
+        # Cargamos el Excel
+        df = pd.read_excel(EXCEL_FILE)
+        
+        if df.empty:
+            st.warning("⚠️ El archivo Excel está en blanco (no tiene filas).")
+        else:
+            st.success(f"✅ ¡Archivo detectado! Columnas encontradas: {', '.join(df.columns)}")
+            
+            # Mostramos los datos tal cual están en el Excel
+            st.subheader("📊 Tus Datos Actuales")
+            st.dataframe(df, use_container_width=True)
+            
+            # Intentamos crear una gráfica con las columnas que existan
+            # Buscamos una columna que parezca numérica para el eje Y
+            cols_numericas = df.select_dtypes(include=['number']).columns.tolist()
+            if cols_numericas:
+                col_y = cols_numericas[0]
+                col_x = df.columns[0]
+                fig = px.bar(df, x=col_x, y=col_y, title=f"Gráfico de {col_y}")
+                st.plotly_chart(fig, use_container_width=True)
+            
+    except Exception as e:
+        st.error(f"Error al leer el archivo: {e}")
 else:
-    st.info("Aún no hay datos cargados en el archivo Excel.")
+    st.error(f"❌ No se encuentra el archivo '{EXCEL_FILE}' en GitHub.")
+    st.info("Asegúrate de que el nombre sea minúsculas y termine en .xlsx")
 
 st.sidebar.markdown("---")
-st.sidebar.info("Guardar los mandamientos de Dios y su ley como la niña de los ojos.")
+st.sidebar.info("✨ Guardar los mandamientos de Dios y su ley como la niña de los ojos.")
