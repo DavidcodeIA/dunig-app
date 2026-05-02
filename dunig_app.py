@@ -1,22 +1,45 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
+from supabase import create_client, Client
 
-# Configuración de la página
-st.set_page_config(page_title="D'UNIG - Guía Digital", layout="wide")
+# 1. Configuración de Estilo Luxury
+st.set_page_config(page_title="D'UNIG Luxury", layout="centered")
+st.markdown("""
+    <style>
+    .stApp { background-color: #0E1117; color: #D4AF37; }
+    header, footer, #MainMenu {visibility: hidden;}
+    .stButton>button {
+        background-color: #D4AF37; color: black;
+        border-radius: 15px; font-weight: bold; width: 100%;
+        border: none;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.title("D'UNIG: Tu Asistente en la Nube")
+# 2. Conexión con Supabase (usando los Secrets que pegaste en Streamlit)
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
-# Conexión con Google Drive (ya configurada en Secrets)
+st.markdown("<h1>D'UNIG PLATINUM</h1>", unsafe_allow_html=True)
+
+# 3. Formulario para agregar información
+with st.form("registro_luxury"):
+    st.write("### ➕ Nuevo Registro")
+    nombre = st.text_input("Nombre del Cliente")
+    detalle = st.text_area("Información del Servicio")
+    
+    if st.form_submit_button("GUARDAR EN LA NUBE"):
+        # Esto envía los datos directamente a Supabase
+        data = {"nombre": nombre, "detalle": detalle}
+        supabase.table("registros").insert(data).execute()
+        st.success("✅ Datos sincronizados correctamente.")
+
+# 4. Mostrar los datos guardados
+st.write("---")
+st.write("### 📊 Registros Actuales")
 try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    df = conn.read()
-    
-    st.success("¡Datos cargados correctamente desde Google Drive!")
-    st.dataframe(df)
-    
+    response = supabase.table("registros").select("*").execute()
+    if response.data:
+        st.table(response.data)
 except Exception as e:
-    st.error(f"Error al conectar con Google: {e}")
-    st.info("Revisa que el link en Secrets sea el correcto.")
-
-st.sidebar.markdown("---")
-st.sidebar.info("Guardar los mandamientos de Dios y su ley como la niña de los ojos.")
+    st.error("Asegúrate de haber creado la tabla 'registros' en Supabase.")
