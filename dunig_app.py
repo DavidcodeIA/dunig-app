@@ -161,10 +161,15 @@ elif st.session_state.pagina == "centro_comercial":
     except Exception as e: st.error(f"Error: {e}")
     st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",))
 
-# --- PÁGINA: VITRINA PERSONAL (TIKTOK STYLE) ---
-elif st.session_state.pagina == "vitrina_personal":
-    tienda_nom = st.session_state.comercio_sel
-    st.title(f"🏪 {tienda_nom}")
+# --- REEMPLAZA st.video POR ESTO EN LA VITRINA ---
+video_url = p.get('video_url')
+if video_url:
+    st.markdown(f"""
+        <video width="100%" height="auto" controls autoplay muted loop style="border-radius:15px;">
+            <source src="{video_url}" type="video/mp4">
+            Tu navegador no soporta el formato de video.
+        </video>
+    """, unsafe_allow_html=True)
     
     # Traer productos
     prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
