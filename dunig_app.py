@@ -5,12 +5,31 @@ import pandas as pd
 # Configuración Luxury
 st.set_page_config(page_title="D'UNIG Platinum v2", layout="wide")
 
+# --- ESTÉTICA PROFESIONAL SIN PUBLICIDAD ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0E1117; color: #D4AF37; }
-    .stButton>button { background-color: #D4AF37; color: black; border-radius: 10px; }
-    h1, h3 { color: #D4AF37 !important; }
-    .stDataFrame { background-color: white; border-radius: 10px; }
+    /* Ocultar el menú de Streamlit y el pie de página */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Fondo oscuro y letras doradas estilo Platinum */
+    .stApp {
+        background-color: #0E1117;
+        color: #D4AF37;
+    }
+    
+    /* Estilo para las métricas de dinero */
+    [data-testid="stMetricValue"] {
+        color: #00FF00 !important;
+        font-size: 30px;
+    }
+    
+    /* Hacer que la tabla de datos se vea limpia */
+    .stDataFrame {
+        border: 1px solid #D4AF37;
+        border-radius: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
