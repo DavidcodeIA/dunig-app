@@ -30,121 +30,89 @@ st.sidebar.title("⚜️ D'UNIG PLATINUM")
 perfil = st.sidebar.radio("MODO DE ACCESO:", ["🛒 Vitrina Cliente", "🏢 Panel Comerciante", "🚚 Repartidor"])
 
 # ==========================================
-# PERFIL: CLIENTE (OPTIMIZADO PARA MÓVIL)
+# PERFIL: CLIENTE (FLUJO DE PAGO PROFESIONAL)
 # ==========================================
 if perfil == "🛒 Vitrina Cliente":
-    st.title("🛍️ D'UNIG SHOPPING")
-
-    # --- VITRINA DE PRODUCTOS ---
-    try:
-        res = supabase.table("productos").select("*").execute()
-        productos = res.data
-        if productos:
-            st.subheader("Selecciona tus productos:")
-            # En móvil, las columnas se apilan solas, pero usaremos 2 para que se vea ordenado
-            cols = st.columns(2) 
-            for i, p in enumerate(productos):
-                with cols[i % 2]:
-                    st.markdown(f"<div class='product-card'>", unsafe_allow_html=True)
-                    if p['imagen_url']:
-                        st.image(p['imagen_url'], use_container_width=True)
-                    st.write(f"**{p['nombre_producto']}**")
-                    st.write(f"💰 {p['precio']} $")
-                    if st.button(f"➕ Añadir", key=f"p_{p['id']}"):
-                        st.session_state.carrito.append({'nombre': p['nombre_producto'], 'precio': p['precio']})
-                        st.toast("Añadido 🛒")
-                    st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.info("Próximamente nuevos productos.")
-    except Exception as e:
-        st.error(f"Error al cargar productos: {e}")
-
-    # --- CARRITO VISIBLE (DEBAJO DE LOS PRODUCTOS) ---
-    st.write("---")
-    st.header("🛒 Mi Carrito de Compras")
     
-    if not st.session_state.carrito:
-        st.write("Tu carrito está vacío. ¡Añade algo espectacular!")
-    else:
+    # --- PASO 2: PANTALLA DE PAGO (CHECKOUT) ---
+    if 'checkout' in st.session_state and st.session_state.checkout:
+        st.title("🏦 Finalizar Pago")
+        st.markdown("### Resumen de tu pedido")
+        
         total_pagar = 0
-        resumen_productos = ""
-        
-        # Tabla simple de lo que lleva
-        for i, item in enumerate(st.session_state.carrito):
-            col_nom, col_pre, col_del = st.columns([3, 1, 1])
-            col_nom.write(item['nombre'])
-            col_pre.write(f"{item['precio']}$")
-            if col_del.button("❌", key=f"del_{i}"):
-                st.session_state.carrito.pop(i)
-                st.rerun()
+        resumen_texto = ""
+        for item in st.session_state.carrito:
+            st.write(f"✅ {item['nombre']} - **{item['precio']}$**")
             total_pagar += item['precio']
-            resumen_productos += f"- {item['nombre']} (${item['precio']})\n"
+            resumen_texto += f"{item['nombre']} ({item['precio']}$), "
         
-        st.markdown(f"## **TOTAL A PAGAR: {total_pagar} $**")
+        st.markdown(f"<h2 style='color: #D4AF37;'>TOTAL A PAGAR: {total_pagar} $</h2>", unsafe_allow_html=True)
+        st.write("---")
         
-        # Formulario de entrega (Directo en la pantalla principal)
-        st.subheader("🚚 Datos de Entrega")
-        nombre_c = st.text_input("👤 Tu Nombre completo")
-        direccion_c = st.text_input("📍 Dirección exacta")
-        mapa_link = st.text_input("🗺️ Link de ubicación (Google Maps)")
+        # --- DATOS DE PAGO DEL DUEÑO ---
+        st.info("💎 **DATOS PARA TRANSFERENCIA:**\n\n"
+                "• **Pago Móvil:** Banco Central - 0412-1234567 - V-12345678\n"
+                "• **Zelle:** pagos@dunigplatinum.com\n"
+                "• **Referencia:** Indica tu nombre al pagar.")
         
-        if st.button("🚀 CONFIRMAR MI PEDIDO"):
+        st.subheader("🚚 Datos para el Repartidor")
+        nombre_c = st.text_input("👤 Tu Nombre")
+        direccion_c = st.text_input("📍 Dirección Exacta")
+        
+        col_pay1, col_pay2 = st.columns(2)
+        if col_pay1.button("🚀 CONFIRMAR Y ENVIAR PEDIDO"):
             if nombre_c and direccion_c:
                 data_pedido = {
                     "cliente": nombre_c,
-                    "productos": resumen_productos,
+                    "productos": resumen_texto,
                     "total": total_pagar,
-                    "direccion": f"{direccion_c} | Maps: {mapa_link}"
+                    "direccion": direccion_c
                 }
-                try:
-                    supabase.table("pedidos").insert(data_pedido).execute()
-                    st.balloons()
-                    st.session_state.order_success = {
-                        "cliente": nombre_c, "total": total_pagar, "direccion": direccion_c
-                    }
-                    st.session_state.carrito = [] 
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                supabase.table("pedidos").insert(data_pedido).execute()
+                st.balloons()
+                st.success("¡GLORIA A DIOS! Pedido enviado. El repartidor verificará tu pago.")
+                st.session_state.carrito = []
+                st.session_state.checkout = False
+                if st.button("Volver al inicio"): st.rerun()
             else:
-                st.warning("⚠️ Necesitamos tu nombre y dirección para la entrega.")
-
-    # Mensaje de éxito (Ticket)
-    if 'order_success' in st.session_state:
-        order = st.session_state.order_success
-        st.success(f"🎊 ¡GLORIA A DIOS, {order['cliente'].upper()}! 🎊")
-        st.markdown(f"### Tu pedido por **{order['total']} $** ha sido recibido.")
-        st.write(f"🚚 **El repartidor ya va en camino a:** {order['direccion']}")
-        if st.button("Volver a la tienda"):
-            del st.session_state.order_success
+                st.warning("Por favor rellena tus datos de entrega.")
+        
+        if col_pay2.button("⬅️ Volver a la Vitrina"):
+            st.session_state.checkout = False
             st.rerun()
 
-    # --- MOSTRAR LA VITRINA DE PRODUCTOS ---
-    # (Aquí sigue tu código actual de mostrar las tarjetas de productos con columnas)
+    # --- PASO 1: VITRINA DE PRODUCTOS ---
+    else:
+        st.title("🛍️ D'UNIG SHOPPING")
+        
+        # Botón flotante de Carrito (solo aparece si hay algo)
+        if st.session_state.carrito:
+            total_actual = sum(item['precio'] for item in st.session_state.carrito)
+            if st.button(f"🛒 IR A PAGAR ({total_actual} $)"):
+                st.session_state.checkout = True
+                st.rerun()
 
-    # Cargar Productos de la DB
-    try:
-        res = supabase.table("productos").select("*").execute()
-        productos = res.data
-        if productos:
-            cols = st.columns(3)
-            for i, p in enumerate(productos):
-                with cols[i % 3]:
-                    st.markdown(f"<div class='product-card'>", unsafe_allow_html=True)
-                    if p['imagen_url']:
-                        st.image(p['imagen_url'], use_container_width=True)
-                    st.subheader(p['nombre_producto'])
-                    st.write(f"🏷️ **Precio:** {p['precio']} $")
-                    st.write(f"🏢 **Tienda:** {p['comercio_nombre']}")
-                    if st.button(f"Añadir al Carrito", key=f"p_{p['id']}"):
-                        st.session_state.carrito.append({'nombre': p['nombre_producto'], 'precio': p['precio']})
-                        st.toast("Producto añadido 🛒")
-                    st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.info("Próximamente nuevos productos.")
-    except Exception as e:
-        st.error(f"Error al cargar productos: {e}")
-
+        try:
+            res = supabase.table("productos").select("*").execute()
+            productos = res.data
+            if productos:
+                cols = st.columns(2)
+                for i, p in enumerate(productos):
+                    with cols[i % 2]:
+                        st.markdown(f"<div class='product-card'>", unsafe_allow_html=True)
+                        if p['imagen_url']:
+                            st.image(p['imagen_url'], use_container_width=True)
+                        st.write(f"**{p['nombre_producto']}**")
+                        st.write(f"💰 {p['precio']} $")
+                        # SOLUCIÓN AL ERROR DE KEY: usamos ID + índice para que sea único
+                        if st.button(f"➕ Añadir", key=f"btn_{p['id']}_{i}"):
+                            st.session_state.carrito.append({'nombre': p['nombre_producto'], 'precio': p['precio']})
+                            st.toast(f"{p['nombre_producto']} al carrito")
+                        st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.info("La vitrina está siendo surtida. ¡Vuelve pronto!")
+        except Exception as e:
+            st.error(f"Error: {e}")
 # ==========================================
 # PERFIL: COMERCIANTE (INVENTARIO)
 # ==========================================
