@@ -5,12 +5,15 @@ import random
 # --- 1. CONFIGURACIÓN INICIAL ---
 st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide", page_icon="⚜️")
 
-# --- 2. CONEXIÓN A SUPABASE ---
+# --- 2. CONEXIÓN A SUPABASE (CORREGIDA) ---
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
-    # persist_session=False evita errores de JWT expirado
-    supabase: Client = create_client(url, key, options={"persist_session": False})
+    
+    # En lugar de usar el diccionario de opciones que da error,
+    # conectamos de forma directa y simple.
+    supabase: Client = create_client(url, key)
+    
 except Exception as e:
     st.error(f"Error de configuración: {e}")
     st.stop()
