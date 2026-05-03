@@ -103,43 +103,33 @@ elif st.session_state.pagina == "panel_carga":
             except Exception as e:
                 st.error(f"Error: {e}")
 
-    # 2. SECCIÓN CARGA PRODUCTO
+# 2. SECCIÓN CARGA PRODUCTO
     with st.form("form_video", clear_on_submit=True):
         st.subheader("🎬 Nuevo Video-Producto")
         p_nom = st.text_input("Nombre del Producto")
         p_pre = st.number_input("Precio ($)", min_value=0.0)
-        p_vid = st.file_uploader("Video (MP4 - Max 10s)", type=['mp4'])
+        p_vid = st.file_uploader("Video (Max 10s)", type=['mp4'])
         
+        # Este es el primer nivel
         if st.form_submit_button("🚀 PUBLICAR"):
-# --- REEMPLAZA ESTO DENTRO DE LA CARGA DE VIDEO ---
-if p_nom and p_vid:
-    try:
-        ext = p_vid.name.split('.')[-1]
-        path_v = f"productos/vid_{random.randint(1000,9999)}.{ext}"
-        
-        # Subida con el tipo de archivo forzado
-        supabase.storage.from_("fotos_productos").upload(
-            path=path_v, 
-            file=p_vid.getvalue(),
-            file_options={"content-type": f"video/{ext}", "cache-control": "3600"}
-        )
-        
-        # Generar URL limpia
-        raw_url = supabase.storage.from_("fotos_productos").get_public_url(path_v)
-        # Forzamos que la URL no tenga parámetros raros al final
-        url_v = raw_url.split('?')[0] if '?' in raw_url else raw_url
-        
-        supabase.table("productos").insert({
-            "nombre_producto": p_nom, 
-            "precio": p_pre, 
-            "video_url": url_v, 
-            "comercio_propietario": nombre_c
-        }).execute()
-        st.success("🎥 ¡Video cargado y visible!")
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-    st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",))
+            # ESTE BLOQUE DEBE ESTAR MÁS ADENTRO (4 espacios a la derecha)
+            if p_nom and p_vid:
+                try:
+                    path_v = f"productos/vid_{random.randint(1000,9999)}.mp4"
+                    supabase.storage.from_("fotos_productos").upload(path_v, p_vid.getvalue())
+                    url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
+                    
+                    supabase.table("productos").insert({
+                        "nombre_producto": p_nom, 
+                        "precio": p_pre, 
+                        "video_url": url_v, 
+                        "comercio_propietario": nombre_c
+                    }).execute()
+                    st.success("¡Publicado con éxito!")
+                except Exception as e:
+                    st.error(f"Error al subir: {e}")
+            else:
+                st.warning("Por favor, llena el nombre y sube el video.")
 # --- PÁGINA: CENTRO COMERCIAL ---
 elif st.session_state.pagina == "centro_comercial":
     st.title("🏢 CENTRO COMERCIAL D'UNIG")
