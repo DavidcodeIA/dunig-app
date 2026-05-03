@@ -111,29 +111,33 @@ elif st.session_state.pagina == "panel_carga":
         p_vid = st.file_uploader("Video (MP4 - Max 10s)", type=['mp4'])
         
         if st.form_submit_button("🚀 PUBLICAR"):
-            if p_nom and p_vid:
-                try:
-                    # Usamos una carpeta específica para videos
-                    path_v = f"productos/vid_{random.randint(1000,9999)}.mp4"
-                    
-                    # Subida con content_type para asegurar que el navegador lo reconozca como video
-                    supabase.storage.from_("fotos_productos").upload(
-                        path=path_v, 
-                        file=p_vid.getvalue(),
-                        file_options={"content-type": "video/mp4"}
-                    )
-                    
-                    url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
-                    
-                    supabase.table("productos").insert({
-                        "nombre_producto": p_nom, 
-                        "precio": p_pre, 
-                        "video_url": url_v, 
-                        "comercio_propietario": nombre_c
-                    }).execute()
-                    st.success("¡Video publicado con éxito!")
-                except Exception as e:
-                    st.error(f"Error al subir video: {e}")
+# --- REEMPLAZA ESTO DENTRO DE LA CARGA DE VIDEO ---
+if p_nom and p_vid:
+    try:
+        ext = p_vid.name.split('.')[-1]
+        path_v = f"productos/vid_{random.randint(1000,9999)}.{ext}"
+        
+        # Subida con el tipo de archivo forzado
+        supabase.storage.from_("fotos_productos").upload(
+            path=path_v, 
+            file=p_vid.getvalue(),
+            file_options={"content-type": f"video/{ext}", "cache-control": "3600"}
+        )
+        
+        # Generar URL limpia
+        raw_url = supabase.storage.from_("fotos_productos").get_public_url(path_v)
+        # Forzamos que la URL no tenga parámetros raros al final
+        url_v = raw_url.split('?')[0] if '?' in raw_url else raw_url
+        
+        supabase.table("productos").insert({
+            "nombre_producto": p_nom, 
+            "precio": p_pre, 
+            "video_url": url_v, 
+            "comercio_propietario": nombre_c
+        }).execute()
+        st.success("🎥 ¡Video cargado y visible!")
+    except Exception as e:
+        st.error(f"Error: {e}")
 
     st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",))
 # --- PÁGINA: CENTRO COMERCIAL ---
