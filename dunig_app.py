@@ -65,52 +65,77 @@ elif st.session_state.pagina == "panel_carga":
     nombre_c = st.session_state.comercio_sesion
     st.title(f"⚙️ Gestión: {nombre_c}")
     
-    # 1. SECCIÓN PERFIL
-    with st.expander("🖼️ CONFIGURAR PERFIL (Logo, WhatsApp, Pago)"):
-        logo = st.file_uploader("Logo del Negocio", type=['jpg','png'])
-        ws = st.text_input("WhatsApp (Ej: 584121234567)")
-        pago = st.text_area("Datos de Pago")
-        if st.button("Guardar Perfil"):
+    # --- BUSCAR DATOS EXISTENTES PARA NO REPETIR ---
+    perfil_existente = supabase.table("perfiles_comercio").select("*").eq("nombre_comercio", nombre_c).execute()
+    datos_previos = perfil_existente.data[0] if perfil_existente.data else {}
+
+    # 1. SECCIÓN PERFIL (Ahora precargada)
+    with st.expander("🖼️ EDITAR PERFIL (Solo si deseas cambiar algo)"):
+        # Mostramos el logo actual si existe
+        if datos_previos.get('logo_url'):
+            st.image(datos_previos['logo_url'], width=100, caption="Logo actual")
+            
+        logo = st.file_uploader("Actualizar Logo (Opcional)", type=['jpg','png'])
+        ws = st.text_input("WhatsApp", value=datos_previos.get('whatsapp', ""))
+        pago = st.text_area("Datos de Pago", value=datos_previos.get('datos_pago', ""))
+        
+        if st.button("Actualizar Perfil"):
             try:
-                url_l = None
+                # Si no sube logo nuevo, usamos el viejo
+                url_l = datos_previos.get('logo_url') 
+                
                 if logo:
-                    path = f"logos/{nombre_c}_{random.randint(100,999)}.jpg"
+                    nom_archivo = "".join(filter(str.isalnum, nombre_c))
+                    path = f"logos/{nom_archivo}_{random.randint(100,999)}.jpg"
                     supabase.storage.from_("fotos_productos").upload(path, logo.getvalue())
                     url_l = supabase.storage.from_("fotos_productos").get_public_url(path)
-                data = {"nombre_comercio": nombre_c, "whatsapp": ws, "datos_pago": pago}
-                if url_l: data["logo_url"] = url_l
-                supabase.table("perfiles_comercio").upsert(data, on_conflict="nombre_comercio").execute()
-                st.success("✅ Perfil Guardado")
+                
+                data_update = {
+                    "nombre_comercio": nombre_c,
+                    "whatsapp": ws,
+                    "datos_pago": pago,
+                    "logo_url": url_l
+                }
+                
+                supabase.table("perfiles_comercio").upsert(data_update, on_conflict="nombre_comercio").execute()
+                st.success("✅ Perfil actualizado")
+                st.rerun()
             except Exception as e:
-                st.error(f"Error al guardar: {e}")
+                st.error(f"Error: {e}")
 
-    # 2. SECCIÓN CARGA PRODUCTO (Alineada exactamente igual que el expander de arriba)
+    # 2. SECCIÓN CARGA PRODUCTO
     with st.form("form_video", clear_on_submit=True):
         st.subheader("🎬 Nuevo Video-Producto")
         p_nom = st.text_input("Nombre del Producto")
         p_pre = st.number_input("Precio ($)", min_value=0.0)
-        p_vid = st.file_uploader("Video (Max 10s)", type=['mp4'])
+        p_vid = st.file_uploader("Video (MP4 - Max 10s)", type=['mp4'])
         
-        # El botón debe estar dentro del formulario
         if st.form_submit_button("🚀 PUBLICAR"):
             if p_nom and p_vid:
                 try:
+                    # Usamos una carpeta específica para videos
                     path_v = f"productos/vid_{random.randint(1000,9999)}.mp4"
-                    supabase.storage.from_("fotos_productos").upload(path_v, p_vid.getvalue())
+                    
+                    # Subida con content_type para asegurar que el navegador lo reconozca como video
+                    supabase.storage.from_("fotos_productos").upload(
+                        path=path_v, 
+                        file=p_vid.getvalue(),
+                        file_options={"content-type": "video/mp4"}
+                    )
+                    
                     url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
+                    
                     supabase.table("productos").insert({
                         "nombre_producto": p_nom, 
                         "precio": p_pre, 
                         "video_url": url_v, 
                         "comercio_propietario": nombre_c
                     }).execute()
-                    st.success("¡Publicado!")
+                    st.success("¡Video publicado con éxito!")
                 except Exception as e:
-                    st.error(f"Error al publicar video: {e}")
+                    st.error(f"Error al subir video: {e}")
 
-    # 3. BOTÓN SALIR (Alineado con los bloques principales)
     st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",))
-
 # --- PÁGINA: CENTRO COMERCIAL ---
 elif st.session_state.pagina == "centro_comercial":
     st.title("🏢 CENTRO COMERCIAL D'UNIG")
