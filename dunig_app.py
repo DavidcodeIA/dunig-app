@@ -95,3 +95,22 @@ try:
         st.info("Aún no hay registros en la base de datos.")
 except Exception as e:
     st.error(f"Error al cargar datos: {e}")
+
+# --- PANEL DE RESULTADOS ---
+if not df.empty:
+    st.write("---")
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        # Sumamos solo los registros que dicen "Cobrado"
+        total_dinero = df[df['estado'] == 'Cobrado']['monto'].sum()
+        st.metric("💰 TOTAL RECAUDADO", f"{total_dinero} $")
+        
+    with col_b:
+        # Contamos cuántos trabajos tenemos pendientes
+        pendientes = len(df[df['estado'] == 'Pendiente'])
+        st.metric("⏳ TRABAJOS PENDIENTES", f"{pendientes}")
+
+    # Mostrar la tabla con los datos
+    st.subheader("📋 Detalle de Movimientos")
+    st.dataframe(df[['fecha', 'nombre', 'detalle', 'monto', 'estado']], use_container_width=True)
