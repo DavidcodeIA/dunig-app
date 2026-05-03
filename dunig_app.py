@@ -1,61 +1,78 @@
 import streamlit as st
 from supabase import create_client, Client
+import pandas as pd
 
-# 1. Configuración de Estética Luxury
-st.set_page_config(page_title="D'UNIG Luxury", layout="centered")
+# Configuración Luxury
+st.set_page_config(page_title="D'UNIG Platinum v2", layout="wide")
 
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #D4AF37; }
-    header, footer, #MainMenu {visibility: hidden;}
-    .stButton>button {
-        background-color: #D4AF37; color: black;
-        border-radius: 15px; font-weight: bold; width: 100%;
-        border: none;
-    }
-    h1, h3 { color: #D4AF37 !important; text-align: center; }
+    .stButton>button { background-color: #D4AF37; color: black; border-radius: 10px; }
+    h1, h3 { color: #D4AF37 !important; }
+    .stDataFrame { background-color: white; border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Conexión con Supabase
+# Conexión
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
-st.markdown("<h1>D'UNIG PLATINUM</h1>", unsafe_allow_html=True)
+st.title("⚜️ D'UNIG PLATINUM - Gestión de Excelencia")
 
-# 3. Formulario de Registro
-with st.form("mi_formulario_luxury"):
-    st.write("### ➕ Nuevo Registro")
-    nombre_cliente = st.text_input("Nombre del Cliente")
-    detalle_servicio = st.text_area("Información del Servicio")
-    monto_pago = st.number_input("Monto (Opcional)", min_value=0.0, step=0.01)
+# --- BARRA LATERAL (FILTROS) ---
+st.sidebar.header("🔍 Panel de Control")
+busqueda = st.sidebar.text_input("Buscar cliente por nombre")
+filtro_estado = st.sidebar.selectbox("Filtrar por estado", ["Todos", "Pendiente", "En Proceso", "Finalizado", "Cobrado"])
+
+# --- FORMULARIO DE REGISTRO ---
+with st.expander("➕ REGISTRAR NUEVO SERVICIO", expanded=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        nombre = st.text_input("Nombre del Cliente")
+        monto = st.number_input("Monto del Servicio ($)", min_value=0.0, step=0.5)
+    with col2:
+        detalle = st.text_area("Descripción del Trabajo")
+        estado_inicial = st.selectbox("Estado Inicial", ["Pendiente", "En Proceso", "Finalizado"])
     
-    boton_enviar = st.form_submit_button("GUARDAR EN LA NUBE")
-
-# 4. Lógica de guardado (Alineación corregida)
-if boton_enviar:
-    if nombre_cliente and detalle_servicio:
-        try:
-            # Usamos MAYÚSCULAS para que coincida con tu tabla SQL
-            data = {
-                "NOMBRE": nombre_cliente, 
-                "DETALLE": detalle_servicio,
-                "MONTO": monto_pago
-            }
+    if st.button("REGISTRAR EN BASE DE DATOS"):
+        if nombre and detalle:
+            data = {"nombre": nombre, "detalle": detalle, "monto": monto, "estado": estado_inicial}
             supabase.table("registros").insert(data).execute()
-            st.success("✨ ¡Gloria a Dios! Datos guardados exitosamente.")
-        except Exception as e:
-            st.error(f"Error al guardar: {e}")
-    else:
-        st.warning("⚠️ Por favor, rellena los campos de Nombre y Detalle.")
+            st.success(f"✅ ¡Gloria a Dios! Servicio de {nombre} registrado.")
+            st.rerun()
+        else:
+            st.error("Por favor completa el nombre y el detalle.")
 
-# 5. Visualización de datos
+# --- VISUALIZACIÓN DE DATOS ---
 st.write("---")
-st.write("### 📊 Registros en Tiempo Real")
+st.subheader("📊 Historial de Servicios")
+
 try:
-    response = supabase.table("registros").select("*").execute()
-    if response.data:
-        st.table(response.data)
-except Exception:
-    st.info("Conectando con la base de datos...")
+    # Consulta a Supabase
+    query = supabase.table("registros").select("*").order("fecha", desc=True)
+    response = query.execute()
+    df = pd.DataFrame(response.data)
+
+    if not df.empty:
+        # Aplicar filtros
+        if busqueda:
+            df = df[df['nombre'].str.contains(busqueda, case=False)]
+        if filtro_estado != "Todos":
+            df = df[df['estado'] == filtro_estado]
+
+        # Limpiar visualización de fecha
+        df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
+        
+        # Mostrar tabla organizada
+        st.dataframe(df[['fecha', 'nombre', 'detalle', 'monto', 'estado']], use_container_width=True)
+        
+        # Resumen financiero
+        total_cobrado = df[df['estado'] == 'Cobrado']['monto'].sum()
+        st.metric("💰 TOTAL RECAUDADO (Cobrado)", f"{total_cobrado} $")
+        
+    else:
+        st.info("Aún no hay registros en la base de datos.")
+except Exception as e:
+    st.error(f"Error al cargar datos: {e}")
