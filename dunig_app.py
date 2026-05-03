@@ -70,17 +70,38 @@ elif st.session_state.pagina == "panel_carga":
         logo = st.file_uploader("Logo del Negocio", type=['jpg','png'])
         ws = st.text_input("WhatsApp (Ej: 584121234567)")
         pago = st.text_area("Datos de Pago")
-        if st.button("Guardar Perfil"):
-            url_l = None
-            if logo:
-                path = f"logos/{nombre_c}_{random.randint(100,999)}.jpg"
-                supabase.storage.from_("fotos_productos").upload(path, logo.getvalue())
-                url_l = supabase.storage.from_("fotos_productos").get_public_url(path)
-            data = {"nombre_comercio": nombre_c, "whatsapp": ws, "datos_pago": pago}
-            if url_l: data["logo_url"] = url_l
-            supabase.table("perfiles_comercio").upsert(data, on_conflict="nombre_comercio").execute()
-            st.success("✅ Perfil Guardado")
+if st.button("Guardar Perfil"):
+            try:
+                url_l = None
+                if logo:
+                    # Nombre de archivo limpio
+                    nom_archivo = "".join(filter(str.isalnum, nombre_c))
+                    path = f"logos/{nom_archivo}_{random.randint(100,999)}.jpg"
+                    supabase.storage.from_("fotos_productos").upload(path, logo.getvalue())
+                    url_l = supabase.storage.from_("fotos_productos").get_public_url(path)
+                
+                # Preparamos los datos
+                data = {
+                    "nombre_comercio": nombre_c.strip(),
+                    "whatsapp": str(ws).strip() if ws else "",
+                    "datos_pago": pago.strip() if pago else ""
+                }
+                
+                # Solo agregamos el logo si se subió uno nuevo
+                if url_l:
+                    data["logo_url"] = url_l
 
+                # Ejecutamos el UPSERT
+                supabase.table("perfiles_comercio").upsert(
+                    data, 
+                    on_conflict="nombre_comercio"
+                ).execute()
+                
+                st.success(f"✅ Perfil de '{nombre_c}' guardado.")
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"Error de base de datos: {e}")
     # SECCIÓN CARGA PRODUCTO
     with st.form("form_video", clear_on_submit=True):
         st.subheader("🎬 Nuevo Video-Producto")
