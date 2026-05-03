@@ -2,104 +2,141 @@ import streamlit as st
 from supabase import create_client, Client
 import random
 
-# --- CONFIGURACIÓN Y CONEXIÓN ---
+# --- 1. CONFIGURACIÓN E INSTALACIÓN ---
 st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide")
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(url, key)
 
-# --- ESTADOS DE NAVEGACIÓN ---
+# --- 2. CONEXIÓN SEGURA ---
+try:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(url, key)
+except Exception as e:
+    st.error(f"Error de conexión: {e}")
+    st.stop()
+
+# --- 3. ESTADOS DE NAVEGACIÓN ---
 if 'pagina' not in st.session_state: st.session_state.pagina = "inicio"
-if 'comercio_sel' not in st.session_state: st.session_state.comercio_sel = None
+if 'comercio_sesion' not in st.session_state: st.session_state.comercio_sesion = None
+if 'comercio_seleccionado' not in st.session_state: st.session_state.comercio_seleccionado = None
 
-def navegar(dest, comercio=None):
-    st.session_state.pagina = dest
-    if comercio: st.session_state.comercio_sel = comercio
+def navegar(destino, comercio=None):
+    st.session_state.pagina = destino
+    if comercio:
+        st.session_state.comercio_seleccionado = comercio
     st.rerun()
 
-# ==========================================
-# 1. TIENDA GENERAL (PANEL DE COMERCIOS)
-# ==========================================
-if st.session_state.pagina == "cliente":
-    st.markdown("<h1>🏢 CENTRO COMERCIAL D'UNIG</h1>", unsafe_allow_html=True)
-    
-    tabs = st.tabs(["✨ Vitrina General", "🏪 Explorar Tiendas"])
-    
-    with tabs[0]:
-        st.subheader("Todos los Productos")
-        res = supabase.table("productos").select("*").execute()
-        cols = st.columns(3)
-        for idx, p in enumerate(res.data):
-            with cols[idx % 3]:
-                st.markdown(f"""
-                <div style="border:1px solid #D4AF37; padding:10px; border-radius:15px; background:#1A1C23; text-align:center; margin-bottom:10px;">
-                    <img src="{p['imagen_url']}" style="width:100%; height:150px; object-fit:cover; border-radius:10px;">
-                    <p><b>{p['nombre_producto']}</b></p>
-                    <p style="color:#D4AF37;">{p['precio']}$</p>
-                </div>
-                """, unsafe_allow_html=True)
-
-    with tabs[1]:
-        st.subheader("Nuestros Aliados")
-        # Aquí buscamos los comercios únicos
-        comercios = supabase.table("productos").select("comercio_propietario").execute()
-        lista_c = list(set([c['comercio_propietario'] for c in comercios.data]))
-        
-        cols_c = st.columns(4)
-        for idx, nom_c in enumerate(lista_c):
-            with cols_c[idx % 4]:
-                st.markdown(f"""
-                <div style="text-align:center; border:1px solid #555; padding:15px; border-radius:50%; width:120px; height:120px; margin:auto; background:#262730; display:flex; align-items:center; justify-content:center;">
-                    <b style="color:#D4AF37;">{nom_c[:2].upper()}</b>
-                </div>
-                <p style="text-align:center; margin-top:10px;"><b>{nom_c}</b></p>
-                """, unsafe_allow_html=True)
-                if st.button(f"Ver {nom_c}", key=f"shop_{nom_c}"):
-                    navegar("vitrina_personal", nom_c)
-
-    st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",))
+# --- 4. ESTILOS ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #0E1117; color: white; }
+    .card { border: 1px solid #D4AF37; padding: 15px; border-radius: 15px; background: #1A1C23; text-align: center; margin-bottom: 15px; }
+    .btn-comercio { background: #262730; border: 1px solid #D4AF37; padding: 20px; border-radius: 15px; cursor: pointer; text-align: center; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. VITRINA PERSONAL (POR TIENDA)
+# LÓGICA DE PÁGINAS
 # ==========================================
-elif st.session_state.pagina == "vitrina_personal":
-    tienda = st.session_state.comercio_sel
-    st.markdown(f"<h1>🏪 {tienda.upper()}</h1>", unsafe_allow_html=True)
-    
-    # Filtramos solo los productos de esta tienda
-    res_p = supabase.table("productos").select("*").eq("comercio_propietario", tienda).execute()
-    
-    if res_p.data:
-        cols = st.columns(2)
-        for idx, p in enumerate(res_p.data):
-            with cols[idx % 2]:
-                st.markdown(f"""
-                <div style="border:1px solid #D4AF37; padding:10px; border-radius:15px; background:#1A1C23; text-align:center; margin-bottom:10px;">
-                    <img src="{p['imagen_url']}" style="width:100%; height:200px; object-fit:cover; border-radius:10px;">
-                    <h3>{p['nombre_producto']}</h3>
-                    <h2 style="color:#D4AF37;">{p['precio']}$</h2>
-                </div>
-                """, unsafe_allow_html=True)
-                st.button("Añadir al Carrito 🛒", key=f"cart_{p['id']}")
-    else:
-        st.warning("Esta tienda aún no tiene productos.")
-        
-    st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("cliente",))
 
-# ==========================================
-# 3. PANEL DE CARGA (LOGOS Y PRODUCTOS)
-# ==========================================
+# --- PÁGINA INICIAL ---
+if st.session_state.pagina == "inicio":
+    st.title("⚜️ BIENVENIDOS A D'UNIG PLATINUM ⚜️")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🛒 ENTRAR COMO CLIENTE", use_container_width=True):
+            navegar("centro_comercial")
+    with col2:
+        if st.button("🏢 ACCESO COMERCIOS", use_container_width=True):
+            navegar("login_comercio")
+
+# --- LOGIN COMERCIO ---
+elif st.session_state.pagina == "login_comercio":
+    st.subheader("Acceso Propietario")
+    nombre = st.text_input("Nombre de tu Negocio")
+    if st.button("ENTRAR AL PANEL"):
+        if nombre:
+            st.session_state.comercio_sesion = nombre
+            navegar("panel_carga")
+    st.button("🔙 VOLVER", on_click=navegar, args=("inicio",))
+
+# --- PANEL DE CARGA ---
 elif st.session_state.pagina == "panel_carga":
-    st.header(f"⚙️ Configuración: {st.session_state.comercio_sesion}")
+    st.header(f"🏪 Panel de {st.session_state.comercio_sesion}")
     
-    with st.expander("📸 Subir Producto Nuevo", expanded=True):
+    with st.form("carga_producto", clear_on_submit=True):
         p_nom = st.text_input("Nombre del Producto")
         p_pre = st.number_input("Precio ($)", min_value=0.0)
-        foto = st.file_uploader("Foto del producto", type=['jpg','png','jpeg'])
-        
-        if st.button("🚀 PUBLICAR"):
+        p_desc = st.text_area("Descripción corta")
+        foto = st.file_uploader("📸 Foto del producto", type=['jpg', 'png', 'jpeg'])
+        enviar = st.form_submit_button("🚀 PUBLICAR")
+
+        if enviar:
             if p_nom and foto:
-                # (Aquí va tu lógica de limpieza de nombre y subida que ya funciona)
-                st.success("¡Producto cargado!")
+                try:
+                    # Limpiar nombre para evitar error 400
+                    nombre_limpio = st.session_state.comercio_sesion.replace(" ", "_")
+                    ext = foto.name.split('.')[-1]
+                    path_foto = f"productos/{nombre_limpio}_{random.randint(100,999)}.{ext}"
+
+                    # Subir foto
+                    supabase.storage.from_("fotos_productos").upload(path=path_foto, file=foto.getvalue())
+                    url_foto = supabase.storage.from_("fotos_productos").get_public_url(path_foto)
+
+                    # Guardar en tabla
+                    supabase.table("productos").insert({
+                        "nombre_producto": p_nom,
+                        "precio": p_pre,
+                        "descripcion": p_desc,
+                        "imagen_url": url_foto,
+                        "comercio_propietario": st.session_state.comercio_sesion
+                    }).execute()
+                    st.success("¡Producto cargado!")
+                except Exception as e:
+                    st.error(f"Error al cargar: {e}")
+            else:
+                st.warning("Faltan datos obligatorios.")
     
-    st.button("🔙 SALIR", on_click=navegar, args=("inicio",))
+    st.button("🏠 SALIR", on_click=navegar, args=("inicio",))
+
+# --- CENTRO COMERCIAL (LISTA DE TIENDAS) ---
+elif st.session_state.pagina == "centro_comercial":
+    st.title("🏢 CENTRO COMERCIAL D'UNIG")
+    
+    # Obtener nombres únicos de comercios
+    res = supabase.table("productos").select("comercio_propietario").execute()
+    if res.data:
+        comercios = list(set([c['comercio_propietario'] for c in res.data]))
+        st.subheader("Selecciona una tienda para ver su vitrina:")
+        
+        cols = st.columns(3)
+        for idx, tienda in enumerate(comercios):
+            with cols[idx % 3]:
+                st.markdown(f"<div class='card'><h3>{tienda}</h3></div>", unsafe_allow_html=True)
+                if st.button(f"Entrar a {tienda}", key=f"t_{tienda}"):
+                    navegar("vitrina_personal", tienda)
+    else:
+        st.info("Aún no hay tiendas registradas.")
+    
+    st.button("🔙 VOLVER", on_click=navegar, args=("inicio",))
+
+# --- VITRINA PERSONAL ---
+elif st.session_state.pagina == "vitrina_personal":
+    tienda = st.session_state.comercio_seleccionado
+    st.title(f"🏪 Tienda: {tienda}")
+    
+    res = supabase.table("productos").select("*").eq("comercio_propietario", tienda).execute()
+    if res.data:
+        cols = st.columns(2)
+        for idx, p in enumerate(res.data):
+            with cols[idx % 2]:
+                st.markdown(f"""
+                <div class='card'>
+                    <img src="{p['imagen_url']}" style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
+                    <h4>{p['nombre_producto']}</h4>
+                    <p style='color:gray; font-size:12px;'>{p.get('descripcion', '')}</p>
+                    <h3 style='color:#D4AF37;'>{p['precio']}$</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                st.button("🛒 Pedir", key=f"btn_{p['id']}")
+    
+    st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",))
