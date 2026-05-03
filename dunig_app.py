@@ -2,141 +2,148 @@ import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 
-# --- CONFIGURACIÓN DE PÁGINA LUXURY ---
-st.set_page_config(page_title="D'UNIG PLATINUM - Delivery & Gestión", layout="wide")
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="D'UNIG PLATINUM - MultiApp", layout="wide")
 
-# --- ESTÉTICA PROFESIONAL SIN PUBLICIDAD ---
+# --- ESTÉTICA SIN PUBLICIDAD ---
 st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
     .stApp { background-color: #0E1117; color: #D4AF37; }
-    .stButton>button { 
-        background-color: #D4AF37; 
-        color: black; 
-        border-radius: 10px; 
-        font-weight: bold;
-        width: 100%;
-    }
-    h1, h2, h3 { color: #D4AF37 !important; text-align: center; }
-    .stDataFrame { background-color: white; border-radius: 10px; }
+    .stButton>button { background-color: #D4AF37; color: black; border-radius: 8px; font-weight: bold; width: 100%; }
+    .product-card { border: 1px solid #D4AF37; padding: 15px; border-radius: 15px; background: #1A1C23; margin-bottom: 20px; }
+    h1, h2, h3 { color: #D4AF37 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONEXIÓN A BASE DE DATOS ---
+# --- CONEXIÓN ---
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
-# --- TÍTULO PRINCIPAL ---
-st.title("⚜️ D'UNIG PLATINUM")
-st.write("---")
+# --- INICIALIZAR CARRITO ---
+if 'carrito' not in st.session_state:
+    st.session_state.carrito = []
 
-# --- MENÚ DE NAVEGACIÓN ---
-opcion = st.sidebar.selectbox("Selecciona un Módulo", 
-    ["📦 Inventario Delivery", "🛠️ Registro de Servicios", "📊 Reportes de Ventas"])
+# --- BARRA LATERAL (NAVEGACIÓN) ---
+st.sidebar.title("⚜️ D'UNIG PLATINUM")
+perfil = st.sidebar.radio("MODO DE ACCESO:", ["🛒 Vitrina Cliente", "🏢 Panel Comerciante", "🚚 Repartidor"])
 
 # ==========================================
-# MÓDULO 1: INVENTARIO DELIVERY (PARA COMERCIOS)
+# PERFIL: CLIENTE (VITRINA Y COMPRA)
 # ==========================================
-if opcion == "📦 Inventario Delivery":
-    st.header("Gestionar Vitrina de Productos")
+if perfil == "🛒 Vitrina Cliente":
+    st.title("🛍️ Nuestra Vitrina")
     
-    with st.expander("➕ Cargar Nuevo Producto", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            nombre_prod = st.text_input("Nombre del Producto")
-            precio_prod = st.number_input("Precio de Venta ($)", min_value=0.0, step=0.01)
-            categoria_prod = st.selectbox("Categoría", ["Comida", "Bebidas", "Ropa", "Electrónica", "Otros"])
-        with col2:
-            stock_prod = st.number_input("Cantidad en Inventario", min_value=0, step=1)
-            url_foto = st.text_input("URL de la Imagen (Link)")
-            nombre_negocio = st.text_input("Nombre del Comercio")
-
-        if st.button("AÑADIR PRODUCTO A VITRINA"):
-            if nombre_prod and precio_prod > 0:
-                data_prod = {
-                    "nombre_producto": nombre_prod,
-                    "precio": precio_prod,
-                    "stock": stock_prod,
-                    "categoria": categoria_prod,
-                    "imagen_url": url_foto,
-                    "comercio_nombre": nombre_negocio
-                }
-                try:
-                    supabase.table("productos").insert(data_prod).execute()
-                    st.success(f"✅ ¡Gloria a Dios! {nombre_prod} ya está en la vitrina.")
+    # Mostrar Carrito flotante en la lateral
+    with st.sidebar.expander(f"🛒 Mi Carrito ({len(st.session_state.carrito)})", expanded=True):
+        if not st.session_state.carrito:
+            st.write("Tu carrito está vacío.")
+        else:
+            total_pagar = 0
+            resumen_texto = ""
+            for i, item in enumerate(st.session_state.carrito):
+                st.write(f"- {item['nombre']} (${item['precio']})")
+                total_pagar += item['precio']
+                resumen_texto += f"{item['nombre']} (${item['precio']}), "
+            
+            st.write("---")
+            st.subheader(f"Total: {total_pagar} $")
+            
+            direccion = st.text_input("📍 Dirección de entrega")
+            nombre_c = st.text_input("👤 Tu nombre")
+            
+            if st.button("🚀 FINALIZAR PEDIDO"):
+                if direccion and nombre_c:
+                    data_pedido = {
+                        "cliente": nombre_c,
+                        "productos": resumen_texto,
+                        "total": total_pagar,
+                        "direccion": direccion
+                    }
+                    supabase.table("pedidos").insert(data_pedido).execute()
+                    st.success("¡Pedido enviado! El repartidor va en camino.")
+                    st.session_state.carrito = [] # Limpiar carrito
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Error al guardar producto: {e}")
-            else:
-                st.warning("Por favor rellena los campos obligatorios (Nombre y Precio).")
+                else:
+                    st.error("Faltan datos de entrega.")
 
-    # Mostrar Vitrina actual
-    st.subheader("🖼️ Vista de la Vitrina")
+    # Cargar Productos de la DB
     try:
         res = supabase.table("productos").select("*").execute()
-        df_prod = pd.DataFrame(res.data)
-        if not df_prod.empty:
-            st.dataframe(df_prod[['nombre_producto', 'precio', 'stock', 'categoria', 'comercio_nombre']], use_container_width=True)
+        productos = res.data
+        if productos:
+            cols = st.columns(3)
+            for i, p in enumerate(productos):
+                with cols[i % 3]:
+                    st.markdown(f"<div class='product-card'>", unsafe_allow_html=True)
+                    if p['imagen_url']:
+                        st.image(p['imagen_url'], use_container_width=True)
+                    st.subheader(p['nombre_producto'])
+                    st.write(f"🏷️ **Precio:** {p['precio']} $")
+                    st.write(f"🏢 **Tienda:** {p['comercio_nombre']}")
+                    if st.button(f"Añadir al Carrito", key=f"p_{p['id']}"):
+                        st.session_state.carrito.append({'nombre': p['nombre_producto'], 'precio': p['precio']})
+                        st.toast("Producto añadido 🛒")
+                    st.markdown("</div>", unsafe_allow_html=True)
         else:
-            st.info("La vitrina está vacía.")
-    except:
-        st.info("Aún no hay productos registrados.")
+            st.info("Próximamente nuevos productos.")
+    except Exception as e:
+        st.error(f"Error al cargar productos: {e}")
 
 # ==========================================
-# MÓDULO 2: REGISTRO DE SERVICIOS (CONTROL INTERNO)
+# PERFIL: COMERCIANTE (INVENTARIO)
 # ==========================================
-elif opcion == "🛠️ Registro de Servicios":
-    st.header("Control de Servicios y Clientes")
+elif perfil == "🏢 Panel Comerciante":
+    st.header("🏢 Gestión de Inventario")
     
-    with st.expander("📝 Nuevo Registro de Servicio"):
-        c1, c2 = st.columns(2)
-        with c1:
-            nombre_cliente = st.text_input("Nombre del Cliente")
-            monto_serv = st.number_input("Monto ($)", min_value=0.0)
-        with c2:
-            detalle_serv = st.text_area("Detalle del Trabajo")
-            estado_serv = st.selectbox("Estado", ["Pendiente", "En Proceso", "Finalizado", "Cobrado"])
-        
-        if st.button("GUARDAR SERVICIO"):
-            if nombre_cliente and detalle_serv:
-                data_serv = {
-                    "nombre": nombre_cliente,
-                    "detalle": detalle_serv,
-                    "monto": monto_serv,
-                    "estado": estado_serv
-                }
-                supabase.table("registros").insert(data_serv).execute()
-                st.success("✅ Registro guardado exitosamente.")
-                st.rerun()
+    with st.expander("➕ Cargar Producto a la Vitrina"):
+        col1, col2 = st.columns(2)
+        with col1:
+            n_p = st.text_input("Nombre Producto")
+            p_p = st.number_input("Precio ($)", min_value=0.0)
+            c_p = st.text_input("Negocio / Comercio")
+        with col2:
+            s_p = st.number_input("Stock", min_value=0)
+            u_p = st.text_input("Link de la Imagen")
+            cat = st.selectbox("Categoría", ["Comida", "Ropa", "Salud", "Otros"])
+            
+        if st.button("PUBLICAR EN VITRINA"):
+            supabase.table("productos").insert({
+                "nombre_producto": n_p, "precio": p_p, "stock": s_p, 
+                "imagen_url": u_p, "comercio_nombre": c_p, "categoria": cat
+            }).execute()
+            st.success("¡Producto publicado con éxito!")
+            st.rerun()
 
-    # Historial de servicios
-    try:
-        res_serv = supabase.table("registros").select("*").order("fecha", desc=True).execute()
-        df_serv = pd.DataFrame(res_serv.data)
-        if not df_serv.empty:
-            st.dataframe(df_serv[['fecha', 'nombre', 'detalle', 'monto', 'estado']], use_container_width=True)
-    except:
-        st.info("No hay servicios registrados aún.")
+    # Ver Inventario actual
+    st.subheader("📋 Mi Inventario")
+    res_inv = supabase.table("productos").select("*").execute()
+    if res_inv.data:
+        st.dataframe(pd.DataFrame(res_inv.data), use_container_width=True)
 
 # ==========================================
-# MÓDULO 3: REPORTES DE VENTAS
+# PERFIL: REPARTIDOR (ENTREGAS)
 # ==========================================
 else:
-    st.header("📊 Resumen Financiero")
+    st.header("🚚 Panel de Entregas")
     try:
-        res_reg = supabase.table("registros").select("monto", "estado").execute()
-        df_reg = pd.DataFrame(res_reg.data)
-        
-        if not df_reg.empty:
-            total_cobrado = df_reg[df_reg['estado'] == 'Cobrado']['monto'].sum()
-            st.metric("💰 TOTAL COBRADO (Servicios)", f"{total_cobrado} $")
-            
-            # Gráfico simple
-            st.bar_chart(df_reg.groupby('estado')['monto'].sum())
+        res_ped = supabase.table("pedidos").select("*").order("creado_el", desc=True).execute()
+        pedidos = res_ped.data
+        if pedidos:
+            for ped in pedidos:
+                with st.container():
+                    st.markdown(f"""
+                    ---
+                    **ORDEN #{ped['id']}** | Cliente: {ped['cliente']}
+                    - **Productos:** {ped['productos']}
+                    - **DIRECCIÓN:** {ped['direccion']}
+                    - **TOTAL A COBRAR:** {ped['total']} $
+                    """)
+                    if st.button(f"Marcar Entregado #{ped['id']}"):
+                        supabase.table("pedidos").delete().eq("id", ped['id']).execute()
+                        st.rerun()
         else:
-            st.write("No hay datos suficientes para reportes.")
+            st.info("No hay entregas pendientes por ahora.")
     except:
-        st.error("Error al cargar reportes.")
+        st.write("Esperando nuevos pedidos...")
