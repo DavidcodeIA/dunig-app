@@ -65,60 +65,50 @@ elif st.session_state.pagina == "panel_carga":
     nombre_c = st.session_state.comercio_sesion
     st.title(f"⚙️ Gestión: {nombre_c}")
     
-    # SECCIÓN PERFIL
+    # 1. SECCIÓN PERFIL
     with st.expander("🖼️ CONFIGURAR PERFIL (Logo, WhatsApp, Pago)"):
         logo = st.file_uploader("Logo del Negocio", type=['jpg','png'])
         ws = st.text_input("WhatsApp (Ej: 584121234567)")
         pago = st.text_area("Datos de Pago")
-if st.button("Guardar Perfil"):
+        if st.button("Guardar Perfil"):
             try:
                 url_l = None
                 if logo:
-                    # Nombre de archivo limpio
-                    nom_archivo = "".join(filter(str.isalnum, nombre_c))
-                    path = f"logos/{nom_archivo}_{random.randint(100,999)}.jpg"
+                    path = f"logos/{nombre_c}_{random.randint(100,999)}.jpg"
                     supabase.storage.from_("fotos_productos").upload(path, logo.getvalue())
                     url_l = supabase.storage.from_("fotos_productos").get_public_url(path)
-                
-                # Preparamos los datos
-                data = {
-                    "nombre_comercio": nombre_c.strip(),
-                    "whatsapp": str(ws).strip() if ws else "",
-                    "datos_pago": pago.strip() if pago else ""
-                }
-                
-                # Solo agregamos el logo si se subió uno nuevo
-                if url_l:
-                    data["logo_url"] = url_l
-
-                # Ejecutamos el UPSERT
-                supabase.table("perfiles_comercio").upsert(
-                    data, 
-                    on_conflict="nombre_comercio"
-                ).execute()
-                
-                st.success(f"✅ Perfil de '{nombre_c}' guardado.")
-                st.rerun()
-                
+                data = {"nombre_comercio": nombre_c, "whatsapp": ws, "datos_pago": pago}
+                if url_l: data["logo_url"] = url_l
+                supabase.table("perfiles_comercio").upsert(data, on_conflict="nombre_comercio").execute()
+                st.success("✅ Perfil Guardado")
             except Exception as e:
-                st.error(f"Error de base de datos: {e}")
-    # SECCIÓN CARGA PRODUCTO
+                st.error(f"Error al guardar: {e}")
+
+    # 2. SECCIÓN CARGA PRODUCTO (Alineada exactamente igual que el expander de arriba)
     with st.form("form_video", clear_on_submit=True):
         st.subheader("🎬 Nuevo Video-Producto")
         p_nom = st.text_input("Nombre del Producto")
         p_pre = st.number_input("Precio ($)", min_value=0.0)
         p_vid = st.file_uploader("Video (Max 10s)", type=['mp4'])
+        
+        # El botón debe estar dentro del formulario
         if st.form_submit_button("🚀 PUBLICAR"):
             if p_nom and p_vid:
-                path_v = f"productos/vid_{random.randint(1000,9999)}.mp4"
-                supabase.storage.from_("fotos_productos").upload(path_v, p_vid.getvalue())
-                url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
-                supabase.table("productos").insert({
-                    "nombre_producto": p_nom, "precio": p_pre, 
-                    "video_url": url_v, "comercio_propietario": nombre_c
-                }).execute()
-                st.success("¡Publicado!")
+                try:
+                    path_v = f"productos/vid_{random.randint(1000,9999)}.mp4"
+                    supabase.storage.from_("fotos_productos").upload(path_v, p_vid.getvalue())
+                    url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
+                    supabase.table("productos").insert({
+                        "nombre_producto": p_nom, 
+                        "precio": p_pre, 
+                        "video_url": url_v, 
+                        "comercio_propietario": nombre_c
+                    }).execute()
+                    st.success("¡Publicado!")
+                except Exception as e:
+                    st.error(f"Error al publicar video: {e}")
 
+    # 3. BOTÓN SALIR (Alineado con los bloques principales)
     st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",))
 
 # --- PÁGINA: CENTRO COMERCIAL ---
