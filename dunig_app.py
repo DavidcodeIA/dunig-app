@@ -2,115 +2,73 @@ import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 
-# Configuración Luxury
-st.set_page_config(page_title="D'UNIG Platinum v2", layout="wide")
-
-# --- ESTÉTICA PROFESIONAL SIN PUBLICIDAD ---
-st.markdown("""
-    <style>
-    /* Ocultar el menú de Streamlit y el pie de página */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Fondo oscuro y letras doradas estilo Platinum */
-    .stApp {
-        background-color: #0E1117;
-        color: #D4AF37;
-    }
-    
-    /* Estilo para las métricas de dinero */
-    [data-testid="stMetricValue"] {
-        color: #00FF00 !important;
-        font-size: 30px;
-    }
-    
-    /* Hacer que la tabla de datos se vea limpia */
-    .stDataFrame {
-        border: 1px solid #D4AF37;
-        border-radius: 10px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# Configuración de Aplicación Multi-Usuario
+st.set_page_config(page_title="D'UNIG Delivery Platinum", layout="wide")
 
 # Conexión
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
-st.title("⚜️ D'UNIG PLATINUM - Gestión de Excelencia")
+# Estética Platinum
+st.markdown("""
+    <style>
+    .stApp { background-color: #0E1117; color: #D4AF37; }
+    .stButton>button { background-color: #D4AF37; color: black; border-radius: 8px; width: 100%; }
+    .card { background-color: #1A1C23; padding: 20px; border-radius: 10px; border: 1px solid #D4AF37; margin-bottom: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- BARRA LATERAL (FILTROS) ---
-st.sidebar.header("🔍 Panel de Control")
-busqueda = st.sidebar.text_input("Buscar cliente por nombre")
-filtro_estado = st.sidebar.selectbox("Filtrar por estado", ["Todos", "Pendiente", "En Proceso", "Finalizado", "Cobrado"])
+st.title("⚜️ D'UNIG DELIVERY PLATINUM")
 
-# --- FORMULARIO DE REGISTRO ---
-with st.expander("➕ REGISTRAR NUEVO SERVICIO", expanded=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        nombre = st.text_input("Nombre del Cliente")
-        monto = st.number_input("Monto del Servicio ($)", min_value=0.0, step=0.5)
-    with col2:
-        detalle = st.text_area("Descripción del Trabajo")
-        estado_inicial = st.selectbox("Estado Inicial", ["Pendiente", "En Proceso", "Finalizado"])
-    
-    if st.button("REGISTRAR EN BASE DE DATOS"):
-        if nombre and detalle:
-            data = {"nombre": nombre, "detalle": detalle, "monto": monto, "estado": estado_inicial}
-            supabase.table("registros").insert(data).execute()
-            st.success(f"✅ ¡Gloria a Dios! Servicio de {nombre} registrado.")
-            st.rerun()
-        else:
-            st.error("Por favor completa el nombre y el detalle.")
+# --- SISTEMA DE NAVEGACIÓN ---
+menu = st.tabs(["🏬 MI VITRINA (Comercios)", "🛒 COMPRAR (Clientes)", "🛵 ENTREGAS (Repartidores)"])
 
-# --- VISUALIZACIÓN DE DATOS ---
-st.write("---")
-st.subheader("📊 Historial de Servicios")
-
-try:
-    # Consulta a Supabase
-    query = supabase.table("registros").select("*").order("fecha", desc=True)
-    response = query.execute()
-    df = pd.DataFrame(response.data)
-
-    if not df.empty:
-        # Aplicar filtros
-        if busqueda:
-            df = df[df['nombre'].str.contains(busqueda, case=False)]
-        if filtro_estado != "Todos":
-            df = df[df['estado'] == filtro_estado]
-
-        # Limpiar visualización de fecha
-        df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
+# 1. SECCIÓN COMERCIOS (Cargar Inventario)
+with menu[0]:
+    st.header("Gestión de Inventario")
+    with st.expander("➕ Cargar Nuevo Producto a mi Vitrina"):
+        comercio = st.text_input("Nombre de tu Comercio")
+        p_nombre = st.text_input("Nombre del Producto")
+        p_desc = st.text_area("Descripción/Detalles")
+        p_precio = st.number_input("Precio ($)", min_value=0.0)
+        p_stock = st.number_input("Stock Inicial", min_value=0)
         
-        # Mostrar tabla organizada
-        st.dataframe(df[['fecha', 'nombre', 'detalle', 'monto', 'estado']], use_container_width=True)
-        
-        # Resumen financiero
-        total_cobrado = df[df['estado'] == 'Cobrado']['monto'].sum()
-        st.metric("💰 TOTAL RECAUDADO (Cobrado)", f"{total_cobrado} $")
-        
+        if st.button("SUBIR A LA VITRINA"):
+            data = {"comercio_nombre": comercio, "producto_nombre": p_nombre, "descripcion": p_desc, "precio": p_precio, "stock": p_stock}
+            supabase.table("productos").insert(data).execute()
+            st.success("¡Producto publicado con éxito!")
+
+# 2. SECCIÓN CLIENTES (Ver Vitrina y Comprar)
+with menu[1]:
+    st.header("Vitrina de Productos")
+    productos_res = supabase.table("productos").select("*").execute()
+    prod_df = pd.DataFrame(productos_res.data)
+
+    if not prod_df.empty:
+        for index, row in prod_df.iterrows():
+            with st.container():
+                st.markdown(f"""
+                <div class="card">
+                    <h3>{row['producto_nombre']}</h3>
+                    <p><b>Comercio:</b> {row['comercio_nombre']}</p>
+                    <p>{row['descripcion']}</p>
+                    <h4 style="color: #00FF00;">Precio: {row['precio']} $</h4>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"Añadir al Carrito: {row['producto_nombre']}", key=f"btn_{row['id']}"):
+                    st.toast(f"Añadido: {row['producto_nombre']}")
+                    # Aquí luego programaremos el carrito real
     else:
-        st.info("Aún no hay registros en la base de datos.")
-except Exception as e:
-    st.error(f"Error al cargar datos: {e}")
+        st.info("Aún no hay productos en la vitrina.")
 
-# --- PANEL DE RESULTADOS ---
-if not df.empty:
-    st.write("---")
-    col_a, col_b = st.columns(2)
+# 3. SECCIÓN REPARTIDORES
+with menu[2]:
+    st.header("Pedidos por Entregar")
+    pedidos_res = supabase.table("pedidos").select("*").execute()
+    pedidos_df = pd.DataFrame(pedidos_res.data)
     
-    with col_a:
-        # Sumamos solo los registros que dicen "Cobrado"
-        total_dinero = df[df['estado'] == 'Cobrado']['monto'].sum()
-        st.metric("💰 TOTAL RECAUDADO", f"{total_dinero} $")
-        
-    with col_b:
-        # Contamos cuántos trabajos tenemos pendientes
-        pendientes = len(df[df['estado'] == 'Pendiente'])
-        st.metric("⏳ TRABAJOS PENDIENTES", f"{pendientes}")
-
-    # Mostrar la tabla con los datos
-    st.subheader("📋 Detalle de Movimientos")
-    st.dataframe(df[['fecha', 'nombre', 'detalle', 'monto', 'estado']], use_container_width=True)
+    if not pedidos_df.empty:
+        st.dataframe(pedidos_df)
+    else:
+        st.info("No hay pedidos pendientes por ahora.")
