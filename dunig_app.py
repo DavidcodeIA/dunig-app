@@ -2,12 +2,25 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-def enviar_correo_clave(destinatario, nombre_negocio, clave):
-    # --- CONFIGURACIÓN DE TU CORREO (Usa Secrets de Streamlit) ---
-    remitente = st.secrets["EMAIL_USER"]
-    password = st.secrets["EMAIL_PASS"] # Esta es la clave de aplicación de 16 dígitos
-
-    asunto = f"⚜️ Bienvenida a D'UNIG PLATINUM - {nombre_negocio}"
+# ... dentro de la pestaña de Registro de Comercio ...
+if st.button("REGISTRAR Y ENVIAR CLAVE A MI CORREO"):
+    if em_reg and nom_com:
+        try:
+            clave = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            # Guardamos en la base de datos
+            supabase.table("perfiles_comercios").insert({
+                "email": em_reg, "nombre_comercio": nom_com, "clave_acceso": clave
+            }).execute()
+            
+            # ENVIAMOS EL CORREO
+            exito = enviar_correo_clave(em_reg, nom_com, clave)
+            
+            if exito:
+                st.success(f"✅ ¡Gloria a Dios! Tu clave ha sido enviada a **{em_reg}**.")
+            else:
+                st.warning(f"Se registró el comercio, pero hubo un detalle con el envío. Tu clave es: {clave}")
+        except:
+            st.error("Este correo ya está registrado.")
     
     cuerpo = f"""
     <html>
