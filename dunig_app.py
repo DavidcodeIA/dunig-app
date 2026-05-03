@@ -5,18 +5,15 @@ import pandas as pd
 # --- CONFIGURACIÓN LUXURY ---
 st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide")
 
-# --- ESTILO CSS MEJORADO (LANDING PAGE) ---
+# --- ESTILO CSS ---
 st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
     .stApp { background-color: #0E1117; }
     .role-card {
-        border: 2px solid #D4AF37; padding: 25px; border-radius: 20px;
-        background: #1A1C23; text-align: center; cursor: pointer;
-        transition: 0.3s; height: 200px; display: flex; flex-direction: column; justify-content: center;
+        border: 2px solid #D4AF37; padding: 20px; border-radius: 15px;
+        background: #1A1C23; text-align: center; margin-bottom: 10px;
     }
-    .role-card:hover { transform: translateY(-10px); background: #252830; }
-    h1, h2, h3 { color: #D4AF37 !important; font-family: 'serif'; text-align: center; }
+    h1, h2, h3 { color: #D4AF37 !important; text-align: center; }
     .stButton>button { background-color: #D4AF37; color: black; font-weight: bold; border-radius: 10px; width: 100%; }
     </style>
     """, unsafe_allow_html=True)
@@ -26,91 +23,114 @@ url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
-# --- INICIALIZACIÓN DE ESTADOS ---
+# --- ESTADOS INICIALES ---
 if 'pagina' not in st.session_state: st.session_state.pagina = "inicio"
 if 'carrito' not in st.session_state: st.session_state.carrito = []
+if 'comercio_actual' not in st.session_state: st.session_state.comercio_actual = None
 
-# --- FUNCIONES DE NAVEGACIÓN ---
-def navegar(destino): st.session_state.pagina = destino
+# --- FUNCIONES DE ACCIÓN INSTANTÁNEA ---
+def set_pagina(dest): st.session_state.pagina = dest
+def add_prod(n, p, c): 
+    st.session_state.carrito.append({'nombre': n, 'precio': p, 'comercio': c})
+    st.toast(f"✅ {n} añadido")
 
 # ==========================================
-# PÁGINA DE INICIO (LANDING PAGE)
+# LANDING PAGE
 # ==========================================
 if st.session_state.pagina == "inicio":
-    st.markdown("<h1>⚜️ BIENVENIDO A D'UNIG PLATINUM ⚜️</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='color: white !important;'>Selecciona tu portal de acceso</h3>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    col3, col4 = st.columns(2)
-
-    with col1:
-        st.markdown("<div class='role-card'><h2>🛒 CLIENTE</h2><p>Realiza tus compras luxury</p></div>", unsafe_allow_html=True)
-        if st.button("ENTRAR A COMPRAR", key="btn_cliente"): navegar("cliente")
-
-    with col2:
-        st.markdown("<div class='role-card'><h2>🏢 COMERCIO</h2><p>Gestionar inventario y ventas</p></div>", unsafe_allow_html=True)
-        if st.button("ACCESO COMERCIANTE", key="btn_comercio"): navegar("login_comercio")
-
-    with col3:
-        st.markdown("<div class='role-card'><h2>🚚 REPARTIDOR</h2><p>Panel de entregas pendientes</p></div>", unsafe_allow_html=True)
-        if st.button("ACCESO DELIVERY", key="btn_reparto"): navegar("login_repartidor")
-
-    with col4:
-        st.markdown("<div class='role-card'><h2>🤝 AFILIADOS</h2><p>Gana dinero recomendando</p></div>", unsafe_allow_html=True)
-        if st.button("PROGRAMA AFILIADOS", key="btn_afiliado"): navegar("afiliados")
+    st.markdown("<h1>⚜️ D'UNIG PLATINUM ⚜️</h1>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("<div class='role-card'><h2>🛒 COMPRAR</h2></div>", unsafe_allow_html=True)
+        st.button("ENTRAR A LA TIENDA", on_click=set_pagina, args=("cliente",))
+    with c2:
+        st.markdown("<div class='role-card'><h2>🏢 COMERCIOS</h2></div>", unsafe_allow_html=True)
+        st.button("GESTIONAR MI TIENDA", on_click=set_pagina, args=("login_comercio",))
 
 # ==========================================
-# SEGURIDAD: LOGINS
+# MÓDULO COMERCIO (CARGA DE PRODUCTOS)
 # ==========================================
 elif st.session_state.pagina == "login_comercio":
-    st.markdown("<h2>🔑 ACCESO COMERCIANTE</h2>", unsafe_allow_html=True)
-    pw = st.text_input("Contraseña de Comercio", type="password")
-    if st.button("INGRESAR"):
-        if pw == "admin123": navegar("comercio") # Cambia esta clave
-        else: st.error("Clave incorrecta")
-    if st.button("🔙 VOLVER"): navegar("inicio")
+    st.subheader("Acceso Administrativo")
+    user_com = st.text_input("Nombre de tu Comercio (Ej: Pizza Real)")
+    pass_com = st.text_input("Contraseña", type="password")
+    if st.button("INGRESAR AL PANEL"):
+        if pass_com == "admin123": 
+            st.session_state.comercio_actual = user_com
+            set_pagina("panel_comercio")
+            st.rerun()
+    st.button("🔙 VOLVER", on_click=set_pagina, args=("inicio",))
 
-elif st.session_state.pagina == "login_repartidor":
-    st.markdown("<h2>🔑 ACCESO REPARTIDOR</h2>", unsafe_allow_html=True)
-    pw = st.text_input("Contraseña de Repartidor", type="password")
-    if st.button("INGRESAR"):
-        if pw == "delivery123": navegar("repartidor") # Cambia esta clave
-        else: st.error("Clave incorrecta")
-    if st.button("🔙 VOLVER"): navegar("inicio")
+elif st.session_state.pagina == "panel_comercio":
+    st.header(f"🏪 Panel de {st.session_state.comercio_actual}")
+    with st.expander("➕ Cargar Nuevo Producto", expanded=True):
+        nom = st.text_input("Nombre del Producto")
+        pre = st.number_input("Precio ($)", min_value=0.0)
+        img = st.text_input("URL de Imagen")
+        if st.button("PUBLICAR PRODUCTO"):
+            supabase.table("productos").insert({
+                "nombre_producto": nom, "precio": pre, 
+                "imagen_url": img, "comercio_propietario": st.session_state.comercio_actual
+            }).execute()
+            st.success("¡Producto en vitrina!")
+    st.button("🏠 SALIR", on_click=set_pagina, args=("inicio",))
 
 # ==========================================
-# MÓDULO: CLIENTE (CON REFERENCIA BANCARIA)
+# MÓDULO CLIENTE (VITRINA POR TIENDAS)
 # ==========================================
 elif st.session_state.pagina == "cliente":
-    if st.sidebar.button("🏠 VOLVER AL INICIO"): navegar("inicio")
+    st.markdown("<h1>🛍️ CENTRO COMERCIAL D'UNIG</h1>", unsafe_allow_html=True)
     
-    # ... (Aquí va tu código de Vitrina que ya tenemos) ...
-    # Al momento del pago, añadimos la casilla de referencia:
+    # 1. Obtener lista de comercios con productos
+    res_com = supabase.table("productos").select("comercio_propietario").execute()
+    lista_comercios = list(set([p['comercio_propietario'] for p in res_com.data if p['comercio_propietario']]))
     
-    st.markdown("### 🏦 DETALLES DE PAGO")
-    st.info("Pago Móvil: 0102 - 04121234567 - V-12345678")
-    referencia = st.text_input("🔢 Número de Referencia Bancaria (6 dígitos)")
-    nombre_c = st.text_input("👤 Tu Nombre")
-    dir_c = st.text_input("📍 Dirección")
+    if lista_comercios:
+        tienda_sel = st.selectbox("🏬 Selecciona una Tienda para ver sus productos:", lista_comercios)
+        
+        # 2. Mostrar productos de esa tienda
+        res_p = supabase.table("productos").select("*").eq("comercio_propietario", tienda_sel).execute()
+        cols = st.columns(2)
+        for idx, p in enumerate(res_p.data):
+            with cols[idx % 2]:
+                st.markdown(f"<div class='role-card'><img src='{p['imagen_url']}' style='width:100%'><h4>{p['nombre_producto']}</h4><b>{p['precio']}$</b></div>", unsafe_allow_html=True)
+                st.button(f"Añadir ➕", key=f"p_{p['id']}", on_click=add_prod, args=(p['nombre_producto'], p['precio'], tienda_sel))
     
-    if st.button("🔥 FINALIZAR PEDIDO"):
-        if referencia and nombre_c:
-            # Aquí guardas en la DB incluyendo el campo referencia
-            st.success(f"¡Gloria a Dios! Pedido enviado. Referencia: {referencia}")
-            st.session_state.carrito = []
-            st.balloons()
-        else:
-            st.warning("⚠️ La referencia bancaria es obligatoria para validar tu pago.")
-
-# ==========================================
-# MÓDULO: PROGRAMA DE AFILIADOS
-# ==========================================
-elif st.session_state.pagina == "afiliados":
-    st.markdown("<h1>🤝 PROGRAMA DE AFILIADOS</h1>", unsafe_allow_html=True)
-    st.write("Gana el 5% de cada venta que refieras a D'UNIG PLATINUM.")
-    st.text_input("Ingresa tu correo para generar tu link:")
-    if st.button("GENERAR MI CÓDIGO"):
-        st.success("Tu código de afiliado es: DUNIG-GOLD-2026")
-    if st.button("🏠 VOLVER"): navegar("inicio")
-
-# Mantenemos las lógicas de 'comercio' y 'repartidor' en sus respectivas condiciones...
+    # 3. Carrito y Pago
+    if st.session_state.carrito:
+        st.write("---")
+        st.subheader("🛒 Tu Carrito")
+        total = sum(i['precio'] for i in st.session_state.carrito)
+        st.markdown(f"### Total: {total}$")
+        
+        ref = st.text_input("🔢 Nro de Referencia Bancaria")
+        nom_c = st.text_input("👤 Tu Nombre")
+        
+        # BOTÓN GPS (Usando HTML5 Geolocation)
+        st.markdown("""
+            <button onclick="navigator.geolocation.getCurrentPosition(pos => {
+                const url = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                window.parent.postMessage({type: 'streamlit:set_widget_value', key: 'gps_val', value: url}, '*');
+                alert('📍 Ubicación capturada con éxito');
+            }, err => alert('Por favor activa el GPS de tu teléfono'))" 
+            style="width:100%; height:40px; border-radius:10px; background:#D4AF37; font-weight:bold;">
+            📍 MARCAR MI DIRECCIÓN GPS (TIEMPO REAL)
+            </button>
+        """, unsafe_allow_html=True)
+        
+        # Captura el valor enviado por el JS
+        dir_gps = st.text_input("📍 Link de ubicación capturado:", key="gps_val")
+        
+        if st.button("🔥 FINALIZAR PEDIDO"):
+            if ref and nom_c and dir_gps:
+                supabase.table("pedidos").insert({
+                    "cliente": nom_c, "productos": str(st.session_state.carrito),
+                    "total": total, "direccion": dir_gps, "nro_referencia": ref
+                }).execute()
+                st.balloons()
+                st.success("¡Pedido enviado! Dios te bendiga.")
+                st.session_state.carrito = []
+                st.rerun()
+            else: st.warning("Completa Referencia, Nombre y Ubicación GPS")
+            
+    st.button("🏠 VOLVER AL INICIO", on_click=set_pagina, args=("inicio",))
