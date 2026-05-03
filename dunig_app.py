@@ -30,43 +30,84 @@ st.sidebar.title("⚜️ D'UNIG PLATINUM")
 perfil = st.sidebar.radio("MODO DE ACCESO:", ["🛒 Vitrina Cliente", "🏢 Panel Comerciante", "🚚 Repartidor"])
 
 # ==========================================
-# PERFIL: CLIENTE (VITRINA Y COMPRA)
+# PERFIL: CLIENTE (VITRINA Y COMPRA LUXURY)
 # ==========================================
 if perfil == "🛒 Vitrina Cliente":
-    st.title("🛍️ Nuestra Vitrina")
+    st.title("🛍️ D'UNIG SHOPPING")
     
-    # Mostrar Carrito flotante en la lateral
-    with st.sidebar.expander(f"🛒 Mi Carrito ({len(st.session_state.carrito)})", expanded=True):
+    # --- CARRITO DE COMPRAS EN BARRA LATERAL ---
+    with st.sidebar:
+        st.markdown("### 🛒 Tu Carrito")
         if not st.session_state.carrito:
-            st.write("Tu carrito está vacío.")
+            st.info("El carrito está vacío.")
+            total_pagar = 0
         else:
             total_pagar = 0
-            resumen_texto = ""
+            resumen_productos = ""
             for i, item in enumerate(st.session_state.carrito):
-                st.write(f"- {item['nombre']} (${item['precio']})")
+                col_item, col_borrar = st.columns([3, 1])
+                col_item.write(f"**{item['nombre']}**\n${item['precio']}")
+                if col_borrar.button("❌", key=f"del_{i}"):
+                    st.session_state.carrito.pop(i)
+                    st.rerun()
                 total_pagar += item['precio']
-                resumen_texto += f"{item['nombre']} (${item['precio']}), "
+                resumen_productos += f"- {item['nombre']} (${item['precio']})\n"
             
-            st.write("---")
-            st.subheader(f"Total: {total_pagar} $")
+            st.markdown("---")
+            st.markdown(f"### 💰 TOTAL: {total_pagar} $")
             
-            direccion = st.text_input("📍 Dirección de entrega")
-            nombre_c = st.text_input("👤 Tu nombre")
+            # Datos de entrega
+            nombre_c = st.text_input("👤 Tu Nombre")
+            direccion_c = st.text_input("📍 Dirección (Calle/Casa)")
+            mapa_link = st.text_input("🗺️ Pegar Link de Google Maps (Opcional)")
             
-            if st.button("🚀 FINALIZAR PEDIDO"):
-                if direccion and nombre_c:
+            if st.button("🚀 CONFIRMAR MI COMPRA"):
+                if nombre_c and direccion_c:
                     data_pedido = {
                         "cliente": nombre_c,
-                        "productos": resumen_texto,
+                        "productos": resumen_productos,
                         "total": total_pagar,
-                        "direccion": direccion
+                        "direccion": f"{direccion_c} (Mapa: {mapa_link})"
                     }
-                    supabase.table("pedidos").insert(data_pedido).execute()
-                    st.success("¡Pedido enviado! El repartidor va en camino.")
-                    st.session_state.carrito = [] # Limpiar carrito
-                    st.rerun()
+                    try:
+                        supabase.table("pedidos").insert(data_pedido).execute()
+                        # --- TICKET DE ÉXITO ---
+                        st.balloons() # ¡Confeti!
+                        st.session_state.order_success = {
+                            "cliente": nombre_c,
+                            "total": total_pagar,
+                            "direccion": direccion_c,
+                            "mapa": mapa_link
+                        }
+                        st.session_state.carrito = [] # Limpiar
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al procesar: {e}")
                 else:
-                    st.error("Faltan datos de entrega.")
+                    st.warning("⚠️ Escribe tu nombre y dirección.")
+
+    # --- MOSTRAR TICKET DE FELICITACIONES SI LA COMPRA FUE EXITOSA ---
+    if 'order_success' in st.session_state:
+        order = st.session_state.order_success
+        st.success(f"🎊 ¡FELICITACIONES {order['cliente'].upper()}! 🎊")
+        st.markdown(f"""
+        ### ✅ ¡Tu compra por **{order['total']} $** ha sido exitosa!
+        El equipo de **D'UNIG PLATINUM** ya está preparando tu entrega.
+        
+        🚚 **Estado del Delivery:** En camino a: *{order['direccion']}*
+        """)
+        
+        # Mostrar Mapa de Google si el usuario puso un link
+        if order['mapa']:
+            st.markdown(f"[📍 Ver ubicación en Google Maps]({order['mapa']})")
+        
+        if st.button("Hacer otra compra"):
+            del st.session_state.order_success
+            st.rerun()
+        st.stop() # Detiene el resto para mostrar solo el ticket
+
+    # --- MOSTRAR LA VITRINA DE PRODUCTOS ---
+    # (Aquí sigue tu código actual de mostrar las tarjetas de productos con columnas)
 
     # Cargar Productos de la DB
     try:
