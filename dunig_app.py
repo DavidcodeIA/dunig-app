@@ -34,10 +34,24 @@ with menu[0]:
         p_precio = st.number_input("Precio ($)", min_value=0.0)
         p_stock = st.number_input("Stock Inicial", min_value=0)
         
-        if st.button("SUBIR A LA VITRINA"):
-            data = {"comercio_nombre": comercio, "producto_nombre": p_nombre, "descripcion": p_desc, "precio": p_precio, "stock": p_stock}
-            supabase.table("productos").insert(data).execute()
-            st.success("¡Producto publicado con éxito!")
+     if st.button("CARGAR PRODUCTO A VITRINA"):
+        if nombre_prod and precio_prod:
+# Así debe verse el diccionario de datos en tu Python
+data = {
+    "nombre_producto": nombre_prod, # Asegúrate que coincida con el SQL
+    "precio": precio_prod,
+    "stock": stock_prod,
+    "categoria": categoria_prod,
+    "imagen_url": url_foto,
+    "comercio_nombre": nombre_negocio
+}
+            }
+            try:
+                supabase.table("productos").insert(data).execute()
+                st.success(f"📦 ¡Gloria a Dios! {nombre_prod} añadido al inventario.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al conectar con la tabla: {e}")
 
 # 2. SECCIÓN CLIENTES (Ver Vitrina y Comprar)
 with menu[1]:
