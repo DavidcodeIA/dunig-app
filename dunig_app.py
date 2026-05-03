@@ -50,54 +50,106 @@ if st.session_state.pagina == "inicio":
             navegar("login_comercio")
 
 # --- LOGIN COMERCIO ---
-elif st.session_state.pagina == "login_comercio":
-    st.subheader("Acceso Propietario")
-    nombre = st.text_input("Nombre de tu Negocio")
-    if st.button("ENTRAR AL PANEL"):
-        if nombre:
-            st.session_state.comercio_sesion = nombre
-            navegar("panel_carga")
-    st.button("🔙 VOLVER", on_click=navegar, args=("inicio",))
-
-# --- PANEL DE CARGA ---
 elif st.session_state.pagina == "panel_carga":
     st.header(f"🏪 Panel de {st.session_state.comercio_sesion}")
     
+    # Usamos un formulario para agrupar todo
     with st.form("carga_producto", clear_on_submit=True):
         p_nom = st.text_input("Nombre del Producto")
         p_pre = st.number_input("Precio ($)", min_value=0.0)
-        p_desc = st.text_area("Descripción corta")
-        foto = st.file_uploader("📸 Foto del producto", type=['jpg', 'png', 'jpeg'])
-        enviar = st.form_submit_button("🚀 PUBLICAR")
+        p_desc = st.text_area("Descripción (detalles del producto)")
+        
+        col_f, col_v = st.columns(2)
+        with col_f:
+            foto = st.file_uploader("📸 Foto", type=['jpg', 'png', 'jpeg'])
+        with col_v:
+            video = st.file_uploader("🎥 Video corto (Máx 30s)", type=['mp4', 'mov', 'avi'])
+        
+        enviar = st.form_submit_button("🚀 PUBLICAR PRODUCTO")
 
         if enviar:
-            if p_nom and foto:
+            if p_nom and (foto or video):
                 try:
-                    # Limpiar nombre para evitar error 400
-                    nombre_limpio = st.session_state.comercio_sesion.replace(" ", "_")
-                    ext = foto.name.split('.')[-1]
-                    path_foto = f"productos/{nombre_limpio}_{random.randint(100,999)}.{ext}"
+                    nom_c = st.session_state.comercio_sesion.replace(" ", "_")
+                    id_rand = random.randint(1000, 9999)
+                    url_foto = None
+                    url_video = None
 
-                    # Subir foto
-                    supabase.storage.from_("fotos_productos").upload(path=path_foto, file=foto.getvalue())
-                    url_foto = supabase.storage.from_("fotos_productos").get_public_url(path_foto)
+                    # Subir Foto si existe
+                    if foto:
+                        path_f = f"productos/img_{nom_c}_{id_rand}.jpg"
+                        supabase.storage.from_("fotos_productos").upload(path_f, foto.getvalue())
+                        url_foto = supabase.storage.from_("fotos_productos").get_public_url(path_f)
 
-                    # Guardar en tabla
+                    # Subir Video si existe
+                    if video:
+                        path_v = f"productos/vid_{nom_c}_{id_rand}.mp4"
+                        supabase.storage.from_("fotos_productos").upload(path_v, video.getvalue())
+                        url_video = supabase.storage.from_("fotos_productos").get_public_url(path_v)
+
+                    # GUARDAR EN TABLA (Asegúrate de haber corrido el SQL en Supabase antes)
                     supabase.table("productos").insert({
                         "nombre_producto": p_nom,
                         "precio": p_pre,
                         "descripcion": p_desc,
                         "imagen_url": url_foto,
+                        "video_url": url_video,
                         "comercio_propietario": st.session_state.comercio_sesion
                     }).execute()
-                    st.success("¡Producto cargado!")
+                    
+                    st.success("✅ ¡Multimedia cargada con éxito!")
                 except Exception as e:
-                    st.error(f"Error al cargar: {e}")
+                    st.error(f"Error técnico: {e}")
             else:
-                st.warning("Faltan datos obligatorios.")
-    
-    st.button("🏠 SALIR", on_click=navegar, args=("inicio",))
+                st.warning("Escribe el nombre y sube al menos una foto o video.")
 
+# --- DENTRO DEL PANEL DE CARGA ---
+with st.form("carga_producto", clear_on_submit=True):
+    p_nom = st.text_input("Nombre del Producto")
+    p_pre = st.number_input("Precio ($)", min_value=0.0)
+    p_desc = st.text_area("Descripción corta")
+    
+    col_med1, col_med2 = st.columns(2)
+    with col_med1:
+        foto = st.file_uploader("📸 Foto", type=['jpg', 'png', 'jpeg'])
+    with col_med2:
+        video = st.file_uploader("🎥 Video (Máx 30s)", type=['mp4', 'mov', 'avi'])
+    
+    enviar = st.form_submit_button("🚀 PUBLICAR PRODUCTO")
+
+    if enviar:
+        if p_nom and (foto or video): # Al menos uno de los dos
+            try:
+                nom_c = st.session_state.comercio_sesion.replace(" ", "_")
+                id_random = random.randint(100, 999)
+                url_foto = None
+                url_video = None
+
+                # --- SUBIR FOTO ---
+                if foto:
+                    path_f = f"productos/img_{nom_c}_{id_random}.jpg"
+                    supabase.storage.from_("fotos_productos").upload(path_f, foto.getvalue())
+                    url_foto = supabase.storage.from_("fotos_productos").get_public_url(path_f)
+
+                # --- SUBIR VIDEO ---
+                if video:
+                    path_v = f"productos/vid_{nom_c}_{id_random}.mp4"
+                    supabase.storage.from_("fotos_productos").upload(path_v, video.getvalue())
+                    url_video = supabase.storage.from_("fotos_productos").get_public_url(path_v)
+
+                # --- GUARDAR EN TABLA ---
+                supabase.table("productos").insert({
+                    "nombre_producto": p_nom,
+                    "precio": p_pre,
+                    "descripcion": p_desc,
+                    "imagen_url": url_foto,
+                    "video_url": url_video, # Nueva columna
+                    "comercio_propietario": st.session_state.comercio_sesion
+                }).execute()
+                
+                st.success("✅ ¡Producto con multimedia cargado!")
+            except Exception as e:
+                st.error(f"Error técnico: {e}")
 # --- CENTRO COMERCIAL (LISTA DE TIENDAS) ---
 elif st.session_state.pagina == "centro_comercial":
     st.title("🏢 CENTRO COMERCIAL D'UNIG")
