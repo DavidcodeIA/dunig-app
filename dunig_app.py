@@ -25,72 +25,81 @@ supabase: Client = create_client(url, key)
 if 'carrito' not in st.session_state:
     st.session_state.carrito = []
 
-# --- BARRA LATERAL (NAVEGACIÓN) ---
-st.sidebar.title("⚜️ D'UNIG PLATINUM")
-perfil = st.sidebar.radio("MODO DE ACCESO:", ["🛒 Vitrina Cliente", "🏢 Panel Comerciante", "🚚 Repartidor"])
+# --- FUNCIONES DE APOYO (Ponlas al principio del código) ---
+def añadir_al_carrito(nombre, precio):
+    st.session_state.carrito.append({'nombre': nombre, 'precio': precio})
+    st.toast(f"✨ {nombre} añadido")
+
+def ir_al_pago():
+    st.session_state.checkout = True
 
 # ==========================================
-# PERFIL: CLIENTE (FLUJO DE PAGO PROFESIONAL)
+# PERFIL: CLIENTE (VELOCIDAD Y DORADO LUXURY)
 # ==========================================
 if perfil == "🛒 Vitrina Cliente":
     
-    # --- PASO 2: PANTALLA DE PAGO (CHECKOUT) ---
-    if 'checkout' in st.session_state and st.session_state.checkout:
-        st.title("🏦 Finalizar Pago")
-        st.markdown("### Resumen de tu pedido")
+    # --- PANTALLA DE PAGO (CHECKOUT) ---
+    if st.session_state.get('checkout', False):
+        st.markdown("<h1 style='text-align: center; color: #D4AF37;'>🏦 PROCESAR PAGO</h1>", unsafe_allow_html=True)
         
-        total_pagar = 0
-        resumen_texto = ""
-        for item in st.session_state.carrito:
-            st.write(f"✅ {item['nombre']} - **{item['precio']}$**")
-            total_pagar += item['precio']
-            resumen_texto += f"{item['nombre']} ({item['precio']}$), "
+        total_pagar = sum(item['precio'] for item in st.session_state.carrito)
         
-        st.markdown(f"<h2 style='color: #D4AF37;'>TOTAL A PAGAR: {total_pagar} $</h2>", unsafe_allow_html=True)
+        col_check1, col_check2 = st.columns([2, 1])
+        
+        with col_check1:
+            st.markdown(f"""
+            <div style='background-color: #1A1C23; padding: 20px; border-radius: 15px; border-left: 5px solid #D4AF37;'>
+                <h3 style='color: #D4AF37;'>Resumen de Orden</h3>
+                {''.join([f"<p style='margin:0;'>🔸 {i['nombre']} - <b>{i['precio']}$</b></p>" for i in st.session_state.carrito])}
+                <hr>
+                <h2 style='color: #D4AF37;'>Total: {total_pagar}$</h2>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_check2:
+            st.info("💳 **PAGO MÓVIL**\n\nBVC (0102)\n0412-5555555\nV-12.345.678")
+
         st.write("---")
+        st.subheader("🚚 Datos de Entrega")
         
-        # --- DATOS DE PAGO DEL DUEÑO ---
-        st.info("💎 **DATOS PARA TRANSFERENCIA:**\n\n"
-                "• **Pago Móvil:** Banco Central - 0412-1234567 - V-12345678\n"
-                "• **Zelle:** pagos@dunigplatinum.com\n"
-                "• **Referencia:** Indica tu nombre al pagar.")
-        
-        st.subheader("🚚 Datos para el Repartidor")
         nombre_c = st.text_input("👤 Tu Nombre")
-        direccion_c = st.text_input("📍 Dirección Exacta")
         
-        col_pay1, col_pay2 = st.columns(2)
-        if col_pay1.button("🚀 CONFIRMAR Y ENVIAR PEDIDO"):
-            if nombre_c and direccion_c:
-                data_pedido = {
-                    "cliente": nombre_c,
-                    "productos": resumen_texto,
-                    "total": total_pagar,
-                    "direccion": direccion_c
-                }
-                supabase.table("pedidos").insert(data_pedido).execute()
+        # --- BOTÓN DE UBICACIÓN AUTOMÁTICA ---
+        st.markdown("👇 *Presiona para capturar tu ubicación actual*")
+        if st.button("📍 OBTENER MI UBICACIÓN ACTUAL"):
+            # Nota: La geolocalización real requiere un componente llamado 'streamlit-js-eval'
+            # Por ahora, simulamos la captura para no romper tu flujo actual
+            st.session_state.direccion_automatica = "Ubicación GPS capturada (Cerca de tu zona)"
+        
+        direccion_final = st.text_input("📍 Confirmar Dirección Exacta", 
+                                        value=st.session_state.get('direccion_automatica', ""))
+
+        c_p1, c_p2 = st.columns(2)
+        if c_p1.button("🔥 CONFIRMAR PEDIDO (INSTANTÁNEO)"):
+            if nombre_c and direccion_final:
+                # Lógica de inserción...
+                supabase.table("pedidos").insert({
+                    "cliente": nombre_c, "productos": str(st.session_state.carrito),
+                    "total": total_pagar, "direccion": direccion_final
+                }).execute()
                 st.balloons()
-                st.success("¡GLORIA A DIOS! Pedido enviado. El repartidor verificará tu pago.")
+                st.success("✅ ¡ORDEN RECIBIDA! Dios bendiga tu compra.")
                 st.session_state.carrito = []
                 st.session_state.checkout = False
-                if st.button("Volver al inicio"): st.rerun()
-            else:
-                st.warning("Por favor rellena tus datos de entrega.")
+                st.rerun()
         
-        if col_pay2.button("⬅️ Volver a la Vitrina"):
+        if c_p2.button("⬅️ SEGUIR COMPRANDO"):
             st.session_state.checkout = False
             st.rerun()
 
-    # --- PASO 1: VITRINA DE PRODUCTOS ---
+    # --- PANTALLA DE VITRINA ---
     else:
-        st.title("🛍️ D'UNIG SHOPPING")
+        st.markdown("<h1 style='text-align: center; color: #D4AF37;'>⚜️ VITRINA D'UNIG ⚜️</h1>", unsafe_allow_html=True)
         
-        # Botón flotante de Carrito (solo aparece si hay algo)
+        # Carrito flotante instantáneo
         if st.session_state.carrito:
-            total_actual = sum(item['precio'] for item in st.session_state.carrito)
-            if st.button(f"🛒 IR A PAGAR ({total_actual} $)"):
-                st.session_state.checkout = True
-                st.rerun()
+            t = sum(i['precio'] for i in st.session_state.carrito)
+            st.button(f"🛒 PAGAR AHORA ({t}$)", on_click=ir_al_pago)
 
         try:
             res = supabase.table("productos").select("*").execute()
@@ -99,18 +108,18 @@ if perfil == "🛒 Vitrina Cliente":
                 cols = st.columns(2)
                 for i, p in enumerate(productos):
                     with cols[i % 2]:
-                        st.markdown(f"<div class='product-card'>", unsafe_allow_html=True)
-                        if p['imagen_url']:
-                            st.image(p['imagen_url'], use_container_width=True)
-                        st.write(f"**{p['nombre_producto']}**")
-                        st.write(f"💰 {p['precio']} $")
-                        # SOLUCIÓN AL ERROR DE KEY: usamos ID + índice para que sea único
-                        if st.button(f"➕ Añadir", key=f"btn_{p['id']}_{i}"):
-                            st.session_state.carrito.append({'nombre': p['nombre_producto'], 'precio': p['precio']})
-                            st.toast(f"{p['nombre_producto']} al carrito")
-                        st.markdown("</div>", unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div style='border: 1px solid #D4AF37; padding: 10px; border-radius: 15px; background: #1A1C23;'>
+                            <img src='{p['imagen_url'] if p['imagen_url'] else 'https://via.placeholder.com/150'}' style='width:100%; border-radius: 10px;'>
+                            <h4 style='color: #D4AF37; margin-top: 10px;'>{p['nombre_producto']}</h4>
+                            <p style='font-size: 20px; font-weight: bold;'>{p['precio']}$</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        # El secreto del clic único: usar on_click
+                        st.button(f"Añadir ➕", key=f"btn_{p['id']}_{i}", 
+                                  on_click=añadir_al_carrito, args=(p['nombre_producto'], p['precio']))
             else:
-                st.info("La vitrina está siendo surtida. ¡Vuelve pronto!")
+                st.info("Esperando nuevos tesoros en la vitrina...")
         except Exception as e:
             st.error(f"Error: {e}")
 # ==========================================
