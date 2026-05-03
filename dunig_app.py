@@ -134,24 +134,49 @@ elif st.session_state.pagina == "panel_carga":
     st.button("🏠 SALIR", on_click=navegar, args=("inicio",))
 
 # ==========================================
-# 3. AFILIADOS
+# 3. AFILIADOS (CORREGIDO)
 # ==========================================
 elif st.session_state.pagina == "afiliados":
-    st.markdown("<h2>🤝 CONTROL DE AFILIADOS</h2>", unsafe_allow_html=True)
+    st.markdown("<h2>🤝 PROGRAMA DE AFILIADOS</h2>", unsafe_allow_html=True)
+    
     with st.form("reg_af"):
+        st.write("Únete al equipo D'UNIG y gana comisiones.")
         a_nom = st.text_input("Nombre Completo")
-        a_em = st.text_input("Correo")
-        if st.form_submit_button("REGISTRARME"):
-            cod = f"DG-{random.randint(100,999)}"
-            supabase.table("afiliados").insert({"nombre_afiliado": a_nom, "email_afiliado": a_em, "codigo_referido": cod}).execute()
-            st.success(f"Tu código es: {cod}")
+        a_em = st.text_input("Correo Electrónico")
+        
+        submit_af = st.form_submit_button("REGISTRARME")
+        
+        if submit_af:
+            if a_nom and a_em: # Solo intenta si los campos no están vacíos
+                try:
+                    cod = f"DG-{random.randint(100,999)}"
+                    # Enviamos los datos a Supabase
+                    supabase.table("afiliados").insert({
+                        "nombre_afiliado": a_nom, 
+                        "email_afiliado": a_em, 
+                        "codigo_referido": cod
+                    }).execute()
+                    st.success(f"✅ ¡Bienvenido! Tu código de referido es: {cod}")
+                except Exception as e:
+                    st.error(f"Error: El correo {a_em} ya está registrado o hay un detalle técnico.")
+            else:
+                st.warning("⚠️ Por favor, rellena todos los campos.")
 
-    if st.text_input("Auditoría (Clave)", type="password") == "afiliados2026":
-        st.write("📋 Hoja de Control de Afiliados")
-        data = supabase.table("afiliados").select("*").execute()
-        if data.data: st.table(pd.DataFrame(data.data))
-    st.button("🏠 VOLVER", on_click=navegar, args=("inicio",))
-
+    st.write("---")
+    # Hoja de control protegida
+    admin_pass = st.text_input("Auditoría (Clave)", type="password")
+    if admin_pass == "afiliados2026":
+        st.write("📋 Hoja de Registro de Afiliados")
+        try:
+            res_af = supabase.table("afiliados").select("*").execute()
+            if res_af.data:
+                st.dataframe(pd.DataFrame(res_af.data))
+            else:
+                st.info("Aún no hay afiliados registrados.")
+        except Exception as e:
+            st.error(f"No se pudo leer la tabla: {e}")
+            
+    st.button("🏠 VOLVER AL INICIO", on_click=navegar, args=("inicio",))
 # ==========================================
 # 4. VITRINA CLIENTE
 # ==========================================
