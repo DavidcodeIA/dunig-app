@@ -73,39 +73,41 @@ elif st.session_state.pagina == "panel_carga":
         p_pre = st.number_input("Precio ($)", min_value=0.0)
         foto = st.file_uploader("📸 Foto del producto", type=['jpg', 'png', 'jpeg'])
         
-        if st.button("🚀 PUBLICAR AHORA"):
-            if p_nom and foto:
-                try:
-                    # Generar nombre único para la foto
-                    ext = foto.name.split('.')[-1]
-                    nombre_archivo = f"{st.session_state.comercio_sesion}_{random.randint(1000,9999)}.{ext}"
-                    path_en_bucket = f"productos/{nombre_archivo}"
+# --- DENTRO DE PANEL DE CARGA ---
+if st.button("🚀 PUBLICAR AHORA"):
+    if p_nom and foto:
+        try:
+            # 1. Limpiamos el nombre del comercio para el archivo (quitar espacios y ñ)
+            comercio_seguro = st.session_state.comercio_sesion.replace(" ", "_").replace("ñ", "n").replace("Ñ", "N")
+            
+            # 2. Generar nombre único y seguro
+            ext = foto.name.split('.')[-1]
+            nombre_archivo = f"{comercio_seguro}_{random.randint(1000,9999)}.{ext}"
+            path_en_bucket = f"productos/{nombre_archivo}"
 
-                    # 1. Subir al Storage (Asegúrate que el bucket 'fotos_productos' sea PÚBLICO)
-                    supabase.storage.from_("fotos_productos").upload(
-                        path=path_en_bucket,
-                        file=foto.getvalue(),
-                        file_options={"content-type": foto.type}
-                    )
+            # 3. Subir al Storage
+            supabase.storage.from_("fotos_productos").upload(
+                path=path_en_bucket,
+                file=foto.getvalue(),
+                file_options={"content-type": foto.type, "x-upsert": "true"}
+            )
 
-                    # 2. Obtener URL Pública
-                    url_res = supabase.storage.from_("fotos_productos").get_public_url(path_en_bucket)
-                    
-                    # 3. Guardar en la Tabla
-                    supabase.table("productos").insert({
-                        "nombre_producto": p_nom,
-                        "precio": p_pre,
-                        "imagen_url": url_res,
-                        "comercio_propietario": st.session_state.comercio_sesion
-                    }).execute()
-                    
-                    st.success("✅ ¡Producto publicado con éxito!")
-                except Exception as e:
-                    st.error(f"Error técnico: {e}")
-            else:
-                st.warning("Falta el nombre o la foto.")
-    
-    st.button("🔙 SALIR", on_click=navegar, args=("inicio",))
+            # 4. Obtener URL Pública
+            url_res = supabase.storage.from_("fotos_productos").get_public_url(path_en_bucket)
+            
+            # 5. Guardar en la Tabla
+            supabase.table("productos").insert({
+                "nombre_producto": p_nom,
+                "precio": p_pre,
+                "imagen_url": url_res,
+                "comercio_propietario": st.session_state.comercio_sesion
+            }).execute()
+            
+            st.success("✅ ¡Publicado con éxito!")
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"Error técnico: {e}")
 
 # ==========================================
 # PÁGINA: VITRINA CLIENTE
