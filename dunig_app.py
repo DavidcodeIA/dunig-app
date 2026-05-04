@@ -210,32 +210,54 @@ elif st.session_state.pagina == "vitrina_personal":
 # --- PÁGINA: PROCESAR PAGO ---
 elif st.session_state.pagina == "pago":
     tienda = st.session_state.comercio_sel
-    st.header("🏁 Confirmación de Pedido")
+    st.header("🏁 Finalizar Compra")
     
     try:
         p_res = supabase.table("perfiles_comercio").select("*").eq("nombre_comercio", tienda).single().execute()
         perfil = p_res.data
         
-        st.success(f"Estás comprando en: **{tienda}**")
-        st.markdown(f"**Método de Pago Recomendado:**\n\n{perfil.get('datos_pago', 'Acordar con el vendedor')}")
+        st.info(f"📍 Pagando en: **{tienda}**")
+        st.markdown(f"**Datos para tu transferencia:**\n\n{perfil.get('datos_pago', 'Consultar al vendedor')}")
+        
+        # --- NUEVA CASILLA: REFERENCIA BANCARIA ---
+        num_referencia = st.text_input("🔢 Número de Referencia Bancaria", placeholder="Escribe el número de confirmación aquí")
         
         # Generar resumen para WhatsApp
-        resumen = f"*PEDIDO D'UNIG PLATINUM*%0A---%0A"
+        resumen = f"*NUEVO PEDIDO: {tienda}*%0A"
+        resumen += f"---%0A"
+        
         prods_res = supabase.table("productos").select("*").eq("comercio_propietario", tienda).execute()
         gran_total = 0
         for pr in prods_res.data:
             c_p = st.session_state.carrito.get(str(pr['id']), 0)
             if c_p > 0:
-                resumen += f"- {pr['nombre_producto']} (x{c_p}): {pr['precio']*c_p}$%0A"
+                resumen += f"✅ {pr['nombre_producto']} (x{c_p}): {pr['precio']*c_p}$%0A"
                 gran_total += pr['precio']*c_p
         
-        resumen += f"---%0A*TOTAL A PAGAR: {gran_total}$*"
+        resumen += f"---%0A*TOTAL: {gran_total}$*%0A"
+        
+        # Agregar la referencia al mensaje de WhatsApp si existe
+        if num_referencia:
+            resumen += f"📌 *REF. BANCARIA:* {num_referencia}%0A"
         
         ws_vendedor = perfil.get('whatsapp', '')
-        if st.button("📲 ENVIAR PEDIDO POR WHATSAPP", use_container_width=True):
-            st.markdown(f'<a href="https://wa.me/{ws_vendedor}?text={resumen}" target="_blank">Haz clic aquí para enviar</a>', unsafe_allow_html=True)
+        
+        st.write("---")
+        if st.button("🚀 ENVIAR PEDIDO Y COMPROBANTE", use_container_width=True, type="primary"):
+            if not num_referencia:
+                st.warning("⚠️ Por favor, anota el número de referencia antes de enviar.")
+            else:
+                # Link directo a WhatsApp
+                link_wa = f"https://wa.me/{ws_vendedor}?text={resumen}"
+                st.markdown(f"""
+                    <a href="{link_wa}" target="_blank" style="text-decoration:none;">
+                        <div style="background-color:#25d366;color:white;padding:15px;border-radius:10px;text-align:center;font-weight:bold;">
+                            CLICK AQUÍ PARA CONFIRMAR EN WHATSAPP
+                        </div>
+                    </a>
+                """, unsafe_allow_html=True)
             
     except Exception as e:
-        st.error(f"Error al procesar pago: {e}")
+        st.error(f"Error al procesar el pago: {e}")
     
-    st.button("🔙 REGRESAR A VITRINA", on_click=navegar, args=("vitrina_personal", tienda))          
+    st.button("🔙 REGRESAR A VITRINA", on_click=navegar, args=("vitrina_personal", tienda))
