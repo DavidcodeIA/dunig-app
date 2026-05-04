@@ -77,16 +77,35 @@ if st.session_state.pagina == "inicio":
         st.button("🏢 ACCESO PROPIETARIOS", use_container_width=True, on_click=navegar, args=("login_comercio",))
 # Debajo de los botones de Cliente y Propietario agrega este:
     st.button("🛵 SOCIO REPARTIDOR (DELIVERY)", use_container_width=True, on_click=navegar, args=("panel_delivery",))
-# --- PÁGINA: LOGIN ---
+# --- PÁGINA: LOGIN Y REGISTRO BIOMÉTRICO ---
 elif st.session_state.pagina == "login_comercio":
-    st.subheader("🔑 Acceso Propietario")
-    nom_tienda = st.text_input("Nombre de tu Negocio")
-    if st.button("INGRESAR AL PANEL"):
-        if nom_tienda:
-            st.session_state.comercio_sesion = nom_tienda
-            navegar("panel_carga")
-    st.button("🔙 VOLVER", on_click=navegar, args=("inicio",))
+    st.markdown("<h2 style='text-align:center;'>🔑 Acceso y Seguridad</h2>", unsafe_allow_html=True)
+    
+    # Creamos dos columnas: una para el ingreso normal y otra para el registro nuevo
+    col_login, col_reg = st.columns(2)
 
+    with col_login:
+        st.subheader("🏢 Propietarios")
+        nom_tienda = st.text_input("Nombre de tu Negocio", placeholder="Ej: Mi Tienda Platinum")
+        if st.button("INGRESAR AL PANEL", use_container_width=True):
+            if nom_tienda:
+                st.session_state.comercio_sesion = nom_tienda
+                navegar("panel_carga")
+            else:
+                st.warning("Escribe el nombre de tu negocio")
+
+    with col_reg:
+        st.subheader("🧬 Clientes Nuevos")
+        st.write("Registra tu identidad digital para compras seguras con huella.")
+        # Este botón activa la ventana emergente que pegaste arriba
+        if st.button("REGISTRAR MI HUELLA", use_container_width=True):
+            ventana_registro_cliente()
+
+    st.markdown("---")
+    # Botón para volver centrado
+    _, col_btn, _ = st.columns([1,1,1])
+    with col_btn:
+        st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",), use_container_width=True)
 # --- PÁGINA: PANEL DE CARGA (PROPIETARIO) ---
 elif st.session_state.pagina == "panel_carga":
     nombre_c = st.session_state.comercio_sesion
