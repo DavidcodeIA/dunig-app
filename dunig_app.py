@@ -112,20 +112,31 @@ elif st.session_state.pagina == "panel_carga":
         # El botón de formulario DEBE estar indentado aquí adentro
         submit = st.form_submit_button("🚀 PUBLICAR AHORA")
         
-        if submit:
+if st.form_submit_button("🚀 SUBIR PRODUCTO"):
             if p_nom and p_vid:
                 try:
-                    path_v = f"productos/{nombre_c}_{random.randint(1000,9999)}.mp4"
+                    # 1. Limpiamos el nombre: quitamos espacios y caracteres raros
+                    # Esto convierte "Cafetín Mérida" en "CafetinMerida"
+                    nombre_limpio = "".join(e for e in p_nom if e.isalnum())
+                    
+                    # 2. Creamos el path seguro
+                    path_v = f"productos/{nombre_limpio}_{random.randint(1000,9999)}.mp4"
+                    
+                    # 3. Subimos el archivo
                     supabase.storage.from_("fotos_productos").upload(path_v, p_vid.getvalue())
+                    
+                    # 4. Obtenemos la URL pública
                     url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
                     
+                    # 5. Insertamos en la tabla
                     supabase.table("productos").insert({
                         "nombre_producto": p_nom, 
                         "precio": p_pre, 
                         "video_url": url_v, 
                         "comercio_propietario": nombre_c
                     }).execute()
-                    st.success("🔥 ¡Producto publicado en la vitrina!")
+                    
+                    st.success("¡Producto subido con éxito!")
                 except Exception as e:
                     st.error(f"Error al subir: {e}")
             else:
