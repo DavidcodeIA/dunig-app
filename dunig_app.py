@@ -136,83 +136,46 @@ if st.form_submit_button("🚀 SUBIR PRODUCTO"):
                         "comercio_propietario": nombre_c
                     }).execute()
                     
-# --- PÁGINA: VITRINA PERSONAL ---
-elif st.session_state.pagina == "vitrina_personal":
-    tienda_nom = st.session_state.comercio_sel
-    st.title(f"🏪 {tienda_nom}")
-    
-    # El bloque try debe estar alineado con tienda_nom y st.title
-    try:
-        # Consultar los productos del comercio seleccionado
-        prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
-        
-        if prods.data:
-            for p in prods.data:
-                with st.container():
-                    st.video(p['video_url'])
-                    st.subheader(p['nombre_producto'])
-                    st.write(f"Precio: {p['precio']}$")
-                    st.write("---")
-        else:
-            st.warning("Esta tienda aún no tiene productos.")
-
-    except Exception as e:
-        st.error(f"Error al cargar la vitrina: {e}")
-
-    # Botón para regresar
-    st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",))
 # --- PÁGINA: CENTRO COMERCIAL ---
-elif st.session_state.pagina == "centro_comercial":
-    st.title("🏢 CENTRO COMERCIAL D'UNIG")
-    
-    try:
-        tiendas = supabase.table("perfiles_comercio").select("*").execute()
-        if tiendas.data:
-            cols = st.columns(3)
-            for i, t in enumerate(tiendas.data):
-                with cols[i % 3]:
-                    st.markdown("<div class='card-tienda'>", unsafe_allow_html=True)
-                    # Validación de logo para evitar AttributeError
-                    l_url = t.get('logo_url')
-                    if l_url and l_url.strip() != "":
-                        st.image(l_url, width=120)
-                    else:
-                        st.markdown("<h1 style='margin:0;'>🏪</h1>", unsafe_allow_html=True)
-                    
-                    st.subheader(t['nombre_comercio'])
-                    if st.button("Ver Productos", key=f"entrar_{i}", use_container_width=True):
-                        navegar("vitrina_personal", t['nombre_comercio'])
-                    st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.info("No hay tiendas registradas todavía.")
-    except Exception as e:
-        st.error(f"Error al cargar: {e}")
+    elif st.session_state.pagina == "centro_comercial":
+        st.title("🛒 CENTRO COMERCIAL D'UNIG")
+        try:
+            comercios = supabase.table("comercios").select("*").execute()
+            if comercios.data:
+                for c in comercios.data:
+                    with st.container():
+                        col_img, col_txt = st.columns([1, 2])
+                        with col_txt:
+                            st.subheader(c['nombre_comercio'])
+                            st.button(f"Visitar {c['nombre_comercio']}", 
+                                      key=f"btn_{c['nombre_comercio']}", 
+                                      on_click=navegar, 
+                                      args=("vitrina_personal", c['nombre_comercio']))
+                        st.write("---")
+        except Exception as e:
+            st.error(f"Error al cargar comercios: {e}")
+
+    # --- PÁGINA: VITRINA PERSONAL (Línea 140 aprox) ---
+    elif st.session_state.pagina == "vitrina_personal":
+        tienda_nom = st.session_state.comercio_sel
+        st.title(f"🏪 {tienda_nom}")
         
-    st.button("🔙 VOLVER", on_click=navegar, args=("inicio",), key="back_mall")
-
-elif st.session_state.pagina == "vitrina_personal":
-....tienda_nom = st.session_state.comercio_sel
-....st.title(f"🏪 {tienda_nom}")
-....
-....try:
-........# Esta línea es tu referencia
-........prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
-........
-........# LINEA 140: Debe tener EXACTAMENTE los mismos espacios que 'prods'
-........if prods.data:
-............for p in prods.data:
-................with st.container():
-....................st.video(p['video_url'])
-....................st.subheader(p['nombre_producto'])
-....................st.write(f"Precio: {p['precio']}$")
-....................st.write("---")
-........else:
-............st.warning("Esta tienda aún no tiene productos.")
-............
-....except Exception as e:
-........st.error(f"Error: {e}")
-    st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",), key="back_vit")
-
+        try:
+            prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
+            if prods.data:
+                for p in prods.data:
+                    with st.container():
+                        st.video(p['video_url'])
+                        st.subheader(p['nombre_producto'])
+                        st.write(f"Precio: {p['precio']}$")
+                        st.button("🛒 Añadir al carrito", key=f"buy_{p['nombre_producto']}")
+                        st.write("---")
+            else:
+                st.warning("Esta tienda aún no tiene productos.")
+        except Exception as e:
+            st.error(f"Error en vitrina: {e}")
+            
+        st.button("🔙 VOLVER", on_click=navegar, args=("centro_comercial",), key="btn_volver_vitrina")
 # --- PÁGINA: PROCESAR PAGO ---
 elif st.session_state.pagina == "pago":
     tienda = st.session_state.comercio_sel
