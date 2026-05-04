@@ -136,17 +136,25 @@ if st.form_submit_button("🚀 SUBIR PRODUCTO"):
                         "comercio_propietario": nombre_c
                     }).execute()
                     
-....try:
-........# Línea 139: La referencia
-........prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
-........
-........# Línea 140: Debe tener los MISMOS espacios que la línea 139
-........if prods.data:
-............for p in prods.data:
-................with st.container():
-....................st.video(p['video_url'])
-    st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",), key="logout")
+# --- PÁGINA: VITRINA PERSONAL ---
+    try:
+        # 1. Consultar productos
+        prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
+        
+        # 2. Verificar si hay datos
+        if prods.data:
+            for p in prods.data:
+                with st.container():
+                    st.video(p['video_url'])
+                    st.subheader(p['nombre_producto'])
+                    st.write(f"Precio: {p['precio']}$")
+                    st.write("---")
+        else:
+            st.warning("Esta tienda aún no tiene productos.")
 
+    except Exception as e:
+        # ESTA ES LA PARTE QUE FALTA O ESTÁ MAL ALINEADA
+        st.error(f"Hubo un error al cargar los productos: {e}")
 # --- PÁGINA: CENTRO COMERCIAL ---
 elif st.session_state.pagina == "centro_comercial":
     st.title("🏢 CENTRO COMERCIAL D'UNIG")
