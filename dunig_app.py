@@ -1,10 +1,8 @@
 import streamlit as st
 from supabase import create_client, Client
 import random
-import re
-from streamlit_js_eval import get_geolocation # Necesitas instalar: pip install streamlit-js-eval
 
-# --- CONFIGURACIÓN ---
+# Esto debe ser lo primero que vea Streamlit
 st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide")
 
 # --- CONEXIÓN ---
