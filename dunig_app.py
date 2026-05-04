@@ -81,8 +81,8 @@ if st.session_state.pagina == "inicio":
 # ... código anterior ...
     col1, col2 = st.columns(2)
     
-    with col1: # Línea 82
-        # Fíjate en los espacios antes de st.button (Línea 83)
+    with col1: # Línea 82: Abrimos el bloque
+        # Línea 83: ¡AQUÍ van los espacios! (Sangría)
         st.button(
             "🛒 ENTRAR AL CENTRO COMERCIAL", 
             use_container_width=True, 
@@ -91,7 +91,7 @@ if st.session_state.pagina == "inicio":
             key="btn_centro_principal"
         )
     
-    with col2:
+    with col2: # Línea siguiente
         st.button(
             "🏢 ACCESO PROPIETARIOS", 
             use_container_width=True, 
