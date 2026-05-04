@@ -161,7 +161,7 @@ elif st.session_state.pagina == "panel_carga":
                 if logo_subir:
                     path_l = f"logos/{email_u.replace('@','_')}.jpg"
                     # CORRECCIÓN DE LA SUBIDA
-                    supabase.storage.from_("fotos_productos").upload(path_l, logo_subir.getvalue(), {"upsert": True})
+                    supabase.storage.from_("fotos_productos").upload(path_l, logo_subir.getvalue(), {"upsert": "True"})
                     u_logo = supabase.storage.from_("fotos_productos").get_public_url(path_l)
 
                 up_data = {
