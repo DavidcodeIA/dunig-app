@@ -2,146 +2,91 @@ import streamlit as st
 from supabase import create_client, Client
 import random
 
-# 1. Configuración de la App
-st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide")
+# ==========================================
+# 1. CONFIGURACIÓN E INICIALIZACIÓN
+# ==========================================
+st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. Conexión a Base de Datos
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(url, key)
+# Conexión Segura a Supabase
+try:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(url, key)
+except Exception as e:
+    st.error("⚠️ Error de conexión: Revisa tus Secrets en Streamlit Cloud.")
+    st.stop()
 
-# 3. DEFINIR LA FUNCIÓN NAVEGAR (Debe estar aquí arriba)
+# --- FUNCIÓN DE NAVEGACIÓN (Debe ir arriba para evitar NameError) ---
 def navegar(destino, com=None):
     st.session_state.pagina = destino
     if com:
         st.session_state.comercio_sel = com
     st.rerun()
 
-# 4. Inicializar el estado si no existe
-if 'pagina' not in st.session_state:
-    st.session_state.pagina = "inicio"
-if 'carrito' not in st.session_state:
-    st.session_state.carrito = {}
+# Inicialización de estados de sesión
+if 'pagina' not in st.session_state: st.session_state.pagina = "inicio"
+if 'comercio_sesion' not in st.session_state: st.session_state.comercio_sesion = None
+if 'comercio_sel' not in st.session_state: st.session_state.comercio_sel = None
+if 'carrito' not in st.session_state: st.session_state.carrito = {}
 
-# 5. Ahora sí, el resto del código...
-if st.session_state.pagina == "inicio":
-    st.title("⚜️ D'UNIG PLATINUM")
-    # Ahora esta línea ya no dará error porque 'navegar' ya existe
-    st.button("🛒 ENTRAR AL CENTRO COMERCIAL", use_container_width=True, on_click=navegar, args=("centro_comercial",))
-@st.dialog("🧬 REGISTRO BIOMÉTRICO D'UNIG")
-def ventana_registro_cliente():
-    st.write("Bienvenido al sistema de seguridad Platinum. Por favor, ingrese sus datos para vincular su huella.")
-    
-    nombre = st.text_input("Nombre Completo")
-    cedula = st.text_input("Documento de Identidad (C.I / ID)")
-    
-    st.markdown("---")
-    st.write("### 🖐️ ESCÁNER DE HUELLA")
-    
-    # Simulación visual del escáner
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.header("🔍") # Icono que simula el escáner
-    with col2:
-        st.info("Coloque su dedo sobre el sensor de su dispositivo...")
-    
-    # Botón que simula la captura del sensor físico
-    if st.button("🔴 INICIAR ESCANEO"):
-        if nombre and cedula:
-            with st.spinner("Procesando minucias dactilares..."):
-                import time
-                time.sleep(2) # Efecto de espera dramático
-                
-                # Guardamos en Supabase
-                try:
-                    # Creamos un "Hash" falso que represente la huella
-                    huella_simulada = f"HUELLA_{random.randint(1000,9999)}_D_UNIG"
-                    
-                    supabase.table("clientes_verificados").upsert({
-                        "nombre_cliente": nombre,
-                        "cedula_id": cedula,
-                        "huella_hash": huella_simulada
-                    }, on_conflict="cedula_id").execute()
-                    
-                    st.success(f"¡Excelente, {nombre}! Tu huella ha sido registrada y vinculada exitosamente.")
-                    st.balloons()
-                    # No cerramos automático para que el usuario vea el éxito
-                except Exception as e:
-                    st.error(f"Error al registrar: {e}")
-        else:
-            st.warning("Por favor, complete sus datos antes del escaneo.")
+# Estilos CSS Personalizados
+st.markdown("""
+    <style>
+    .main { background-color: #0E1117; }
+    .stButton>button { border-radius: 10px; font-weight: bold; }
+    .card-tienda { 
+        border: 1px solid #D4AF37; 
+        padding: 15px; 
+        border-radius: 15px; 
+        background: #1A1C23; 
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    .price-tag { color: #D4AF37; font-size: 24px; font-weight: bold; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ==========================================
-# LÓGICA DE PÁGINAS
+# 2. LÓGICA DE PÁGINAS (USANDO IF / ELIF)
 # ==========================================
 
 # --- PÁGINA: INICIO ---
 if st.session_state.pagina == "inicio":
-    st.markdown("<h1 style='text-align:center;'>⚜️ D'UNIG PLATINUM ⚜️</h1>", unsafe_allow_html=True)
-# ... código anterior ...
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚜️ D'UNIG PLATINUM ⚜️</h1>", unsafe_allow_html=True)
+    st.write("---")
+    
     col1, col2 = st.columns(2)
-    
-    with col1: # Línea 82: Abrimos el bloque
-        # Línea 83: ¡AQUÍ van los espacios! (Sangría)
-        st.button(
-            "🛒 ENTRAR AL CENTRO COMERCIAL", 
-            use_container_width=True, 
-            on_click=navegar, 
-            args=("centro_comercial",),
-            key="btn_centro_principal"
-        )
-    
-    with col2: # Línea siguiente
-        st.button(
-            "🏢 ACCESO PROPIETARIOS", 
-            use_container_width=True, 
-            on_click=navegar, 
-            args=("login_comercio",),
-            key="btn_login_principal"
-        )
-        st.button("🏢 ACCESO PROPIETARIOS", use_container_width=True, on_click=navegar, args=("login_comercio",))
-# Debajo de los botones de Cliente y Propietario agrega este:
-    st.button("🛵 SOCIO REPARTIDOR (DELIVERY)", use_container_width=True, on_click=navegar, args=("panel_delivery",))
-# --- PÁGINA: LOGIN Y REGISTRO BIOMÉTRICO ---
+    with col1:
+        st.button("🛒 ENTRAR COMO CLIENTE", use_container_width=True, on_click=navegar, args=("centro_comercial",), key="btn_cliente")
+    with col2:
+        st.button("🏢 ACCESO PROPIETARIOS", use_container_width=True, on_click=navegar, args=("login_comercio",), key="btn_admin")
+
+# --- PÁGINA: LOGIN PROPIETARIO ---
 elif st.session_state.pagina == "login_comercio":
-    st.markdown("<h2 style='text-align:center;'>🔑 Acceso y Seguridad</h2>", unsafe_allow_html=True)
+    st.subheader("🔑 Panel de Control de Negocio")
+    nom_login = st.text_input("Nombre de tu Negocio", placeholder="Ej: Pizzería Dante")
     
-    # Creamos dos columnas: una para el ingreso normal y otra para el registro nuevo
-    col_login, col_reg = st.columns(2)
+    if st.button("INGRESAR AL PANEL", use_container_width=True):
+        if nom_login:
+            st.session_state.comercio_sesion = nom_login.strip()
+            navegar("panel_carga")
+        else:
+            st.warning("Escribe el nombre de tu negocio.")
+    
+    st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",), key="back_login")
 
-    with col_login:
-        st.subheader("🏢 Propietarios")
-        nom_tienda = st.text_input("Nombre de tu Negocio", placeholder="Ej: Mi Tienda Platinum")
-        if st.button("INGRESAR AL PANEL", use_container_width=True):
-            if nom_tienda:
-                st.session_state.comercio_sesion = nom_tienda
-                navegar("panel_carga")
-            else:
-                st.warning("Escribe el nombre de tu negocio")
-
-    with col_reg:
-        st.subheader("🧬 Clientes Nuevos")
-        st.write("Registra tu identidad digital para compras seguras con huella.")
-        # Este botón activa la ventana emergente que pegaste arriba
-        if st.button("REGISTRAR MI HUELLA", use_container_width=True):
-            ventana_registro_cliente()
-
-    st.markdown("---")
-    # Botón para volver centrado
-    _, col_btn, _ = st.columns([1,1,1])
-    with col_btn:
-        st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",), use_container_width=True)
-# --- PÁGINA: PANEL DE CARGA (PROPIETARIO) ---
+# --- PÁGINA: PANEL DE GESTIÓN (CARGA) ---
 elif st.session_state.pagina == "panel_carga":
     nombre_c = st.session_state.comercio_sesion
     st.title(f"⚙️ Gestión: {nombre_c}")
     
-    # 1. SECCIÓN PERFIL
-    with st.expander("🖼️ CONFIGURAR MI VITRINA (Logo, WhatsApp, Pago)"):
-        logo = st.file_uploader("Logo del Negocio", type=['jpg','png'])
-        ws = st.text_input("WhatsApp (Ej: 584121234567)")
-        pago = st.text_area("Datos para que el cliente te pague (Cuentas, Pago Móvil, etc.)")
-        if st.button("Guardar Mi Perfil"):
+    # SECCIÓN PERFIL
+    with st.expander("🖼️ CONFIGURAR PERFIL (Logo, WhatsApp, Pago)"):
+        logo = st.file_uploader("Logo del Negocio", type=['jpg', 'png', 'jpeg'])
+        ws = st.text_input("WhatsApp (Ej: 584121234567)", help="Solo números con código de país")
+        pago = st.text_area("Datos para el Pago (Zelle, Pago Móvil, etc.)")
+        
+        if st.button("Guardar Datos del Perfil"):
             try:
                 url_l = None
                 if logo:
@@ -149,32 +94,28 @@ elif st.session_state.pagina == "panel_carga":
                     supabase.storage.from_("fotos_productos").upload(path, logo.getvalue())
                     url_l = supabase.storage.from_("fotos_productos").get_public_url(path)
                 
-                data = {
-                    "nombre_comercio": nombre_c, 
-                    "whatsapp": ws if ws else "", 
-                    "datos_pago": pago if pago else ""
-                }
-                if url_l: data["logo_url"] = url_l
+                data_perfil = {"nombre_comercio": nombre_c, "whatsapp": ws, "datos_pago": pago}
+                if url_l: data_perfil["logo_url"] = url_l
                 
-                supabase.table("perfiles_comercio").upsert(data, on_conflict="nombre_comercio").execute()
-                st.success("✅ ¡Datos de vitrina actualizados!")
+                supabase.table("perfiles_comercio").upsert(data_perfil, on_conflict="nombre_comercio").execute()
+                st.success("✅ Perfil guardado con éxito.")
             except Exception as e:
                 st.error(f"Error al guardar perfil: {e}")
 
-    # 2. SECCIÓN CARGA PRODUCTO (CORREGIDA LA INDENTACIÓN)
-    st.subheader("🎬 Cargar Nuevo Video-Producto")
-    with st.form("form_carga_producto", clear_on_submit=True):
+    # SECCIÓN CARGA PRODUCTO
+    with st.form("form_carga_video", clear_on_submit=True):
+        st.subheader("🎬 Publicar Video-Producto")
         p_nom = st.text_input("Nombre del Producto")
-        p_pre = st.number_input("Precio ($)", min_value=0.0)
+        p_pre = st.number_input("Precio ($)", min_value=0.0, format="%.2f")
         p_vid = st.file_uploader("Video (Máximo 10 segundos)", type=['mp4'])
         
-        # El botón de submit DEBE estar aquí adentro
-        btn_publicar = st.form_submit_button("🚀 PUBLICAR PRODUCTO")
+        # El botón de formulario DEBE estar indentado aquí adentro
+        submit = st.form_submit_button("🚀 PUBLICAR AHORA")
         
-        if btn_publicar:
+        if submit:
             if p_nom and p_vid:
                 try:
-                    path_v = f"productos/vid_{random.randint(1000,9999)}.mp4"
+                    path_v = f"productos/{nombre_c}_{random.randint(1000,9999)}.mp4"
                     supabase.storage.from_("fotos_productos").upload(path_v, p_vid.getvalue())
                     url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
                     
@@ -184,17 +125,19 @@ elif st.session_state.pagina == "panel_carga":
                         "video_url": url_v, 
                         "comercio_propietario": nombre_c
                     }).execute()
-                    st.success("¡Video cargado con éxito!")
+                    st.success("🔥 ¡Producto publicado en la vitrina!")
                 except Exception as e:
-                    st.error(f"Error al subir video: {e}")
+                    st.error(f"Error al subir: {e}")
             else:
-                st.warning("Debes poner un nombre y subir un video.")
+                st.warning("Falta el nombre o el video.")
 
-    st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",))
+    st.write("---")
+    st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",), key="logout")
 
 # --- PÁGINA: CENTRO COMERCIAL ---
 elif st.session_state.pagina == "centro_comercial":
     st.title("🏢 CENTRO COMERCIAL D'UNIG")
+    
     try:
         tiendas = supabase.table("perfiles_comercio").select("*").execute()
         if tiendas.data:
@@ -202,134 +145,97 @@ elif st.session_state.pagina == "centro_comercial":
             for i, t in enumerate(tiendas.data):
                 with cols[i % 3]:
                     st.markdown("<div class='card-tienda'>", unsafe_allow_html=True)
-                    logo_url = t.get('logo_url')
-                    if logo_url: st.image(logo_url, width=100)
-                    else: st.markdown("<h1>🏪</h1>", unsafe_allow_html=True)
+                    # Validación de logo para evitar AttributeError
+                    l_url = t.get('logo_url')
+                    if l_url and l_url.strip() != "":
+                        st.image(l_url, width=120)
+                    else:
+                        st.markdown("<h1 style='margin:0;'>🏪</h1>", unsafe_allow_html=True)
+                    
                     st.subheader(t['nombre_comercio'])
-                    if st.button("Entrar", key=f"btn_store_{i}"):
+                    if st.button("Ver Productos", key=f"entrar_{i}", use_container_width=True):
                         navegar("vitrina_personal", t['nombre_comercio'])
                     st.markdown("</div>", unsafe_allow_html=True)
         else:
-            st.info("No hay tiendas activas todavía.")
+            st.info("No hay tiendas registradas todavía.")
     except Exception as e:
-        st.error(f"Error al cargar tiendas: {e}")
-    st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",))
+        st.error(f"Error al cargar: {e}")
+        
+    st.button("🔙 VOLVER", on_click=navegar, args=("inicio",), key="back_mall")
 
-# --- PÁGINA: VITRINA PERSONAL (VIDEO) ---
+# --- PÁGINA: VITRINA PERSONALIZADA ---
 elif st.session_state.pagina == "vitrina_personal":
-    tienda_nom = st.session_state.comercio_sel
-    st.title(f"🏪 {tienda_nom}")
+    tienda = st.session_state.comercio_sel
+    st.title(f"🏪 Vitrina: {tienda}")
     
     try:
-        prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
+        prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda).execute()
         if prods.data:
             for p in prods.data:
                 with st.container():
-                    st.markdown("<div class='video-container'>", unsafe_allow_html=True)
                     st.video(p['video_url'])
                     st.subheader(p['nombre_producto'])
                     st.markdown(f"<p class='price-tag'>{p['precio']}$</p>", unsafe_allow_html=True)
                     
-                    # Carrito Suma/Resta
+                    # Sistema de Carrito
                     pid = str(p['id'])
                     cant = st.session_state.carrito.get(pid, 0)
                     c1, c2, c3 = st.columns([1,1,4])
                     if c1.button("➖", key=f"m_{pid}"):
                         st.session_state.carrito[pid] = max(0, cant - 1)
                         st.rerun()
-                    c2.write(f"### {cant}")
-                    if c3.button("➕", key=f"p_{pid}"):
+                    c2.markdown(f"<h3 style='text-align:center;'>{cant}</h3>", unsafe_allow_html=True)
+                    if c3.button("➕ Añadir al Carrito", key=f"p_{pid}", use_container_width=True):
                         st.session_state.carrito[pid] = cant + 1
                         st.rerun()
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    st.write("---")
 
-            # Cálculo de Total
-            p_dict = {str(item['id']): item for item in prods.data}
-            total = sum(p_dict[k]['precio'] * v for k, v in st.session_state.carrito.items() if k in p_dict)
+            # Botón de Pago Flotante (si hay productos)
+            total = 0
+            # Crear diccionario para buscar precios rápido
+            precios = {str(item['id']): item['precio'] for item in prods.data}
+            for k, v in st.session_state.carrito.items():
+                if k in precios: total += precios[k] * v
             
             if total > 0:
-                st.divider()
-                if st.button(f"💳 FINALIZAR COMPRA: {total}$", use_container_width=True):
+                if st.button(f"💳 FINALIZAR PEDIDO: {total}$", use_container_width=True, type="primary"):
                     navegar("pago")
         else:
             st.warning("Esta tienda no tiene productos disponibles.")
     except Exception as e:
-        st.error(f"Error al cargar productos: {e}")
-    st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",))
+        st.error(f"Error en vitrina: {e}")
 
-# --- PÁGINA: PAGO Y WHATSAPP ---
+    st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",), key="back_vit")
+
+# --- PÁGINA: PROCESAR PAGO ---
 elif st.session_state.pagina == "pago":
-    tienda_nom = st.session_state.comercio_sel
-    st.header("🏁 Checkout y Pago")
+    tienda = st.session_state.comercio_sel
+    st.header("🏁 Confirmación de Pedido")
     
     try:
-        # Traer datos del comercio
-        perfil = supabase.table("perfiles_comercio").select("*").eq("nombre_comercio", tienda_nom).single().execute()
+        p_res = supabase.table("perfiles_comercio").select("*").eq("nombre_comercio", tienda).single().execute()
+        perfil = p_res.data
         
-        st.subheader("📌 Datos de Pago del Comercio")
-        st.info(perfil.data.get('datos_pago', 'No se especificaron datos de pago.'))
+        st.success(f"Estás comprando en: **{tienda}**")
+        st.markdown(f"**Método de Pago Recomendado:**\n\n{perfil.get('datos_pago', 'Acordar con el vendedor')}")
         
-        # Generar Factura/Ticket para WhatsApp
-        ticket = f"*🎫 TICKET DE PEDIDO - D'UNIG PLATINUM*%0A"
-        ticket += f"*Tienda:* {tienda_nom}%0A"
-        ticket += f"----------------------------%0A"
-        
-        prods_res = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
-        total_final = 0
-        
+        # Generar resumen para WhatsApp
+        resumen = f"*PEDIDO D'UNIG PLATINUM*%0A---%0A"
+        prods_res = supabase.table("productos").select("*").eq("comercio_propietario", tienda).execute()
+        gran_total = 0
         for pr in prods_res.data:
-            cantidad = st.session_state.carrito.get(str(pr['id']), 0)
-            if cantidad > 0:
-                subtotal = pr['precio'] * cantidad
-                total_final += subtotal
-                ticket += f"✅ {pr['nombre_producto']}%0A"
-                ticket += f"   Cant: {cantidad} x {pr['precio']}$ = {subtotal}$%0A"
+            c_p = st.session_state.carrito.get(str(pr['id']), 0)
+            if c_p > 0:
+                resumen += f"- {pr['nombre_producto']} (x{c_p}): {pr['precio']*c_p}$%0A"
+                gran_total += pr['precio']*c_p
         
-        ticket += f"----------------------------%0A"
-        ticket += f"*TOTAL A PAGAR: {total_final}$*%0A%0A"
-        ticket += f"Please enviarme el comprobante de pago por este medio."
+        resumen += f"---%0A*TOTAL A PAGAR: {gran_total}$*"
         
-        ws_num = perfil.data.get('whatsapp', '')
-        
-        if st.button("✅ ENVIAR TICKET Y COMPROBANTE AL WHATSAPP"):
-            if ws_num:
-                url_ws = f"https://wa.me/{ws_num}?text={ticket}"
-                st.markdown(f'<a href="{url_ws}" target="_blank">📲 Presiona aquí para enviar el pedido</a>', unsafe_allow_html=True)
-            else:
-                st.error("El comercio no registró un número de WhatsApp.")
-                
-    except Exception as e:
-        st.error(f"Error en el proceso de pago: {e}")
-    
-    st.button("🔙 VOLVER AL CARRITO", on_click=navegar, args=("vitrina_personal", tienda_nom)) 
-
-# --- PÁGINA: PANEL DE DELIVERY ---
-elif st.session_state.pagina == "panel_delivery":
-    st.title("🛵 Panel de Repartidores")
-    
-    # Primero pedimos la huella para poder ver los pedidos
-    if solicitar_huella():
-        st.subheader("Pedidos listos para entregar")
-        
-        try:
-            # Traemos productos que no han sido entregados
-            pedidos = supabase.table("productos").select("*").execute()
+        ws_vendedor = perfil.get('whatsapp', '')
+        if st.button("📲 ENVIAR PEDIDO POR WHATSAPP", use_container_width=True):
+            st.markdown(f'<a href="https://wa.me/{ws_vendedor}?text={resumen}" target="_blank">Haz clic aquí para enviar</a>', unsafe_allow_html=True)
             
-            if pedidos.data:
-                for p in pedidos.data:
-                    with st.expander(f"📦 Pedido: {p['nombre_producto']}"):
-                        st.write(f"Comercio: {p['comercio_propietario']}")
-                        st.write(f"Monto a cobrar: {p['precio']}$")
-                        
-                        if st.button(f"CONFIRMAR ENTREGA Y COBRAR", key=f"deliv_{p['id']}"):
-                            st.balloons()
-                            st.success(f"¡Excelente! Pago de comisión activado para este reparto.")
-            else:
-                st.info("No hay pedidos pendientes en este momento.")
-                
-        except Exception as e:
-            st.error(f"Error al cargar pedidos: {e}")
-    else:
-        st.warning("⚠️ Se requiere validación biométrica para gestionar entregas.")
-
-    st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",))
+    except Exception as e:
+        st.error(f"Error al procesar pago: {e}")
+    
+    st.button("🔙 REGRESAR A VITRINA", on_click=navegar, args=("vitrina_personal", tienda))          
