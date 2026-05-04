@@ -177,28 +177,27 @@ elif st.session_state.pagina == "centro_comercial":
         
     st.button("🔙 VOLVER", on_click=navegar, args=("inicio",), key="back_mall")
 
-# --- PÁGINA: VITRINA PERSONAL ---
 elif st.session_state.pagina == "vitrina_personal":
-    tienda_nom = st.session_state.comercio_sel
-    st.title(f"🏪 {tienda_nom}")
-    
-    try:
-        # Esta línea define 'prods'
-        prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
-        
-        # LÍNEA 140: Debe estar EXACTAMENTE debajo de la 'p' de 'prods'
-        if prods.data:
-            for p in prods.data:
-                with st.container():
-                    st.video(p['video_url'])
-                    st.subheader(p['nombre_producto'])
-                    st.write(f"Precio: {p['precio']}$")
-                    st.write("---")
-        else:
-            st.warning("Esta tienda aún no tiene productos.")
-            
-    except Exception as e:
-        st.error(f"Error: {e}")
+....tienda_nom = st.session_state.comercio_sel
+....st.title(f"🏪 {tienda_nom}")
+....
+....try:
+........# Esta línea es tu referencia
+........prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
+........
+........# LINEA 140: Debe tener EXACTAMENTE los mismos espacios que 'prods'
+........if prods.data:
+............for p in prods.data:
+................with st.container():
+....................st.video(p['video_url'])
+....................st.subheader(p['nombre_producto'])
+....................st.write(f"Precio: {p['precio']}$")
+....................st.write("---")
+........else:
+............st.warning("Esta tienda aún no tiene productos.")
+............
+....except Exception as e:
+........st.error(f"Error: {e}")
     st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",), key="back_vit")
 
 # --- PÁGINA: PROCESAR PAGO ---
