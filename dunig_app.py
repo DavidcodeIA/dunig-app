@@ -112,9 +112,12 @@ elif st.session_state.pagina == "panel_carga":
                 u_logo = perfil_data['logo_url'] if perfil_data else None
                 if logo_subir:
                     path_l = f"logos/{email_u.replace('@','_')}.jpg"
-                    supabase.storage.from_("fotos_productos").upload(path_l, logo_subir.getvalue(), {"upsert": "true"})
-                    u_logo = supabase.storage.from_("fotos_productos").get_public_url(path_l)
-                
+# CORRECTO
+supabase.storage.from_("fotos_productos").upload(
+    path_l, 
+    logo_subir.getvalue(), 
+    {"upsert": True} # <--- Fíjate: True (sin comillas)
+)
                 up_data = {
                     "email_propietario": email_u,
                     "nombre_comercio": nombre_negocio,
