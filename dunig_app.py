@@ -136,13 +136,16 @@ if st.form_submit_button("🚀 SUBIR PRODUCTO"):
                         "comercio_propietario": nombre_c
                     }).execute()
                     
-                    st.success("¡Producto subido con éxito!")
-                except Exception as e:
-                    st.error(f"Error al subir: {e}")
-            else:
-                st.warning("Falta el nombre o el video.")
-
-    st.write("---")
+# ... código anterior del bucle de productos ...
+        if prods.data:
+            for p in prods.data:
+                with st.container():
+                    st.video(p['video_url'])
+                    st.subheader(p['nombre_producto'])
+                    # ... botones de carrito ...
+                    
+                    # LÍNEA 145: Debe estar alineada con st.video o st.subheader
+                    st.write("---")
     st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",), key="logout")
 
 # --- PÁGINA: CENTRO COMERCIAL ---
