@@ -1,2 +1,4 @@
 streamlit
 supabase
+postgrest==0.10.7
+streamlit-js-eval
