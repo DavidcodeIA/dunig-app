@@ -53,18 +53,36 @@ if st.session_state.pagina == "inicio":
     with c1: st.button("🛒 ENTRAR AL CENTRO", use_container_width=True, on_click=navegar, args=("centro_comercial",))
     with c2: st.button("🏢 PROPIETARIOS", use_container_width=True, on_click=navegar, args=("login_comercio",))
 
-# --- CENTRO COMERCIAL ---
+# --- PÁGINA: CENTRO COMERCIAL ---
 elif st.session_state.pagina == "centro_comercial":
-    st.title("🏢 CENTRO COMERCIAL")
-    tiendas = supabase.table("perfiles_comercio").select("*").execute()
-    cols = st.columns(3)
-    for i, t in enumerate(tiendas.data):
-        with cols[i % 3]:
-            st.image(t.get('logo_url', ''), width=100)
-            st.subheader(t['nombre_comercio'])
-            st.button("Entrar", key=f"t_{i}", on_click=navegar, args=("vitrina_personal", t['nombre_comercio']))
-    st.button("🔙 VOLVER", on_click=navegar, args=("inicio",))
-
+    st.title("🏢 CENTRO COMERCIAL D'UNIG")
+    try:
+        tiendas = supabase.table("perfiles_comercio").select("*").execute()
+        if tiendas.data:
+            cols = st.columns(3)
+            for i, t in enumerate(tiendas.data):
+                with cols[i % 3]:
+                    st.markdown("<div class='card-tienda'>", unsafe_allow_html=True)
+                    
+                    # --- CORRECCIÓN AQUÍ ---
+                    logo_url = t.get('logo_url')
+                    if logo_url and logo_url.strip() != "":
+                        st.image(logo_url, width=100)
+                    else:
+                        st.markdown("<h3>🏪</h3>", unsafe_allow_html=True)
+                    # -----------------------
+                    
+                    st.subheader(t['nombre_comercio'])
+                    # Usamos el ID de la base de datos para el key del botón
+                    if st.button(f"Entrar a {t['nombre_comercio']}", key=f"shop_btn_{i}"):
+                        navegar("vitrina_personal", t['nombre_comercio'])
+                    st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.info("Aún no hay tiendas con perfil configurado.")
+    except Exception as e:
+        st.error(f"Error al cargar tiendas: {e}")
+    
+    st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",))
 # --- VITRINA PERSONAL (CON BOTÓN FLOTANTE) ---
 elif st.session_state.pagina == "vitrina_personal":
     tienda_nom = st.session_state.comercio_sel
