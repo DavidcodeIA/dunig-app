@@ -80,7 +80,13 @@ if st.session_state.pagina == "inicio":
     st.markdown("<h1 style='text-align:center;'>⚜️ D'UNIG PLATINUM ⚜️</h1>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        st.button("🛒 ENTRAR AL CENTRO COMERCIAL", use_container_width=True, on_click=navegar, args=("centro_comercial",))
+st.button(
+    "🛒 ENTRAR AL CENTRO COMERCIAL", 
+    use_container_width=True, 
+    on_click=navegar, 
+    args=("centro_comercial",),
+    key="boton_principal_centro"  # <--- Agrega esto
+)
     with c2:
         st.button("🏢 ACCESO PROPIETARIOS", use_container_width=True, on_click=navegar, args=("login_comercio",))
 # Debajo de los botones de Cliente y Propietario agrega este:
