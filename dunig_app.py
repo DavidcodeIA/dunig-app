@@ -177,48 +177,28 @@ elif st.session_state.pagina == "centro_comercial":
         
     st.button("🔙 VOLVER", on_click=navegar, args=("inicio",), key="back_mall")
 
-# --- PÁGINA: VITRINA PERSONALIZADA ---
+# --- PÁGINA: VITRINA PERSONAL ---
 elif st.session_state.pagina == "vitrina_personal":
-    tienda = st.session_state.comercio_sel
-    st.title(f"🏪 Vitrina: {tienda}")
+    tienda_nom = st.session_state.comercio_sel
+    st.title(f"🏪 {tienda_nom}")
     
     try:
-        prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda).execute()
+        # Esta línea define 'prods'
+        prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
+        
+        # LÍNEA 140: Debe estar EXACTAMENTE debajo de la 'p' de 'prods'
         if prods.data:
             for p in prods.data:
                 with st.container():
                     st.video(p['video_url'])
                     st.subheader(p['nombre_producto'])
-                    st.markdown(f"<p class='price-tag'>{p['precio']}$</p>", unsafe_allow_html=True)
-                    
-                    # Sistema de Carrito
-                    pid = str(p['id'])
-                    cant = st.session_state.carrito.get(pid, 0)
-                    c1, c2, c3 = st.columns([1,1,4])
-                    if c1.button("➖", key=f"m_{pid}"):
-                        st.session_state.carrito[pid] = max(0, cant - 1)
-                        st.rerun()
-                    c2.markdown(f"<h3 style='text-align:center;'>{cant}</h3>", unsafe_allow_html=True)
-                    if c3.button("➕ Añadir al Carrito", key=f"p_{pid}", use_container_width=True):
-                        st.session_state.carrito[pid] = cant + 1
-                        st.rerun()
+                    st.write(f"Precio: {p['precio']}$")
                     st.write("---")
-
-            # Botón de Pago Flotante (si hay productos)
-            total = 0
-            # Crear diccionario para buscar precios rápido
-            precios = {str(item['id']): item['precio'] for item in prods.data}
-            for k, v in st.session_state.carrito.items():
-                if k in precios: total += precios[k] * v
-            
-            if total > 0:
-                if st.button(f"💳 FINALIZAR PEDIDO: {total}$", use_container_width=True, type="primary"):
-                    navegar("pago")
         else:
-            st.warning("Esta tienda no tiene productos disponibles.")
+            st.warning("Esta tienda aún no tiene productos.")
+            
     except Exception as e:
-        st.error(f"Error en vitrina: {e}")
-
+        st.error(f"Error: {e}")
     st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",), key="back_vit")
 
 # --- PÁGINA: PROCESAR PAGO ---
