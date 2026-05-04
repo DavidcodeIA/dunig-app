@@ -136,16 +136,15 @@ if st.form_submit_button("🚀 SUBIR PRODUCTO"):
                         "comercio_propietario": nombre_c
                     }).execute()
                     
-# ... código anterior del bucle de productos ...
-        if prods.data:
-            for p in prods.data:
-                with st.container():
-                    st.video(p['video_url'])
-                    st.subheader(p['nombre_producto'])
-                    # ... botones de carrito ...
-                    
-                    # LÍNEA 145: Debe estar alineada con st.video o st.subheader
-                    st.write("---")
+....try:
+........# Línea 139: La referencia
+........prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
+........
+........# Línea 140: Debe tener los MISMOS espacios que la línea 139
+........if prods.data:
+............for p in prods.data:
+................with st.container():
+....................st.video(p['video_url'])
     st.button("🏠 CERRAR SESIÓN", on_click=navegar, args=("inicio",), key="logout")
 
 # --- PÁGINA: CENTRO COMERCIAL ---
