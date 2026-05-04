@@ -2,24 +2,32 @@ import streamlit as st
 from supabase import create_client, Client
 import random
 
-# --- 1. CONFIGURACIÓN ---
-st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide", page_icon="⚜️")
+# 1. Configuración de la App
+st.set_page_config(page_title="D'UNIG PLATINUM", layout="wide")
 
-# --- 2. CONEXIÓN ---
-try:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    supabase: Client = create_client(url, key)
-except Exception as e:
-    st.error(f"Error de conexión: {e}")
-    st.stop()
+# 2. Conexión a Base de Datos
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
-# --- 3. ESTADOS Y NAVEGACIÓN ---
-if 'pagina' not in st.session_state: st.session_state.pagina = "inicio"
-if 'comercio_sesion' not in st.session_state: st.session_state.comercio_sesion = None
-if 'comercio_sel' not in st.session_state: st.session_state.comercio_sel = None
-if 'carrito' not in st.session_state: st.session_state.carrito = {}
+# 3. DEFINIR LA FUNCIÓN NAVEGAR (Debe estar aquí arriba)
+def navegar(destino, com=None):
+    st.session_state.pagina = destino
+    if com:
+        st.session_state.comercio_sel = com
+    st.rerun()
 
+# 4. Inicializar el estado si no existe
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "inicio"
+if 'carrito' not in st.session_state:
+    st.session_state.carrito = {}
+
+# 5. Ahora sí, el resto del código...
+if st.session_state.pagina == "inicio":
+    st.title("⚜️ D'UNIG PLATINUM")
+    # Ahora esta línea ya no dará error porque 'navegar' ya existe
+    st.button("🛒 ENTRAR AL CENTRO COMERCIAL", use_container_width=True, on_click=navegar, args=("centro_comercial",))
 @st.dialog("🧬 REGISTRO BIOMÉTRICO D'UNIG")
 def ventana_registro_cliente():
     st.write("Bienvenido al sistema de seguridad Platinum. Por favor, ingrese sus datos para vincular su huella.")
