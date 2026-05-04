@@ -78,16 +78,27 @@ def ventana_registro_cliente():
 # --- PÁGINA: INICIO ---
 if st.session_state.pagina == "inicio":
     st.markdown("<h1 style='text-align:center;'>⚜️ D'UNIG PLATINUM ⚜️</h1>", unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1:
-st.button(
-    "🛒 ENTRAR AL CENTRO COMERCIAL", 
-    use_container_width=True, 
-    on_click=navegar, 
-    args=("centro_comercial",),
-    key="boton_principal_centro"  # <--- Agrega esto
-)
-    with c2:
+# ... código anterior ...
+    col1, col2 = st.columns(2)
+    
+    with col1: # Línea 82
+        # Fíjate en los espacios antes de st.button (Línea 83)
+        st.button(
+            "🛒 ENTRAR AL CENTRO COMERCIAL", 
+            use_container_width=True, 
+            on_click=navegar, 
+            args=("centro_comercial",),
+            key="btn_centro_principal"
+        )
+    
+    with col2:
+        st.button(
+            "🏢 ACCESO PROPIETARIOS", 
+            use_container_width=True, 
+            on_click=navegar, 
+            args=("login_comercio",),
+            key="btn_login_principal"
+        )
         st.button("🏢 ACCESO PROPIETARIOS", use_container_width=True, on_click=navegar, args=("login_comercio",))
 # Debajo de los botones de Cliente y Propietario agrega este:
     st.button("🛵 SOCIO REPARTIDOR (DELIVERY)", use_container_width=True, on_click=navegar, args=("panel_delivery",))
