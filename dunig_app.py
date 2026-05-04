@@ -104,34 +104,34 @@ elif st.session_state.pagina == "panel_carga":
             except Exception as e:
                 st.error(f"Error: {e}")
 
-    # CARGA DE PRODUCTOS
-    st.write("---")
-    st.subheader("🎬 Publicar Video-Producto")
-    with st.form("carga_producto", clear_on_submit=True):
-        nom_prod = st.text_input("Nombre del Producto")
-        pre_prod = st.number_input("Precio ($)", min_value=0.0)
-        vid_prod = st.file_uploader("Video MP4 (Max 10s)", type=['mp4'])
-        
-        if st.form_submit_button("🚀 SUBIR PRODUCTO"):
+if st.form_submit_button("🚀 SUBIR PRODUCTO"):
             if nom_prod and vid_prod:
                 try:
-                    vid_path = f"productos/{mi_tienda}_{random.randint(1000,9999)}.mp4"
-                    supabase.storage.from_("fotos_productos").upload(vid_path, vid_prod.getvalue())
+                    # 1. Limpiar nombre para evitar errores de caracteres
+                    nombre_limpio = "".join(filter(str.isalnum, mi_tienda))
+                    vid_path = f"productos/{nombre_limpio}_{random.randint(1000,9999)}.mp4"
+                    
+                    # 2. Intentar subir
+                    bytes_data = vid_prod.getvalue()
+                    res = supabase.storage.from_("fotos_productos").upload(vid_path, bytes_data)
+                    
+                    # 3. Obtener URL
                     vid_url = supabase.storage.from_("fotos_productos").get_public_url(vid_path)
                     
+                    # 4. Guardar en tabla
                     supabase.table("productos").insert({
                         "nombre_producto": nom_prod,
                         "precio": pre_prod,
                         "video_url": vid_url,
                         "comercio_propietario": mi_tienda
                     }).execute()
-                    st.success("✅ ¡Producto en línea!")
+                    
+                    st.success("✅ ¡Video publicado con éxito!")
                 except Exception as e:
-                    st.error(f"Error al subir: {e}")
+                    # Esto nos dirá el error real (si es permiso o bucket)
+                    st.error(f"Error técnico: {e}")
             else:
-                st.warning("Faltan datos.")
-
-    if st.button("🏠 CERRAR SESIÓN"): navegar("inicio")
+                st.warning("Escribe un nombre y selecciona un video.")
 
 # --- PÁGINA: CENTRO COMERCIAL ---
 elif st.session_state.pagina == "centro_comercial":
