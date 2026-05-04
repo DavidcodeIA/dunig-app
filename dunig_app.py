@@ -20,34 +20,48 @@ if 'comercio_sesion' not in st.session_state: st.session_state.comercio_sesion =
 if 'comercio_sel' not in st.session_state: st.session_state.comercio_sel = None
 if 'carrito' not in st.session_state: st.session_state.carrito = {}
 
-def navegar(destino, com=None):
-    st.session_state.pagina = destino
-    if com: st.session_state.comercio_sel = com
-    st.rerun()
-# --- FUNCIÓN DE SEGURIDAD BIOMÉTRICA ---
-def solicitar_huella():
-    """Simula la petición de biometría al dispositivo"""
+@st.dialog("🧬 REGISTRO BIOMÉTRICO D'UNIG")
+def ventana_registro_cliente():
+    st.write("Bienvenido al sistema de seguridad Platinum. Por favor, ingrese sus datos para vincular su huella.")
+    
+    nombre = st.text_input("Nombre Completo")
+    cedula = st.text_input("Documento de Identidad (C.I / ID)")
+    
     st.markdown("---")
-    st.markdown("### 🔒 Verificación de Identidad")
-    st.info("Por favor, coloque su huella en el sensor del dispositivo para confirmar.")
+    st.write("### 🖐️ ESCÁNER DE HUELLA")
     
-    # En una App real, aquí llamaríamos a un componente JS (WebAuthn)
-    # Por ahora, usamos un checkbox que simula el escaneo exitoso
-    huella_detectada = st.checkbox("¿Huella reconocida correctamente?")
+    # Simulación visual del escáner
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.header("🔍") # Icono que simula el escáner
+    with col2:
+        st.info("Coloque su dedo sobre el sensor de su dispositivo...")
     
-    if huella_detectada:
-        st.success("✅ Identidad verificada. Acceso concedido.")
-        return True
-    return False
-# --- 4. ESTILOS CSS ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #0E1117; color: white; }
-    .card-tienda { border: 1px solid #D4AF37; padding: 20px; border-radius: 20px; background: #1A1C23; text-align: center; margin-bottom: 10px; }
-    .price-tag { color: #D4AF37; font-size: 26px; font-weight: bold; }
-    .video-container { border-bottom: 2px solid #333; padding-bottom: 30px; margin-bottom: 30px; border-radius: 15px; overflow: hidden; }
-    </style>
-    """, unsafe_allow_html=True)
+    # Botón que simula la captura del sensor físico
+    if st.button("🔴 INICIAR ESCANEO"):
+        if nombre and cedula:
+            with st.spinner("Procesando minucias dactilares..."):
+                import time
+                time.sleep(2) # Efecto de espera dramático
+                
+                # Guardamos en Supabase
+                try:
+                    # Creamos un "Hash" falso que represente la huella
+                    huella_simulada = f"HUELLA_{random.randint(1000,9999)}_D_UNIG"
+                    
+                    supabase.table("clientes_verificados").upsert({
+                        "nombre_cliente": nombre,
+                        "cedula_id": cedula,
+                        "huella_hash": huella_simulada
+                    }, on_conflict="cedula_id").execute()
+                    
+                    st.success(f"¡Excelente, {nombre}! Tu huella ha sido registrada y vinculada exitosamente.")
+                    st.balloons()
+                    # No cerramos automático para que el usuario vea el éxito
+                except Exception as e:
+                    st.error(f"Error al registrar: {e}")
+        else:
+            st.warning("Por favor, complete sus datos antes del escaneo.")
 
 # ==========================================
 # LÓGICA DE PÁGINAS
