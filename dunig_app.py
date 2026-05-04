@@ -24,7 +24,21 @@ def navegar(destino, com=None):
     st.session_state.pagina = destino
     if com: st.session_state.comercio_sel = com
     st.rerun()
-
+# --- FUNCIÓN DE SEGURIDAD BIOMÉTRICA ---
+def solicitar_huella():
+    """Simula la petición de biometría al dispositivo"""
+    st.markdown("---")
+    st.markdown("### 🔒 Verificación de Identidad")
+    st.info("Por favor, coloque su huella en el sensor del dispositivo para confirmar.")
+    
+    # En una App real, aquí llamaríamos a un componente JS (WebAuthn)
+    # Por ahora, usamos un checkbox que simula el escaneo exitoso
+    huella_detectada = st.checkbox("¿Huella reconocida correctamente?")
+    
+    if huella_detectada:
+        st.success("✅ Identidad verificada. Acceso concedido.")
+        return True
+    return False
 # --- 4. ESTILOS CSS ---
 st.markdown("""
     <style>
@@ -47,7 +61,8 @@ if st.session_state.pagina == "inicio":
         st.button("🛒 ENTRAR AL CENTRO COMERCIAL", use_container_width=True, on_click=navegar, args=("centro_comercial",))
     with c2:
         st.button("🏢 ACCESO PROPIETARIOS", use_container_width=True, on_click=navegar, args=("login_comercio",))
-
+# Debajo de los botones de Cliente y Propietario agrega este:
+    st.button("🛵 SOCIO REPARTIDOR (DELIVERY)", use_container_width=True, on_click=navegar, args=("panel_delivery",))
 # --- PÁGINA: LOGIN ---
 elif st.session_state.pagina == "login_comercio":
     st.subheader("🔑 Acceso Propietario")
@@ -229,3 +244,34 @@ elif st.session_state.pagina == "pago":
         st.error(f"Error en el proceso de pago: {e}")
     
     st.button("🔙 VOLVER AL CARRITO", on_click=navegar, args=("vitrina_personal", tienda_nom)) 
+
+# --- PÁGINA: PANEL DE DELIVERY ---
+elif st.session_state.pagina == "panel_delivery":
+    st.title("🛵 Panel de Repartidores")
+    
+    # Primero pedimos la huella para poder ver los pedidos
+    if solicitar_huella():
+        st.subheader("Pedidos listos para entregar")
+        
+        try:
+            # Traemos productos que no han sido entregados
+            pedidos = supabase.table("productos").select("*").execute()
+            
+            if pedidos.data:
+                for p in pedidos.data:
+                    with st.expander(f"📦 Pedido: {p['nombre_producto']}"):
+                        st.write(f"Comercio: {p['comercio_propietario']}")
+                        st.write(f"Monto a cobrar: {p['precio']}$")
+                        
+                        if st.button(f"CONFIRMAR ENTREGA Y COBRAR", key=f"deliv_{p['id']}"):
+                            st.balloons()
+                            st.success(f"¡Excelente! Pago de comisión activado para este reparto.")
+            else:
+                st.info("No hay pedidos pendientes en este momento.")
+                
+        except Exception as e:
+            st.error(f"Error al cargar pedidos: {e}")
+    else:
+        st.warning("⚠️ Se requiere validación biométrica para gestionar entregas.")
+
+    st.button("🔙 VOLVER AL INICIO", on_click=navegar, args=("inicio",))
