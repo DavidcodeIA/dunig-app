@@ -137,11 +137,15 @@ if st.form_submit_button("🚀 SUBIR PRODUCTO"):
                     }).execute()
                     
 # --- PÁGINA: VITRINA PERSONAL ---
+elif st.session_state.pagina == "vitrina_personal":
+    tienda_nom = st.session_state.comercio_sel
+    st.title(f"🏪 {tienda_nom}")
+    
+    # El bloque try debe estar alineado con tienda_nom y st.title
     try:
-        # 1. Consultar productos
+        # Consultar los productos del comercio seleccionado
         prods = supabase.table("productos").select("*").eq("comercio_propietario", tienda_nom).execute()
         
-        # 2. Verificar si hay datos
         if prods.data:
             for p in prods.data:
                 with st.container():
@@ -153,8 +157,10 @@ if st.form_submit_button("🚀 SUBIR PRODUCTO"):
             st.warning("Esta tienda aún no tiene productos.")
 
     except Exception as e:
-        # ESTA ES LA PARTE QUE FALTA O ESTÁ MAL ALINEADA
-        st.error(f"Hubo un error al cargar los productos: {e}")
+        st.error(f"Error al cargar la vitrina: {e}")
+
+    # Botón para regresar
+    st.button("🔙 VOLVER AL CENTRO COMERCIAL", on_click=navegar, args=("centro_comercial",))
 # --- PÁGINA: CENTRO COMERCIAL ---
 elif st.session_state.pagina == "centro_comercial":
     st.title("🏢 CENTRO COMERCIAL D'UNIG")
