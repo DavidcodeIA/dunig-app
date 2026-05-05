@@ -24,16 +24,12 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. CSS: ESTÉTICA ULTRA-MODERNA
+# 2. CSS: ESTÉTICA NEÓN Y PREMIUM
 # ==========================================
 st.markdown("""
     <style>
     .main { background-color: #000000; color: #ffffff; }
     
-    /* Animación de carga rápida */
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    .loading-text { font-weight: bold; color: #D4AF37; animation: pulse 1.5s infinite; }
-
     .fixed-back { position: fixed; top: 15px; left: 15px; z-index: 3000; }
 
     .video-container {
@@ -41,68 +37,95 @@ st.markdown("""
         border-radius: 25px;
         border: 2px solid #D4AF37;
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
         margin-bottom: 15px;
+        background-color: #000;
     }
 
+    /* BURBUJA DE PRECIO COLOR NEÓN */
     .price-bubble {
         position: absolute;
         top: 15px;
         right: 15px;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(10px);
-        color: #FFD700;
-        padding: 5px 18px;
+        background: #000000;
+        color: #39FF14; /* Verde Neón */
+        padding: 6px 20px;
         border-radius: 30px;
-        font-weight: 800;
-        border: 1px solid #D4AF37;
+        font-weight: 900;
+        font-size: 1.4rem;
+        border: 2px solid #39FF14;
+        box-shadow: 0 0 15px #39FF14, inset 0 0 5px #39FF14;
         z-index: 1000;
+        text-shadow: 0 0 5px #39FF14;
     }
 
-    /* Botones Estilo Cristal */
     .stButton>button {
         background: linear-gradient(135deg, #D4AF37 0%, #8A6E2F 100%) !important;
         border: none !important;
         border-radius: 12px !important;
-        letter-spacing: 1px;
+        font-weight: bold !important;
         transition: 0.3s all !important;
     }
     
     .stButton>button:hover {
         transform: scale(1.02);
-        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4) !important;
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.6) !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. COMPONENTES DINÁMICOS
+# 3. VENTANA DE COMPRA CON CALCULADORA
 # ==========================================
-
-@st.dialog("💎 PROCESAR COMPRA")
-def ventana_pago(producto, comercio_id):
-    res = supabase.table("perfiles_comercio").select("*").eq("id", comercio_id).single().execute()
+@st.dialog("💎 MI CARRITO PLATINUM")
+def ventana_pago(producto, tienda_id):
+    # Traer datos frescos de la tienda para asegurar los datos de pago
+    res = supabase.table("perfiles_comercio").select("*").eq("id", tienda_id).single().execute()
     tienda = res.data
     
     st.markdown(f"### ✨ {producto['nombre_producto']}")
-    st.markdown(f"**Total a transferir:** `${producto['precio']}`")
     
-    # Mostrar Datos de Pago (Texto o Imagen)
+    # CALCULADORA DE CANTIDAD
+    col_cant, col_total = st.columns([1, 1])
+    cantidad = col_cant.number_input("Cantidad", min_value=1, value=1, step=1)
+    total_pagar = float(producto['precio']) * cantidad
+    col_total.metric("TOTAL A PAGAR", f"${total_pagar:,.2f}")
+    
+    st.divider()
+    
+    # MOSTRAR DATOS DE PAGO (IMAGEN O TEXTO)
+    st.markdown("#### 🏦 Datos de Pago del Comercio")
     info_pago = tienda.get('datos_pago')
+    
     if info_pago:
         if "http" in info_pago:
-            st.image(info_pago, caption="Escanea o usa estos datos")
+            st.image(info_pago, caption="Transfiere a estos datos", use_container_width=True)
         else:
             st.info(info_pago)
+    else:
+        st.warning("El vendedor no ha cargado imagen de pago aún.")
+
+    st.divider()
+    ref = st.text_input("Ingresa Número de Referencia")
     
-    ref = st.text_input("Referencia de la operación")
-    
-    if st.button("🚀 FINALIZAR POR WHATSAPP", use_container_width=True):
+    if st.button("📲 FINALIZAR Y ENVIAR TICKET", use_container_width=True):
         if ref:
-            msj = f"✨ *PEDIDO PLATINUM*\n📦 *{producto['nombre_producto']}*\n💰 *${producto['precio']}*\n🔢 *Ref:* {ref}"
+            # Ticket con Nombre del Comercio y Cantidad
+            msj = (
+                f"✨ *NUEVO PEDIDO PLATINUM*\n"
+                f"🏪 *Comercio:* {tienda['nombre_comercio']}\n"
+                f"--------------------------\n"
+                f"📦 *Producto:* {producto['nombre_producto']}\n"
+                f"🔢 *Cantidad:* {cantidad}\n"
+                f"💰 *Total:* ${total_pagar:,.2f}\n"
+                f"🎫 *Ref:* {ref}\n"
+                f"--------------------------\n"
+                f"✅ *Por favor confirme el pago.*"
+            )
             url_wa = f"https://wa.me/{tienda['whatsapp']}?text={urllib.parse.quote(msj)}"
-            st.link_button("ABRIR WHATSAPP", url_wa)
-        else: st.warning("Ingresa la referencia.")
+            st.link_button("🚀 IR A WHATSAPP", url_wa)
+        else:
+            st.error("Por favor, ingresa la referencia del pago.")
 
 # ==========================================
 # 4. VISTAS
@@ -110,8 +133,8 @@ def ventana_pago(producto, comercio_id):
 
 with st.sidebar:
     st.image("https://jbtscidofkofclhuxeyf.supabase.co/storage/v1/object/public/fotos_productos/logos/logo_oficial.jpg")
-    st.button("🏠 EXPLORAR MALL", on_click=ir_a, args=('mall',), use_container_width=True)
-    st.button("⚙️ ADMINISTRAR", on_click=ir_a, args=('admin',), use_container_width=True)
+    st.button("🏠 MALL", on_click=ir_a, args=('mall',), use_container_width=True)
+    st.button("⚙️ ADMIN", on_click=ir_a, args=('admin',), use_container_width=True)
 
 # --- TIENDA ---
 if st.session_state.view == 'tienda':
@@ -120,17 +143,21 @@ if st.session_state.view == 'tienda':
     st.markdown('</div>', unsafe_allow_html=True)
     
     t = st.session_state.tienda_actual
-    st.markdown(f"<h2 style='text-align:center;'>{t['nombre_comercio']}</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
     
     for p in prods.data:
-        with st.container():
-            st.markdown(f'<div class="product-card"><div class="price-bubble">${p["precio"]}</div><div class="video-container">', unsafe_allow_html=True)
-            st.video(p['video_url'])
-            st.markdown('</div></div>', unsafe_allow_html=True)
-            if st.button(f"🛒 COMPRAR: {p['nombre_producto']}", key=f"p_{p['id']}", use_container_width=True):
-                ventana_pago(p, t['id'])
+        st.markdown(f'''
+            <div class="product-card">
+                <div class="price-bubble">${p['precio']}</div>
+                <div class="video-container">
+        ''', unsafe_allow_html=True)
+        st.video(p['video_url'])
+        st.markdown('</div></div>', unsafe_allow_html=True)
+        
+        if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
+            ventana_pago(p, t['id'])
 
 # --- MALL ---
 elif st.session_state.view == 'mall':
@@ -139,63 +166,56 @@ elif st.session_state.view == 'mall':
     cols = st.columns(2)
     for idx, t in enumerate(tiendas.data):
         with cols[idx % 2]:
-            if st.button(f"✨ {t['nombre_comercio']}", key=t['id'], use_container_width=True):
+            if st.button(f"✨ {t['nombre_comercio'].upper()}", key=f"mall_{t['id']}", use_container_width=True):
                 st.session_state.tienda_actual = t
                 ir_a('tienda')
 
-# --- PANEL ADMIN: VELOCIDAD PURA ---
+# --- ADMIN ---
 elif st.session_state.view == 'admin':
-    st.title("🚀 FAST ADMIN")
-    mail = st.text_input("Correo Propietario")
+    st.title("🚀 PANEL DE CONTROL")
+    mail = st.text_input("Correo del Dueño")
     
     if mail:
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail).execute()
         if res.data:
             perf = res.data[0]
-            t1, t2 = st.tabs(["⚡ CARGA INSTANTÁNEA", "📦 STOCK"])
+            t1, t2 = st.tabs(["📤 CARGA RÁPIDA", "📦 INVENTARIO"])
             
             with t1:
-                st.subheader("Subir Producto y Datos de Pago")
+                st.write("📸 **Foto de Datos de Pago** (Solo si deseas cambiarla)")
+                cam_pago = st.camera_input("Capturar", key="pago_cam")
                 
-                # CASILLA DE CÁMARA PARA DATOS DE PAGO
-                st.write("📸 **Foto de tus datos de Pago (Cámara o Galería)**")
-                cam_pago = st.camera_input("Capturar datos de pago", key="cam_pago")
-                
-                with st.form("quick_load", clear_on_submit=True):
-                    col_a, col_b = st.columns(2)
-                    nom = col_a.text_input("Nombre")
-                    pre = col_b.number_input("Precio", min_value=0.0)
+                with st.form("quick_form", clear_on_submit=True):
+                    st.write("### Datos del Nuevo Producto")
+                    n = st.text_input("Nombre")
+                    p = st.number_input("Precio ($)", min_value=0.0)
+                    v = st.file_uploader("Video", type=['mp4', 'mov'])
                     
-                    st.write("🎬 **Video del Producto**")
-                    vid = st.file_uploader("Subir clip", type=['mp4', 'mov'])
-                    
-                    if st.form_submit_button("🚀 PUBLICAR TODO AHORA"):
-                        # 1. Procesar Imagen de Pago si existe
+                    if st.form_submit_button("🚀 PUBLICAR PRODUCTO Y ACTUALIZAR PAGO"):
+                        # Actualizar imagen de pago si se tomó una
                         if cam_pago:
                             p_path = f"pagos/{perf['id']}_pago.jpg"
                             supabase.storage.from_("fotos_productos").upload(p_path, cam_pago.getvalue(), {"upsert": "true"})
                             p_url = supabase.storage.from_("fotos_productos").get_public_url(p_path)
                             supabase.table("perfiles_comercio").update({"datos_pago": p_url}).eq("id", perf['id']).execute()
-                        
-                        # 2. Procesar Video y Producto
-                        if vid and nom:
-                            v_path = f"videos/{perf['id']}_{random.randint(1000,9999)}.mp4"
-                            supabase.storage.from_("fotos_productos").upload(v_path, vid.getvalue())
+
+                        if n and v:
+                            v_path = f"videos/{perf['id']}_{random.randint(100,999)}.mp4"
+                            supabase.storage.from_("fotos_productos").upload(v_path, v.getvalue())
                             v_url = supabase.storage.from_("fotos_productos").get_public_url(v_path)
                             
                             supabase.table("productos").insert({
-                                "nombre_producto": nom, "precio": pre, 
+                                "nombre_producto": n, "precio": p, 
                                 "video_url": v_url, "comercio_relacionado": perf['nombre_comercio']
                             }).execute()
-                            st.balloons()
-                            st.success("¡Publicado en tiempo récord!")
+                            st.success("¡Todo actualizado con éxito!")
                             st.rerun()
 
             with t2:
                 items = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 for i in items.data:
-                    c1, c2 = st.columns([5, 1])
-                    c1.write(f"**{i['nombre_producto']}** - ${i['precio']}")
-                    if c2.button("🗑️", key=f"d_{i['id']}"):
+                    c1, c2 = st.columns([4,1])
+                    c1.write(f"**{i['nombre_producto']}** | ${i['precio']}")
+                    if c2.button("🗑️", key=f"del_{i['id']}"):
                         supabase.table("productos").delete().eq("id", i['id']).execute()
                         st.rerun()
