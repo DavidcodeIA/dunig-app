@@ -24,7 +24,7 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. CSS: BURBUJA FLOTANTE Y DISEÑO 3D
+# 2. CSS: DISEÑO PREMIUM Y BURBUJA FIJA
 # ==========================================
 st.markdown("""
     <style>
@@ -34,13 +34,13 @@ st.markdown("""
         position: fixed;
         top: 20px;
         left: 20px;
-        z-index: 2000;
+        z-index: 2500;
     }
 
     .product-card {
         position: relative;
         width: 100%;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
 
     .video-container {
@@ -49,6 +49,7 @@ st.markdown("""
         border: 3px solid #D4AF37;
         overflow: hidden;
         box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+        background-color: #000;
     }
 
     .price-bubble {
@@ -72,50 +73,55 @@ st.markdown("""
         border-radius: 20px !important;
         font-weight: 900 !important;
         box-shadow: 0 6px 0 #5d4814 !important;
+        transition: all 0.1s;
+    }
+
+    .stButton>button:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 #5d4814 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. VENTANA DE PAGO (CORRECCIÓN TOTAL)
+# 3. DIÁLOGO DE PAGO EN VIVO
 # ==========================================
-@st.dialog("💎 PROCESAR PEDIDO")
+@st.dialog("💎 DETALLES DE COMPRA")
 def ventana_pago(producto, comercio_id):
-    # CONSULTA EN VIVO: Traemos los datos directo de la DB al abrir la ventana
+    # Consulta directa para evitar el "None"
     res = supabase.table("perfiles_comercio").select("*").eq("id", comercio_id).single().execute()
     tienda = res.data
     
     st.markdown(f"### 🛍️ {producto['nombre_producto']}")
-    st.markdown(f"**Monto:** `${producto['precio']}`")
+    st.markdown(f"**Precio:** `${producto['precio']}`")
     st.divider()
     
-    st.markdown("### 🏦 Datos de Pago")
-    pago_info = tienda.get('datos_pago')
+    st.markdown("### 🏦 Cuentas de Pago")
+    info_pago = tienda.get('datos_pago')
     
-    if not pago_info or pago_info == "None":
-        st.error("⚠️ El vendedor aún no ha configurado sus datos de pago.")
+    if not info_pago or info_pago == "None" or info_pago.strip() == "":
+        st.error("⚠️ El vendedor no ha configurado sus datos de pago.")
     else:
-        st.success("Cuentas autorizadas:")
-        st.info(pago_info)
+        st.info(info_pago)
     
-    ref = st.text_input("Número de Referencia")
+    ref = st.text_input("Número de Referencia Bancaria")
     
-    if st.button("📲 CONFIRMAR Y ENVIAR TICKET"):
+    if st.button("📲 ENVIAR TICKET A WHATSAPP", use_container_width=True):
         if ref:
-            mensaje = (
+            msj = (
                 f"✨ *PEDIDO PLATINUM*\n\n"
                 f"📦 *Producto:* {producto['nombre_producto']}\n"
                 f"💰 *Precio:* ${producto['precio']}\n"
-                f"🔢 *Ref:* {ref}\n"
+                f"🔢 *Referencia:* {ref}\n"
                 f"🏪 *Tienda:* {tienda['nombre_comercio']}"
             )
-            url_wa = f"https://wa.me/{tienda['whatsapp']}?text={urllib.parse.quote(mensaje)}"
-            st.link_button("🚀 IR A WHATSAPP", url_wa)
+            url_wa = f"https://wa.me/{tienda['whatsapp']}?text={urllib.parse.quote(msj)}"
+            st.link_button("🚀 ABRIR WHATSAPP", url_wa)
         else:
-            st.warning("Por favor, ingresa la referencia.")
+            st.warning("Escriba el número de referencia.")
 
 # ==========================================
-# 4. NAVEGACIÓN Y VISTAS
+# 4. VISTAS PRINCIPALES
 # ==========================================
 
 with st.sidebar:
@@ -123,10 +129,10 @@ with st.sidebar:
     if st.button("🏠 MALL", use_container_width=True): ir_a('mall')
     if st.button("⚙️ PANEL CONTROL", use_container_width=True): ir_a('admin')
 
-# --- TIENDA ---
+# --- VISTA: TIENDA ---
 if st.session_state.view == 'tienda':
     st.markdown('<div class="fixed-back">', unsafe_allow_html=True)
-    if st.button("⬅️"): ir_a('mall')
+    if st.button("⬅️ ATRÁS"): ir_a('mall')
     st.markdown('</div>', unsafe_allow_html=True)
     
     t = st.session_state.tienda_actual
@@ -143,11 +149,11 @@ if st.session_state.view == 'tienda':
         st.video(p['video_url'])
         st.markdown('</div></div>', unsafe_allow_html=True)
         
-        if st.button(f"🛒 COMPRAR YA: {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
+        if st.button(f"🛒 COMPRAR YA: {p['nombre_producto']}", key=f"p_{p['id']}", use_container_width=True):
             ventana_pago(p, t['id'])
         st.markdown("<br>", unsafe_allow_html=True)
 
-# --- MALL ---
+# --- VISTA: MALL ---
 elif st.session_state.view == 'mall':
     st.image("https://jbtscidofkofclhuxeyf.supabase.co/storage/v1/object/public/fotos_productos/logos/logo_oficial.jpg", use_container_width=True)
     tiendas = supabase.table("perfiles_comercio").select("*").execute()
@@ -156,51 +162,61 @@ elif st.session_state.view == 'mall':
             st.session_state.tienda_actual = t
             ir_a('tienda')
 
-# --- ADMIN (CON STOCK Y CARGA ACTIVADOS) ---
+# --- VISTA: ADMIN (ACTUALIZADA) ---
 elif st.session_state.view == 'admin':
-    if st.button("⬅️ VOLVER"): ir_a('mall')
-    st.title("🚀 PANEL DE CONTROL")
-    correo = st.text_input("Email del Propietario")
+    if st.button("⬅️ SALIR AL MALL"): ir_a('mall')
+    st.title("🚀 PANEL DE PROPIETARIO")
+    email_admin = st.text_input("Ingrese su Correo Registrado")
     
-    if correo:
-        res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", correo).execute()
+    if email_admin:
+        res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_admin).execute()
         if res.data:
             perf = res.data[0]
-            tab1, tab2, tab3 = st.tabs(["📤 CARGAR PRODUCTO", "📦 STOCK / INVENTARIO", "💰 DATOS PAGO"])
+            tab1, tab2 = st.tabs(["📤 GESTIÓN DE PRODUCTOS", "📦 INVENTARIO EN VIVO"])
             
             with tab1:
-                st.subheader("Subir Nueva Mercancía")
-                with st.form("form_carga", clear_on_submit=True):
-                    nom_p = st.text_input("Nombre del Producto")
-                    pre_p = st.number_input("Precio ($)", min_value=0.0)
-                    vid_p = st.file_uploader("Video del Producto", type=['mp4', 'mov'])
-                    if st.form_submit_button("🚀 PUBLICAR EN VITRINA"):
-                        if vid_p and nom_p:
+                st.subheader("Configuración y Carga")
+                with st.form("carga_full", clear_on_submit=True):
+                    st.markdown("#### 1. Datos del Producto")
+                    nom = st.text_input("Nombre del Artículo")
+                    pre = st.number_input("Precio de Venta ($)", min_value=0.0)
+                    vid = st.file_uploader("Video Vertical (MP4/MOV)", type=['mp4', 'mov'])
+                    
+                    st.divider()
+                    st.markdown("#### 2. Datos de Pago (Se verán en el Carrito)")
+                    # Los datos de pago se guardan aquí mismo
+                    pago_actual = "" if perf.get('datos_pago') == "None" else perf.get('datos_pago', '')
+                    pago_up = st.text_area("Cuentas Bancarias / Pago Móvil", value=pago_actual)
+                    
+                    if st.form_submit_button("🚀 GUARDAR Y PUBLICAR"):
+                        # Primero actualizamos los datos de pago del perfil
+                        supabase.table("perfiles_comercio").update({"datos_pago": pago_up}).eq("id", perf['id']).execute()
+                        
+                        # Luego cargamos el producto si hay video
+                        if vid and nom:
                             path = f"videos/{perf['nombre_comercio']}/{random.randint(100,999)}.mp4"
-                            supabase.storage.from_("fotos_productos").upload(path, vid_p.getvalue())
+                            supabase.storage.from_("fotos_productos").upload(path, vid.getvalue())
                             url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
                             supabase.table("productos").insert({
-                                "nombre_producto": nom_p, 
-                                "precio": pre_p, 
-                                "video_url": url_v, 
-                                "comercio_relacionado": perf['nombre_comercio']
+                                "nombre_producto": nom, "precio": pre, 
+                                "video_url": url_v, "comercio_relacionado": perf['nombre_comercio']
                             }).execute()
-                            st.success("¡Producto cargado con éxito!")
+                            st.success("¡Datos de pago actualizados y Producto publicado!")
+                            st.rerun()
+                        else:
+                            st.info("Datos de pago guardados. (No se subió producto porque faltaba nombre o video)")
 
             with tab2:
-                st.subheader("Tu Inventario Actual")
+                st.subheader("Control de Stock")
                 items = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-                for i in items.data:
-                    c1, c2 = st.columns([4, 1])
-                    c1.write(f"**{i['nombre_producto']}** - ${i['precio']}")
-                    if c2.button("🗑️ ELIMINAR", key=f"del_{i['id']}"):
-                        supabase.table("productos").delete().eq("id", i['id']).execute()
-                        st.rerun()
-
-            with tab3:
-                st.subheader("Configuración de Cobro")
-                actual_pago = perf.get('datos_pago', '')
-                nuevo_pago = st.text_area("Cuentas Bancarias / Pago Móvil", value="" if actual_pago == "None" else actual_pago, height=150)
-                if st.button("💾 ACTUALIZAR MIS DATOS DE PAGO"):
-                    supabase.table("perfiles_comercio").update({"datos_pago": nuevo_pago}).eq("id", perf['id']).execute()
-                    st.success("¡Datos guardados! Ahora tus clientes podrán verlos.")
+                if not items.data:
+                    st.write("No tienes productos cargados.")
+                else:
+                    for i in items.data:
+                        col_info, col_del = st.columns([4, 1])
+                        col_info.write(f"**{i['nombre_producto']}** | `${i['precio']}`")
+                        # Botón de borrar con clave única y rerun forzado
+                        if col_del.button("🗑️", key=f"del_{i['id']}", use_container_width=True):
+                            supabase.table("productos").delete().eq("id", i['id']).execute()
+                            st.success(f"Eliminado: {i['nombre_producto']}")
+                            st.rerun()
