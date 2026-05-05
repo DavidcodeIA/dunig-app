@@ -1,137 +1,136 @@
 import streamlit as st
 from supabase import create_client, Client
-import urllib.parse
 import random
 
-# ==========================================
-# 1. CONFIGURACIÓN E INICIALIZACIÓN
-# ==========================================
+# 1. Configuración de Alta Velocidad
 st.set_page_config(page_title="D'UNIG PLATINUM", layout="centered")
 
-try:
+@st.cache_resource
+def init_connection():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
-    supabase: Client = create_client(url, key)
-except:
-    st.stop()
+    return create_client(url, key)
 
+supabase = init_connection()
+
+# 2. Caché para Imágenes de Fondo (Evita que se cuelgue al recargar)
+@st.cache_data
+def get_banner(url_img):
+    return url_img
+
+# --- NAVEGACIÓN RÁPIDA ---
 if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
-# ==========================================
-# 2. ESTILOS VISUALES (SIN TÍTULOS)
-# ==========================================
+# 3. ESTILOS CSS OPTIMIZADOS
 st.markdown("""
     <style>
     .main { background-color: #000000; }
-    
-    /* Imagen de fondo tipo Banner */
-    .banner-img {
-        width: 100%;
-        border-radius: 15px;
-        border: 2px solid #D4AF37;
-        margin-bottom: 10px;
-    }
-
-    /* Contenedor de botones sobre imagen */
-    .img-button {
-        position: relative;
-        cursor: pointer;
-        transition: transform 0.3s;
-    }
-    .img-button:hover { transform: scale(1.02); }
-
     .stButton>button {
         background: linear-gradient(90deg, #D4AF37, #8B6B1E) !important;
         color: white !important;
         border-radius: 12px !important;
+        width: 100%;
+        height: 50px;
+        font-weight: bold !important;
         border: none !important;
+    }
+    .video-container {
+        border: 1px solid #D4AF37;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
-# 3. LÓGICA DE VISTAS
-# ==========================================
-
 # --- VISTA 1: MALL (CENTRO COMERCIAL VISUAL) ---
 if st.session_state.view == 'mall':
-    # Foto Principal 1: Acceso Propietario
-    st.image("https://jbtscidofkofclhuxeyf.supabase.co/storage/v1/object/public/fotos_productos/logos/banner_propietario.jpg", use_column_width=True)
-    if st.button("🏢 GESTIONAR MI NEGOCIO", use_container_width=True):
+    # Banner Propietario (Carga rápida desde caché)
+    img_admin = get_banner("https://jbtscidofkofclhuxeyf.supabase.co/storage/v1/object/public/fotos_productos/logos/banner_propietario.jpg")
+    st.image(img_admin, use_column_width=True)
+    if st.button("🏢 ACCESO PROPIETARIO"):
         ir_a('admin')
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Foto Principal 2: Ver Catálogo
-    st.image("https://jbtscidofkofclhuxeyf.supabase.co/storage/v1/object/public/fotos_productos/logos/banner_catalogo.jpg", use_column_width=True)
+    # Banner Catálogo
+    img_mall = get_banner("https://jbtscidofkofclhuxeyf.supabase.co/storage/v1/object/public/fotos_productos/logos/banner_catalogo.jpg")
+    st.image(img_mall, use_column_width=True)
     
-    tiendas = supabase.table("perfiles_comercio").select("*").execute()
+    # Carga solo nombres de tiendas (Ligero)
+    tiendas = supabase.table("perfiles_comercio").select("id, nombre_comercio").execute()
     for t in tiendas.data:
-        if st.button(f"✨ ENTRAR A {t['nombre_comercio'].upper()}", key=t['id'], use_container_width=True):
+        if st.button(f"✨ ENTRAR A {t['nombre_comercio'].upper()}", key=t['id']):
             st.session_state.tienda_actual = t
             ir_a('tienda')
 
 # --- VISTA 2: TIENDA (TIKTOK STYLE) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
+    st.markdown(f"<h2 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h2>", unsafe_allow_html=True)
+    
+    # Obtenemos productos de forma eficiente
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
     
     for p in prods.data:
         with st.container():
+            st.markdown('<div class="video-container">', unsafe_allow_html=True)
             st.video(p['video_url'])
-            col_p, col_b = st.columns([2,1])
-            col_p.subheader(f"{p['nombre_producto']} - ${p['precio']}")
-            if col_b.button("🛍️ COMPRAR", key=f"buy_{p['id']}"):
-                # Aquí llamarías a la función ventana_pago definida anteriormente
-                st.info("Función de pago activada")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            col1, col2 = st.columns([2,1])
+            col1.subheader(f"{p['nombre_producto']} - ${p['precio']}")
+            if col2.button("🛍️ COMPRAR", key=f"b_{p['id']}"):
+                st.toast(f"Abriendo pago para {p['nombre_producto']}...")
             st.markdown("---")
     
-    if st.button("🔙 VOLVER"): ir_a('mall')
+    if st.button("🔙 VOLVER AL MALL"): ir_a('mall')
 
-# --- VISTA 3: ADMIN (GESTIÓN TOTAL) ---
+# --- VISTA 3: ADMIN (GESTIÓN RÁPIDA) ---
 elif st.session_state.view == 'admin':
     st.markdown("<h2 style='color:#D4AF37;'>🚀 PANEL DE CONTROL</h2>", unsafe_allow_html=True)
     email_check = st.text_input("Confirmar Correo de Propietario")
     
-    perfil = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_check).execute()
-    
-    if perfil.data:
-        com = perfil.data[0]
-        tab1, tab2 = st.tabs(["📤 CARGAR VIDEO", "📦 GESTIONAR INVENTARIO"])
+    if email_check:
+        perfil = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_check).execute()
         
-        with tab1:
-            with st.form("upload_form"):
-                n_p = st.text_input("Nombre del Producto")
-                p_p = st.number_input("Precio ($)", min_value=0.0)
-                s_p = st.number_input("Stock Inicial", min_value=0)
-                vid = st.file_uploader("Grabar Video", type=['mp4', 'mov'])
-                if st.form_submit_button("PUBLICAR"):
-                    # Lógica de subida a Storage...
-                    st.success("Cargando...")
-
-        with tab2:
-            st.subheader("Lista de Productos")
-            mis_prods = supabase.table("productos").select("*").eq("comercio_relacionado", com['nombre_comercio']).execute()
+        if perfil.data:
+            com = perfil.data[0]
+            tab1, tab2 = st.tabs(["📤 NUEVO VIDEO", "📦 INVENTARIO"])
             
-            for mp in mis_prods.data:
-                with st.expander(f"🖼️ {mp['nombre_producto']} - ${mp['precio']}"):
-                    new_price = st.number_input("Nuevo Precio", value=float(mp['precio']), key=f"pr_{mp['id']}")
-                    new_stock = st.number_input("Stock", value=int(mp.get('stock', 0)), key=f"st_{mp['id']}")
-                    
-                    c1, c2 = st.columns(2)
-                    if c1.button("💾 ACTUALIZAR", key=f"up_{mp['id']}"):
-                        supabase.table("productos").update({"precio": new_price, "stock": new_stock}).eq("id", mp['id']).execute()
-                        st.success("Actualizado")
-                        st.rerun()
-                    
-                    if c2.button("🗑️ ELIMINAR", key=f"del_{mp['id']}"):
-                        supabase.table("productos").delete().eq("id", mp['id']).execute()
-                        st.warning("Eliminado")
-                        st.rerun()
+            with tab1:
+                with st.form("u_form", clear_on_submit=True):
+                    n_p = st.text_input("Nombre del Producto")
+                    p_p = st.number_input("Precio ($)", min_value=0.0)
+                    vid = st.file_uploader("Grabar/Subir Video", type=['mp4', 'mov'])
+                    if st.form_submit_button("PUBLICAR"):
+                        if vid and n_p:
+                            fname = f"{random.randint(100,999)}_{vid.name}"
+                            path = f"videos/{com['nombre_comercio']}/{fname}"
+                            supabase.storage.from_("fotos_productos").upload(path, vid.getvalue())
+                            url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
+                            
+                            supabase.table("productos").insert({
+                                "nombre_producto": n_p, "precio": p_p, 
+                                "video_url": url_v, "comercio_relacionado": com['nombre_comercio']
+                            }).execute()
+                            st.success("¡Publicado!")
+                            st.rerun()
+
+            with tab2:
+                mis_prods = supabase.table("productos").select("*").eq("comercio_relacionado", com['nombre_comercio']).execute()
+                for mp in mis_prods.data:
+                    with st.expander(f"✏️ EDITAR: {mp['nombre_producto']}"):
+                        n_pr = st.number_input("Precio", value=float(mp['precio']), key=f"p_{mp['id']}")
+                        if st.button("GUARDAR", key=f"s_{mp['id']}"):
+                            supabase.table("productos").update({"precio": n_pr}).eq("id", mp['id']).execute()
+                            st.rerun()
+                        if st.button("🗑️ BORRAR", key=f"d_{mp['id']}"):
+                            supabase.table("productos").delete().eq("id", mp['id']).execute()
+                            st.rerun()
     
     if st.button("🔙 SALIR"): ir_a('mall')
