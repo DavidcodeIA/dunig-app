@@ -16,6 +16,9 @@ def init_connection():
 
 supabase = init_connection()
 
+# Límites Globales
+LIMITE_PRODUCTOS = 10 
+
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
@@ -30,7 +33,6 @@ st.markdown("""
     <style>
     .main { background-color: #000000; color: #ffffff; }
     
-    /* Sidebar Dorado */
     [data-testid="stSidebar"] {
         background-color: #1a1a1a !important;
         border-right: 2px solid #D4AF37;
@@ -42,17 +44,6 @@ st.markdown("""
         font-weight: bold;
     }
 
-    /* Contenedor de Video */
-    .video-container {
-        width: 100%;
-        border-radius: 25px;
-        border: 2px solid #D4AF37;
-        overflow: hidden;
-        margin-bottom: 15px;
-        position: relative;
-    }
-
-    /* Burbuja Precio Neón */
     .price-bubble {
         position: absolute;
         top: 15px;
@@ -68,7 +59,6 @@ st.markdown("""
         z-index: 100;
     }
 
-    /* Botones Dorados */
     .stButton>button {
         background: linear-gradient(135deg, #D4AF37 0%, #8A6E2F 100%) !important;
         color: white !important;
@@ -89,7 +79,6 @@ st.markdown("""
 # ==========================================
 @st.dialog("💎 MI CARRITO PLATINUM")
 def ventana_pago(producto, tienda_id):
-    # Obtener datos frescos del comercio (especialmente los datos de pago)
     res = supabase.table("perfiles_comercio").select("*").eq("id", tienda_id).single().execute()
     tienda = res.data
     
@@ -101,37 +90,32 @@ def ventana_pago(producto, tienda_id):
     col_total.metric("TOTAL A PAGAR", f"${total_pagar:,.2f}")
     
     st.divider()
-    
-    # MOSTRAR DATOS MIXTOS (NÚMEROS Y TEXTO)
     st.markdown("#### 💳 DATOS DE PAGO")
     datos_pago = tienda.get('datos_pago')
     
     if datos_pago:
-        st.info(f"Realiza tu transferencia o pago móvil a:\n\n**{datos_pago}**")
+        st.info(f"Paga a través de:\n\n**{datos_pago}**")
     else:
-        st.warning("El comercio aún no ha configurado sus datos de pago.")
+        st.warning("El comercio aún no ha configurado sus datos.")
 
-    st.divider()
-    ref = st.text_input("Ingresa el Número de Referencia")
+    ref = st.text_input("Número de Referencia de Pago")
     
-    if st.button("📲 FINALIZAR Y ENVIAR WHATSAPP", use_container_width=True):
+    if st.button("📲 FINALIZAR PEDIDO", use_container_width=True):
         if ref:
             msj = (
                 f"✨ *NUEVO PEDIDO PLATINUM*\n"
                 f"🏪 *Comercio:* {tienda['nombre_comercio']}\n"
                 f"--------------------------\n"
                 f"📦 *Producto:* {producto['nombre_producto']}\n"
-                f"🔢 *Cantidad:* {cantidad}\n"
-                f"💰 *Total:* ${total_pagar:,.2f}\n"
+                f"🔢 *Cant:* {cantidad} | *Total:* ${total_pagar:,.2f}\n"
                 f"🎫 *Ref:* {ref}\n"
                 f"💳 *Pago a:* {datos_pago}\n"
-                f"--------------------------\n"
-                f"✅ *Confirmación pendiente.*"
+                f"--------------------------"
             )
             url_wa = f"https://wa.me/{tienda['whatsapp']}?text={urllib.parse.quote(msj)}"
-            st.link_button("🚀 IR AL CHAT DEL VENDEDOR", url_wa)
+            st.link_button("🚀 ENVIAR A WHATSAPP", url_wa)
         else:
-            st.error("Es obligatorio ingresar la referencia de pago.")
+            st.error("Ingresa la referencia para continuar.")
 
 # ==========================================
 # 4. LÓGICA DE VISTAS
@@ -139,8 +123,6 @@ def ventana_pago(producto, tienda_id):
 
 with st.sidebar:
     st.markdown("<h2 style='color:#D4AF37; text-align:center;'>D'UNIG</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; font-size:0.8rem;'>PLATINUM EDITION</p>", unsafe_allow_html=True)
-    st.divider()
     st.button("🏠 MALL PRINCIPAL", on_click=ir_a, args=('mall',), use_container_width=True)
     st.button("⚙️ PANEL DE CONTROL", on_click=ir_a, args=('admin',), use_container_width=True)
 
@@ -148,87 +130,75 @@ with st.sidebar:
 if st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
-    
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
     
     for p in prods.data:
-        # Contenedor relativo para que la burbuja flote sobre el video
-        st.markdown(f'''
-            <div style="position: relative;">
-                <div class="price-bubble">${p['precio']}</div>
-            </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(f'<div style="position: relative;"><div class="price-bubble">${p["precio"]}</div></div>', unsafe_allow_html=True)
         st.video(p['video_url'])
-        
-        if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"shop_{p['id']}", use_container_width=True):
+        if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"sh_{p['id']}", use_container_width=True):
             ventana_pago(p, t['id'])
         st.markdown("<br>", unsafe_allow_html=True)
 
 # --- VISTA: ADMIN (GESTIÓN TOTAL) ---
 elif st.session_state.view == 'admin':
-    st.title("🚀 PANEL DE ADMINISTRACIÓN")
-    mail = st.text_input("Correo del Propietario")
+    st.title("🚀 ADMIN PLATINUM")
+    mail = st.text_input("Ingresa tu correo de propietario")
     
     if mail:
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail).execute()
         if res.data:
             perf = res.data[0]
             
-            # SECCIÓN DE DATOS DE PAGO (TEXTO Y NÚMEROS)
-            st.write("### 💳 Configuración de Cobro")
-            # Usamos text_input para que pueda poner Banco, Cédula, Teléfono, etc.
-            nuevo_pago = st.text_input("Datos de Pago Móvil / Transferencia", 
-                                        value=str(perf.get('datos_pago', '')),
-                                        help="Ej: Banesco, 0414-1234567, V-12345678")
-            
-            if st.button("💾 Guardar Datos de Pago"):
-                supabase.table("perfiles_comercio").update({"datos_pago": nuevo_pago}).eq("id", perf['id']).execute()
-                st.success("Datos de pago actualizados.")
+            # Configuración de Pago (Texto y Números)
+            with st.expander("💳 CONFIGURAR DATOS DE PAGO"):
+                nuevo_pago = st.text_input("Datos (Banco, Teléfono, Cédula)", value=str(perf.get('datos_pago', '')))
+                if st.button("💾 Guardar Datos"):
+                    supabase.table("perfiles_comercio").update({"datos_pago": nuevo_pago}).eq("id", perf['id']).execute()
+                    st.success("Datos guardados.")
 
             st.divider()
 
-            # PESTAÑAS
-            t_nuevo, t_inventario = st.tabs(["➕ AGREGAR", "📦 INVENTARIO"])
+            # Límite de Inventario
+            res_c = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
+            total_p = res_c.count if res_c.count else 0
+            progreso = total_p / LIMITE_PRODUCTOS
+            
+            st.write(f"📦 **Inventario:** {total_p} de {LIMITE_PRODUCTOS} productos")
+            st.progress(progreso if progreso <= 1.0 else 1.0)
 
-            with t_nuevo:
-                with st.form("form_new", clear_on_submit=True):
-                    st.write("### Nuevo Producto")
-                    n = st.text_input("Nombre")
-                    p = st.number_input("Precio ($)", min_value=0.0)
-                    v = st.file_uploader("Video", type=['mp4', 'mov'])
-                    
-                    if st.form_submit_button("🚀 PUBLICAR"):
-                        if n and v:
-                            v_path = f"videos/{perf['id']}_{random.randint(100,999)}.mp4"
-                            supabase.storage.from_("fotos_productos").upload(v_path, v.getvalue())
-                            v_url = supabase.storage.from_("fotos_productos").get_public_url(v_path)
-                            
-                            supabase.table("productos").insert({
-                                "nombre_producto": n, "precio": p, 
-                                "video_url": v_url, "comercio_relacionado": perf['nombre_comercio']
-                            }).execute()
-                            st.success("¡Producto en línea!")
-                            st.rerun()
+            t_add, t_inv = st.tabs(["➕ AGREGAR", "📦 GESTIONAR"])
 
-            with t_inventario:
-                st.write("### Mis Productos")
+            with t_add:
+                if total_p >= LIMITE_PRODUCTOS:
+                    st.error("Límite alcanzado. Borra productos para agregar nuevos.")
+                else:
+                    with st.form("new_p", clear_on_submit=True):
+                        n = st.text_input("Nombre del Producto")
+                        p = st.number_input("Precio ($)", min_value=0.0)
+                        v = st.file_uploader("Video publicitario", type=['mp4', 'mov'])
+                        if st.form_submit_button("🚀 PUBLICAR"):
+                            if n and v:
+                                v_ext = v.name.split('.')[-1]
+                                v_path = f"videos/{perf['id']}_{random.randint(1000,9999)}.{v_ext}"
+                                supabase.storage.from_("fotos_productos").upload(v_path, v.getvalue())
+                                v_url = supabase.storage.from_("fotos_productos").get_public_url(v_path)
+                                supabase.table("productos").insert({
+                                    "nombre_producto": n, "precio": p, "video_url": v_url, 
+                                    "comercio_relacionado": perf['nombre_comercio']
+                                }).execute()
+                                st.rerun()
+
+            with t_inv:
                 items = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-                
                 for i in items.data:
-                    with st.expander(f"📦 {i['nombre_producto']} - ${i['precio']}"):
-                        # EDITAR
-                        nuevo_n = st.text_input("Editar Nombre", value=i['nombre_producto'], key=f"n_{i['id']}")
-                        nuevo_p = st.number_input("Editar Precio", value=float(i['precio']), key=f"p_{i['id']}")
-                        
+                    with st.expander(f"📝 Editar: {i['nombre_producto']}"):
+                        en = st.text_input("Nombre", value=i['nombre_producto'], key=f"en_{i['id']}")
+                        ep = st.number_input("Precio", value=float(i['precio']), key=f"ep_{i['id']}")
                         c1, c2 = st.columns(2)
-                        if c1.button("💾 GUARDAR", key=f"sv_{i['id']}", use_container_width=True):
-                            supabase.table("productos").update({
-                                "nombre_producto": nuevo_n,
-                                "precio": nuevo_p
-                            }).eq("id", i['id']).execute()
+                        if c1.button("💾 GUARDAR", key=f"s_{i['id']}"):
+                            supabase.table("productos").update({"nombre_producto": en, "precio": ep}).eq("id", i['id']).execute()
                             st.rerun()
-                        
-                        if c2.button("🗑️ BORRAR", key=f"dl_{i['id']}", use_container_width=True):
+                        if c2.button("🗑️ BORRAR", key=f"d_{i['id']}"):
                             supabase.table("productos").delete().eq("id", i['id']).execute()
                             st.rerun()
 
@@ -239,6 +209,6 @@ elif st.session_state.view == 'mall':
     cols = st.columns(2)
     for idx, t in enumerate(tiendas.data):
         with cols[idx % 2]:
-            if st.button(f"✨ {t['nombre_comercio'].upper()}", key=f"m_{t['id']}", use_container_width=True):
+            if st.button(f"✨ {t['nombre_comercio'].upper()}", key=f"ml_{t['id']}", use_container_width=True):
                 st.session_state.tienda_actual = t
                 ir_a('tienda')
