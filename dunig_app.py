@@ -24,12 +24,13 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. CSS: DORADO PREMIUM Y DISEÑO
+# 2. CSS: ESTÉTICA DORADO & NEÓN
 # ==========================================
 st.markdown("""
     <style>
     .main { background-color: #000000; color: #ffffff; }
     
+    /* Sidebar Dorado */
     [data-testid="stSidebar"] {
         background-color: #1a1a1a !important;
         border-right: 2px solid #D4AF37;
@@ -38,34 +39,47 @@ st.markdown("""
     [data-testid="stSidebar"] .stButton>button {
         background: #D4AF37 !important;
         color: #000 !important;
-        border: 1px solid #ffffff !important;
+        font-weight: bold;
     }
 
+    /* Contenedor de Video */
     .video-container {
         width: 100%;
         border-radius: 25px;
         border: 2px solid #D4AF37;
         overflow: hidden;
         margin-bottom: 15px;
+        position: relative;
     }
 
+    /* Burbuja Precio Neón */
     .price-bubble {
         position: absolute;
         top: 15px;
         right: 15px;
-        background: #000000;
+        background: rgba(0, 0, 0, 0.8);
         color: #39FF14; 
         padding: 6px 20px;
         border-radius: 30px;
         font-weight: 900;
+        font-size: 1.3rem;
         border: 2px solid #39FF14;
-        z-index: 1000;
+        box-shadow: 0 0 10px #39FF14;
+        z-index: 100;
     }
 
+    /* Botones Dorados */
     .stButton>button {
         background: linear-gradient(135deg, #D4AF37 0%, #8A6E2F 100%) !important;
         color: white !important;
         border-radius: 12px !important;
+        border: none !important;
+        transition: 0.3s;
+    }
+    
+    .stButton>button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -75,6 +89,7 @@ st.markdown("""
 # ==========================================
 @st.dialog("💎 MI CARRITO PLATINUM")
 def ventana_pago(producto, tienda_id):
+    # Obtener datos frescos del comercio (especialmente los datos de pago)
     res = supabase.table("perfiles_comercio").select("*").eq("id", tienda_id).single().execute()
     tienda = res.data
     
@@ -87,18 +102,19 @@ def ventana_pago(producto, tienda_id):
     
     st.divider()
     
-    st.markdown("#### 📱 PAGO MÓVIL")
-    pago_movil = tienda.get('datos_pago')
+    # MOSTRAR DATOS MIXTOS (NÚMEROS Y TEXTO)
+    st.markdown("#### 💳 DATOS DE PAGO")
+    datos_pago = tienda.get('datos_pago')
     
-    if pago_movil:
-        st.info(f"Realiza tu pago al número:\n\n**{pago_movil}**")
+    if datos_pago:
+        st.info(f"Realiza tu transferencia o pago móvil a:\n\n**{datos_pago}**")
     else:
-        st.warning("El comercio no tiene Pago Móvil configurado.")
+        st.warning("El comercio aún no ha configurado sus datos de pago.")
 
     st.divider()
-    ref = st.text_input("Referencia de Pago")
+    ref = st.text_input("Ingresa el Número de Referencia")
     
-    if st.button("📲 FINALIZAR PEDIDO", use_container_width=True):
+    if st.button("📲 FINALIZAR Y ENVIAR WHATSAPP", use_container_width=True):
         if ref:
             msj = (
                 f"✨ *NUEVO PEDIDO PLATINUM*\n"
@@ -108,115 +124,121 @@ def ventana_pago(producto, tienda_id):
                 f"🔢 *Cantidad:* {cantidad}\n"
                 f"💰 *Total:* ${total_pagar:,.2f}\n"
                 f"🎫 *Ref:* {ref}\n"
-                f"📱 *Pago Móvil:* {pago_movil}\n"
+                f"💳 *Pago a:* {datos_pago}\n"
                 f"--------------------------\n"
                 f"✅ *Confirmación pendiente.*"
             )
             url_wa = f"https://wa.me/{tienda['whatsapp']}?text={urllib.parse.quote(msj)}"
-            st.link_button("🚀 ENVIAR A WHATSAPP", url_wa)
+            st.link_button("🚀 IR AL CHAT DEL VENDEDOR", url_wa)
         else:
-            st.error("Ingresa la referencia.")
+            st.error("Es obligatorio ingresar la referencia de pago.")
 
 # ==========================================
-# 4. VISTAS PRINCIPALES
+# 4. LÓGICA DE VISTAS
 # ==========================================
 
 with st.sidebar:
-    st.markdown("<h2 style='color:#D4AF37; text-align:center;'>PLATINUM</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color:#D4AF37; text-align:center;'>D'UNIG</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; font-size:0.8rem;'>PLATINUM EDITION</p>", unsafe_allow_html=True)
     st.divider()
-    st.button("🏠 MALL", on_click=ir_a, args=('mall',), use_container_width=True)
-    st.button("⚙️ ADMIN", on_click=ir_a, args=('admin',), use_container_width=True)
+    st.button("🏠 MALL PRINCIPAL", on_click=ir_a, args=('mall',), use_container_width=True)
+    st.button("⚙️ PANEL DE CONTROL", on_click=ir_a, args=('admin',), use_container_width=True)
 
-# --- TIENDA ---
+# --- VISTA: TIENDA ---
 if st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
+    
     for p in prods.data:
-        st.markdown(f'<div style="position: relative;">', unsafe_allow_html=True)
-        st.markdown(f'<div class="price-bubble">${p["precio"]}</div>', unsafe_allow_html=True)
+        # Contenedor relativo para que la burbuja flote sobre el video
+        st.markdown(f'''
+            <div style="position: relative;">
+                <div class="price-bubble">${p['precio']}</div>
+            </div>
+        ''', unsafe_allow_html=True)
         st.video(p['video_url'])
-        if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
+        
+        if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"shop_{p['id']}", use_container_width=True):
             ventana_pago(p, t['id'])
-        st.markdown(f'</div><br>', unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
-# --- ADMIN (GESTIÓN COMPLETA) ---
+# --- VISTA: ADMIN (GESTIÓN TOTAL) ---
 elif st.session_state.view == 'admin':
-    st.title("🚀 PANEL DE SOCIO")
-    mail = st.text_input("Ingresa tu correo registrado")
+    st.title("🚀 PANEL DE ADMINISTRACIÓN")
+    mail = st.text_input("Correo del Propietario")
     
     if mail:
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail).execute()
         if res.data:
             perf = res.data[0]
             
-            # PAGO MÓVIL (FUERA DEL FORMULARIO PARA GUARDADO INDEPENDIENTE)
+            # SECCIÓN DE DATOS DE PAGO (TEXTO Y NÚMEROS)
             st.write("### 💳 Configuración de Cobro")
-            nuevo_pago_movil = st.text_input("Número de Pago Móvil", value=str(perf.get('datos_pago', '')))
-            if st.button("💾 Actualizar Pago Móvil"):
-                supabase.table("perfiles_comercio").update({"datos_pago": nuevo_pago_movil}).eq("id", perf['id']).execute()
-                st.success("Pago Móvil actualizado.")
+            # Usamos text_input para que pueda poner Banco, Cédula, Teléfono, etc.
+            nuevo_pago = st.text_input("Datos de Pago Móvil / Transferencia", 
+                                        value=str(perf.get('datos_pago', '')),
+                                        help="Ej: Banesco, 0414-1234567, V-12345678")
+            
+            if st.button("💾 Guardar Datos de Pago"):
+                supabase.table("perfiles_comercio").update({"datos_pago": nuevo_pago}).eq("id", perf['id']).execute()
+                st.success("Datos de pago actualizados.")
 
             st.divider()
 
-            # PESTAÑAS DE GESTIÓN
-            tab_nuevo, tab_inventario = st.tabs(["➕ NUEVO PRODUCTO", "📦 MIS PRODUCTOS"])
+            # PESTAÑAS
+            t_nuevo, t_inventario = st.tabs(["➕ AGREGAR", "📦 INVENTARIO"])
 
-            with tab_nuevo:
-                with st.form("nuevo_producto_form", clear_on_submit=True):
-                    st.write("### Publicar Nuevo Item")
-                    n = st.text_input("Nombre del Producto")
+            with t_nuevo:
+                with st.form("form_new", clear_on_submit=True):
+                    st.write("### Nuevo Producto")
+                    n = st.text_input("Nombre")
                     p = st.number_input("Precio ($)", min_value=0.0)
-                    v = st.file_uploader("Subir Video (MP4/MOV)", type=['mp4', 'mov'])
+                    v = st.file_uploader("Video", type=['mp4', 'mov'])
                     
-                    if st.form_submit_button("🌟 GUARDAR PRODUCTO"):
+                    if st.form_submit_button("🚀 PUBLICAR"):
                         if n and v:
-                            v_path = f"videos/{perf['id']}_{random.randint(1000,9999)}.mp4"
+                            v_path = f"videos/{perf['id']}_{random.randint(100,999)}.mp4"
                             supabase.storage.from_("fotos_productos").upload(v_path, v.getvalue())
                             v_url = supabase.storage.from_("fotos_productos").get_public_url(v_path)
+                            
                             supabase.table("productos").insert({
                                 "nombre_producto": n, "precio": p, 
                                 "video_url": v_url, "comercio_relacionado": perf['nombre_comercio']
                             }).execute()
-                            st.success("¡Producto publicado!")
+                            st.success("¡Producto en línea!")
                             st.rerun()
-                        else:
-                            st.error("Nombre y video son obligatorios.")
 
-            with tab_inventario:
-                st.write("### Gestionar Existencias")
+            with t_inventario:
+                st.write("### Mis Productos")
                 items = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-                
-                if not items.data:
-                    st.info("No tienes productos aún.")
                 
                 for i in items.data:
                     with st.expander(f"📦 {i['nombre_producto']} - ${i['precio']}"):
-                        enombre = st.text_input("Nombre", value=i['nombre_producto'], key=f"e_n_{i['id']}")
-                        eprecio = st.number_input("Precio", value=float(i['precio']), key=f"e_p_{i['id']}")
+                        # EDITAR
+                        nuevo_n = st.text_input("Editar Nombre", value=i['nombre_producto'], key=f"n_{i['id']}")
+                        nuevo_p = st.number_input("Editar Precio", value=float(i['precio']), key=f"p_{i['id']}")
                         
-                        col1, col2 = st.columns(2)
-                        if col1.button("✅ GUARDAR", key=f"save_{i['id']}", use_container_width=True):
+                        c1, c2 = st.columns(2)
+                        if c1.button("💾 GUARDAR", key=f"sv_{i['id']}", use_container_width=True):
                             supabase.table("productos").update({
-                                "nombre_producto": enombre,
-                                "precio": eprecio
+                                "nombre_producto": nuevo_n,
+                                "precio": nuevo_p
                             }).eq("id", i['id']).execute()
-                            st.success("Editado")
                             st.rerun()
-                            
-                        if col2.button("🗑️ BORRAR", key=f"del_{i['id']}", use_container_width=True):
+                        
+                        if c2.button("🗑️ BORRAR", key=f"dl_{i['id']}", use_container_width=True):
                             supabase.table("productos").delete().eq("id", i['id']).execute()
-                            st.warning("Eliminado")
                             st.rerun()
 
-# --- MALL ---
+# --- VISTA: MALL ---
 elif st.session_state.view == 'mall':
     st.title("🏙️ PLATINUM MALL")
     tiendas = supabase.table("perfiles_comercio").select("*").execute()
     cols = st.columns(2)
     for idx, t in enumerate(tiendas.data):
         with cols[idx % 2]:
-            if st.button(f"✨ {t['nombre_comercio'].upper()}", key=f"mall_{t['id']}", use_container_width=True):
+            if st.button(f"✨ {t['nombre_comercio'].upper()}", key=f"m_{t['id']}", use_container_width=True):
                 st.session_state.tienda_actual = t
                 ir_a('tienda')
