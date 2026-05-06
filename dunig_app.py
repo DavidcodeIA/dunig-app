@@ -197,7 +197,7 @@ else:
                         supabase.table("perfiles_comercio").update({"datos_pago": p_info}).eq("id", perf['id']).execute()
                         st.success("Información guardada.")
 
-                with t4:
+with t4:
                     st.markdown("### 🏆 Membresía D'UNIG LUXURY")
                     col_p1, col_p2 = st.columns(2)
                     
@@ -220,22 +220,29 @@ else:
                             st.write("📍 **Nequi:** +57 300 1111111")
 
                     st.divider()
-                    st.markdown("#### 🔄 Reportar Pago para Activación")
-                    plan_rep = st.selectbox("Plan pagado", ["PLATINUM ($9.99)", "DIAMANTE ($29.99)"])
-                    metodo_rep = st.selectbox("Método", ["Pago Móvil", "Zelle", "Nequi"])
-                    ref_rep = st.text_input("Número de Referencia")
+                    st.markdown("#### 📧 Reportar Pago vía Email Corporativo")
+                    plan_rep = st.selectbox("Plan adquirido", ["PLATINUM ($9.99)", "DIAMANTE ($29.99)"])
+                    metodo_rep = st.selectbox("Método de pago", ["Pago Móvil", "Zelle", "Nequi"])
+                    ref_rep = st.text_input("Número de Referencia / Operación")
 
                     if ref_rep:
-                        msj_final = (
-                            f"🚀 *REPORTE DE PAGO LUXURY*\n"
-                            f"🏪 *Tienda:* {perf['nombre_comercio']}\n"
-                            f"💎 *Plan:* {plan_rep}\n"
-                            f"💰 *Método:* {metodo_rep}\n"
-                            f"🎫 *Ref:* {ref_rep}"
+                        # Configuración del correo profesional
+                        destinatario = "idealiting@gmail.com"
+                        asunto = f"REPORTE DE PAGO - {perf['nombre_comercio'].upper()}"
+                        cuerpo = (
+                            f"Cordial saludo, equipo de D'UNIG LUXURY.\n\n"
+                            f"Por medio del presente adjunto los detalles de mi pago para la activación del plan:\n\n"
+                            f"🏪 Comercio: {perf['nombre_comercio']}\n"
+                            f"💎 Plan Seleccionado: {plan_rep}\n"
+                            f"💰 Método de Pago: {metodo_rep}\n"
+                            f"🎫 Referencia: {ref_rep}\n\n"
+                            f"Quedo a la espera de la verificación y actualización de mis cupos de inventario."
                         )
-                        # REEMPLAZA 584XXXXXXXXX con tu número real
-                        st.link_button("🚀 ENVIAR COMPROBANTE POR WHATSAPP", f"https://wa.me/584XXXXXXXXX?text={urllib.parse.quote(msj_final)}")
+                        
+                        # Codificación para URL mailto
+                        mailto_link = f"mailto:{destinatario}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
+                        
+                        st.link_button("📩 ENVIAR COMPROBANTE AL GMAIL", mailto_link, use_container_width=True)
+                        st.caption("Al hacer clic, se redactará un correo formal hacia idealiting@gmail.com")
                     else:
-                        st.warning("Ingresa la referencia para habilitar el reporte.")
-            else:
-                st.error("Comercio no encontrado.")
+                        st.warning("Ingrese la referencia para habilitar el envío del reporte.")
