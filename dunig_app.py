@@ -12,16 +12,14 @@ import urllib.parse
 # ==========================================
 st.set_page_config(page_title="D'UNIG LUXURY", layout="centered")
 
-# Credenciales de Supabase
 @st.cache_resource
 def init_connection():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 supabase = init_connection()
 
-# --- FUNCIÓN PARA ENVIAR EMAIL AUTOMÁTICO ---
+# --- FUNCIÓN DE ENVÍO AUTOMÁTICO (CORREGIDA) ---
 def enviar_email_automatico(destinatario, nombre_tienda, codigo):
-    # DATOS DEL EMISOR
     remitente = "idealiting@gmail.com" 
     password = st.secrets["GMAIL_PASSWORD"]
 
@@ -45,7 +43,7 @@ def enviar_email_automatico(destinatario, nombre_tienda, codigo):
     msg.attach(MIMEText(cuerpo, 'html'))
 
     try:
-        # Puerto 465 con SSL es más estable para Gmail
+        # Puerto 465 con SSL es el más seguro para evitar bloqueos de Google
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(remitente, password)
         server.sendmail(remitente, destinatario, msg.as_string())
@@ -54,23 +52,25 @@ def enviar_email_automatico(destinatario, nombre_tienda, codigo):
     except Exception as e:
         st.error(f"Error de conexión: {e}")
         return False
+
 # ==========================================
-# 2. PANEL DE CONTROL (LÓGICA AUTOMÁTICA)
+# 2. INTERFAZ Y LÓGICA
 # ==========================================
+st.markdown("<style>.main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: white; } .stButton>button { background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295); color: black !important; border-radius: 30px; font-weight: 800; border: none; width: 100%; }</style>", unsafe_allow_html=True)
+
 query_params = st.query_params
 es_admin = query_params.get("admin") == "true"
+
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
 if es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL LUXURY</h1>", unsafe_allow_html=True)
     
-    if not st.session_state.get('logged_in', False):
-        st.markdown("<div style='background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;'>", unsafe_allow_html=True)
-        
+    if not st.session_state.logged_in:
         email_log = st.text_input("Email Registrado").lower().strip()
         pass_log = st.text_input("Código de Acceso", type="password").upper().strip()
         
         c1, c2 = st.columns(2)
-        
         with c1:
             if st.button("🔓 ENTRAR"):
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_log).execute()
@@ -78,8 +78,7 @@ if es_admin:
                     st.session_state.logged_in = True
                     st.session_state.user_email = email_log
                     st.rerun()
-                else:
-                    st.error("Credenciales inválidas.")
+                else: st.error("Credenciales inválidas.")
 
         with c2:
             if st.button("📩 ENVIAR CÓDIGO AL GMAIL"):
@@ -92,17 +91,15 @@ if es_admin:
                             cod = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
                             supabase.table("perfiles_comercio").update({"codigo_acceso": cod}).eq("id", user['id']).execute()
                         
-                        # Aquí ocurre la magia: envío invisible
-                        with st.spinner("Enviando código de forma segura..."):
-                            if enviar_email_automatico(email_log, user['nombre_comercio'], cod):
-                                st.success(f"El código ha sido enviado a {email_log}. Revisa tu bandeja de entrada o SPAM.")
-                    else:
-                        st.error("Email no encontrado.")
-                else:
-                    st.warning("Escribe tu correo primero.")
-        st.markdown("</div>", unsafe_allow_html=True)
+                        if enviar_email_automatico(email_log, user['nombre_comercio'], cod):
+                            st.success(f"Código enviado a {email_log}")
+                    else: st.error("Email no registrado.")
+                else: st.warning("Escribe tu correo.")
     else:
-        st.success(f"Bienvenido: {st.session_state.user_email}")
+        st.success(f"Sesión activa: {st.session_state.user_email}")
         if st.button("Cerrar Sesión"):
             st.session_state.logged_in = False
             st.rerun()
+else:
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
+    st.info("Mall Privado - Solo tiendas activas.")
