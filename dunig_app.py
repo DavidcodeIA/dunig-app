@@ -27,10 +27,18 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. CSS: ESTÉTICA DORADO & NEÓN
+# 2. CSS: ESTÉTICA DORADO, NEÓN Y MARCA BLANCA
 # ==========================================
 st.markdown("""
     <style>
+    /* Ocultar la marca de agua 'Made with Streamlit' (Inferior derecha) */
+    footer {visibility: hidden;}
+    
+    /* Ocultar el menú de hamburguesa y el icono de Streamlit (Superior derecha) */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+
+    /* Tu estilo previo mejorado */
     .main { background-color: #000000; color: #ffffff; }
     
     [data-testid="stSidebar"] {
@@ -67,9 +75,10 @@ st.markdown("""
         transition: 0.3s;
     }
     
-    .stButton>button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+    /* Eliminar espacios en blanco superiores innecesarios */
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 0rem;
     }
     </style>
     """, unsafe_allow_html=True)
