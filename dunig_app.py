@@ -44,17 +44,16 @@ def enviar_email_automatico(destinatario, nombre_tienda, codigo):
     """
     msg.attach(MIMEText(cuerpo, 'html'))
 
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
+try:
+        # Usamos SSL (puerto 465) que es más directo y suele saltarse el bloqueo
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(remitente, password)
         server.sendmail(remitente, destinatario, msg.as_string())
         server.quit()
         return True
     except Exception as e:
-        st.error(f"Error al enviar: {e}")
+        st.error(f"Error de conexión: {e}")
         return False
-
 # ==========================================
 # 2. PANEL DE CONTROL (LÓGICA AUTOMÁTICA)
 # ==========================================
