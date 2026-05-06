@@ -6,7 +6,7 @@ import random
 # ==========================================
 # 1. CONEXIÓN Y CONFIGURACIÓN
 # ==========================================
-st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(page_title="D'UNIG PLATINUM", layout="centered")
 
 @st.cache_resource
 def init_connection():
@@ -16,12 +16,8 @@ def init_connection():
 
 supabase = init_connection()
 
-# DICCIONARIO DE PLANES DE SERVICIO
-PLANES = {
-    "BRONCE": 5,
-    "PLATINUM": 15,
-    "DIAMANTE": 50
-}
+# Límites Globales
+LIMITE_PRODUCTOS = 10 
 
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
@@ -31,17 +27,23 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. CSS: ESTÉTICA MEJORADA
+# 2. CSS: ESTÉTICA DORADO & NEÓN
 # ==========================================
 st.markdown("""
     <style>
     .main { background-color: #000000; color: #ffffff; }
     
     [data-testid="stSidebar"] {
-        background-color: #0a0a0a !important;
+        background-color: #1a1a1a !important;
         border-right: 2px solid #D4AF37;
     }
     
+    [data-testid="stSidebar"] .stButton>button {
+        background: #D4AF37 !important;
+        color: #000 !important;
+        font-weight: bold;
+    }
+
     .price-bubble {
         position: absolute;
         top: 15px;
@@ -62,37 +64,70 @@ st.markdown("""
         color: white !important;
         border-radius: 12px !important;
         border: none !important;
+        transition: 0.3s;
+    }
+    
+    .stButton>button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. PANEL LATERAL
+# 3. VENTANA DE COMPRA (CARRITO)
 # ==========================================
-with st.sidebar:
-    st.markdown("<h2 style='color:#D4AF37; text-align:center;'>D'UNIG</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:gray;'>Luxury Edition</p>", unsafe_allow_html=True)
+@st.dialog("💎 MI CARRITO PLATINUM")
+def ventana_pago(producto, tienda_id):
+    res = supabase.table("perfiles_comercio").select("*").eq("id", tienda_id).single().execute()
+    tienda = res.data
+    
+    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    
+    col_cant, col_total = st.columns([1, 1])
+    cantidad = col_cant.number_input("Cantidad", min_value=1, value=1, step=1)
+    total_pagar = float(producto['precio']) * cantidad
+    col_total.metric("TOTAL A PAGAR", f"${total_pagar:,.2f}")
+    
     st.divider()
-    st.button("🏠 MALL PRINCIPAL", on_click=ir_a, args=('mall',), use_container_width=True)
-    st.button("⚙️ PANEL DE CONTROL", on_click=ir_a, args=('admin',), use_container_width=True)
+    st.markdown("#### 💳 DATOS DE PAGO")
+    datos_pago = tienda.get('datos_pago')
+    
+    if datos_pago:
+        st.info(f"Paga a través de:\n\n**{datos_pago}**")
+    else:
+        st.warning("El comercio aún no ha configurado sus datos.")
+
+    ref = st.text_input("Número de Referencia de Pago")
+    
+    if st.button("📲 FINALIZAR PEDIDO", use_container_width=True):
+        if ref:
+            msj = (
+                f"✨ *NUEVO PEDIDO PLATINUM*\n"
+                f"🏪 *Comercio:* {tienda['nombre_comercio']}\n"
+                f"--------------------------\n"
+                f"📦 *Producto:* {producto['nombre_producto']}\n"
+                f"🔢 *Cant:* {cantidad} | *Total:* ${total_pagar:,.2f}\n"
+                f"🎫 *Ref:* {ref}\n"
+                f"💳 *Pago a:* {datos_pago}\n"
+                f"--------------------------"
+            )
+            url_wa = f"https://wa.me/{tienda['whatsapp']}?text={urllib.parse.quote(msj)}"
+            st.link_button("🚀 ENVIAR A WHATSAPP", url_wa)
+        else:
+            st.error("Ingresa la referencia para continuar.")
 
 # ==========================================
 # 4. LÓGICA DE VISTAS
 # ==========================================
 
-# --- VISTA: MALL ---
-if st.session_state.view == 'mall':
-    st.title("🏙️ D'UNIG MALL")
-    tiendas = supabase.table("perfiles_comercio").select("*").execute()
-    cols = st.columns(2)
-    for idx, t in enumerate(tiendas.data):
-        with cols[idx % 2]:
-            if st.button(f"✨ {t['nombre_comercio'].upper()}", key=f"ml_{t['id']}", use_container_width=True):
-                st.session_state.tienda_actual = t
-                ir_a('tienda')
+with st.sidebar:
+    st.markdown("<h2 style='color:#D4AF37; text-align:center;'>D'UNIG</h2>", unsafe_allow_html=True)
+    st.button("🏠 MALL PRINCIPAL", on_click=ir_a, args=('mall',), use_container_width=True)
+    st.button("⚙️ PANEL DE CONTROL", on_click=ir_a, args=('admin',), use_container_width=True)
 
 # --- VISTA: TIENDA ---
-elif st.session_state.view == 'tienda':
+if st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
@@ -100,43 +135,42 @@ elif st.session_state.view == 'tienda':
     for p in prods.data:
         st.markdown(f'<div style="position: relative;"><div class="price-bubble">${p["precio"]}</div></div>', unsafe_allow_html=True)
         st.video(p['video_url'])
-        st.markdown(f"**{p['nombre_producto']}**")
-        st.divider()
+        if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"sh_{p['id']}", use_container_width=True):
+            ventana_pago(p, t['id'])
+        st.markdown("<br>", unsafe_allow_html=True)
 
-# --- VISTA: ADMIN (CON PLANES DE SERVICIO) ---
+# --- VISTA: ADMIN (GESTIÓN TOTAL) ---
 elif st.session_state.view == 'admin':
-    st.title("🚀 PANEL DE CONTROL")
-    mail = st.text_input("Correo de propietario")
+    st.title("🚀 ADMIN PLATINUM")
+    mail = st.text_input("Ingresa tu correo de propietario")
     
     if mail:
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail).execute()
         if res.data:
             perf = res.data[0]
             
-            # Obtener plan del comercio (por defecto Bronce si no existe)
-            plan_usuario = perf.get('plan', 'BRONCE').upper()
-            limite_actual = PLANES.get(plan_usuario, 5)
-            
-            # Cabecera de suscripción
-            c1, c2 = st.columns([2, 1])
-            c1.metric("PLAN ACTUAL", plan_usuario)
-            if c2.button("⚡ SUBIR NIVEL"):
-                st.toast("Contacta a soporte para cambiar tu plan.")
+            # Configuración de Pago (Texto y Números)
+            with st.expander("💳 CONFIGURAR DATOS DE PAGO"):
+                nuevo_pago = st.text_input("Datos (Banco, Teléfono, Cédula)", value=str(perf.get('datos_pago', '')))
+                if st.button("💾 Guardar Datos"):
+                    supabase.table("perfiles_comercio").update({"datos_pago": nuevo_pago}).eq("id", perf['id']).execute()
+                    st.success("Datos guardados.")
 
-            # Conteo de productos
+            st.divider()
+
+            # Límite de Inventario
             res_c = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
             total_p = res_c.count if res_c.count else 0
+            progreso = total_p / LIMITE_PRODUCTOS
             
-            st.write(f"📊 **Uso de Inventario:** {total_p} de {limite_actual} productos")
-            st.progress(min(total_p / limite_actual, 1.0))
-            st.divider()
+            st.write(f"📦 **Inventario:** {total_p} de {LIMITE_PRODUCTOS} productos")
+            st.progress(progreso if progreso <= 1.0 else 1.0)
 
             t_add, t_inv = st.tabs(["➕ AGREGAR", "📦 GESTIONAR"])
 
             with t_add:
-                if total_p >= limite_actual:
-                    st.error(f"Has alcanzado el límite de tu plan {plan_usuario} ({limite_actual} productos).")
-                    st.info("Borra productos antiguos o mejora tu plan para seguir publicando.")
+                if total_p >= LIMITE_PRODUCTOS:
+                    st.error("Límite alcanzado. Borra productos para agregar nuevos.")
                 else:
                     with st.form("new_p", clear_on_submit=True):
                         n = st.text_input("Nombre del Producto")
@@ -157,7 +191,24 @@ elif st.session_state.view == 'admin':
             with t_inv:
                 items = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 for i in items.data:
-                    with st.expander(f"📝 {i['nombre_producto']}"):
-                        if st.button("🗑️ ELIMINAR PRODUCTO", key=f"del_{i['id']}"):
+                    with st.expander(f"📝 Editar: {i['nombre_producto']}"):
+                        en = st.text_input("Nombre", value=i['nombre_producto'], key=f"en_{i['id']}")
+                        ep = st.number_input("Precio", value=float(i['precio']), key=f"ep_{i['id']}")
+                        c1, c2 = st.columns(2)
+                        if c1.button("💾 GUARDAR", key=f"s_{i['id']}"):
+                            supabase.table("productos").update({"nombre_producto": en, "precio": ep}).eq("id", i['id']).execute()
+                            st.rerun()
+                        if c2.button("🗑️ BORRAR", key=f"d_{i['id']}"):
                             supabase.table("productos").delete().eq("id", i['id']).execute()
                             st.rerun()
+
+# --- VISTA: MALL ---
+elif st.session_state.view == 'mall':
+    st.title("🏙️ PLATINUM MALL")
+    tiendas = supabase.table("perfiles_comercio").select("*").execute()
+    cols = st.columns(2)
+    for idx, t in enumerate(tiendas.data):
+        with cols[idx % 2]:
+            if st.button(f"✨ {t['nombre_comercio'].upper()}", key=f"ml_{t['id']}", use_container_width=True):
+                st.session_state.tienda_actual = t
+                ir_a('tienda')
