@@ -7,11 +7,7 @@ import string
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
-st.set_page_config(
-    page_title="D'UNIG LUXURY", 
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
 
 @st.cache_resource
 def init_connection():
@@ -21,118 +17,100 @@ def init_connection():
 
 supabase = init_connection()
 
-# Límites de productos por plan
-PLANES_LIMITES = {
-    "BRONCE": 3,        # Límite inicial restringido
-    "PLATINUM": 15,     # Plan de $9.99
-    "DIAMANTE": 50      # Plan de $29.99
-}
+PLANES_LIMITES = {"BRONCE": 0, "PLATINUM": 15, "DIAMANTE": 50}
 
-# Función para generar código de seguridad (7 caracteres alfanuméricos)
-def generar_codigo_luxury():
-    caracteres = string.ascii_uppercase + string.digits
-    return ''.join(random.choice(caracteres) for _ in range(7))
+def generar_codigo_fijo():
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
 
-# Gestión de estados de la aplicación
 if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'auth_code' not in st.session_state: st.session_state.auth_code = None
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
-# ==========================================
-# 2. ESTÉTICA LUXURY (CSS)
-# ==========================================
-st.markdown("""
-    <style>
-    .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
-    
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
-
-    .stButton>button {
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        background-size: 200% 100% !important;
-        animation: shimmer 5s infinite linear !important;
-        color: #000 !important;
-        border-radius: 30px !important;
-        font-weight: 800 !important;
-        text-transform: uppercase;
-        border: none !important;
-    }
-
-    .luxury-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(212, 175, 55, 0.2);
-        border-radius: 20px;
-        padding: 20px;
-        backdrop-filter: blur(10px);
-        margin-bottom: 20px;
-    }
-
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-    """, unsafe_allow_html=True)
+# --- CSS LUXURY ---
+st.markdown("<style>.main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: white; } .stButton>button { background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295); color: black; border-radius: 30px; font-weight: 800; border: none; } .luxury-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(212,175,55,0.2); border-radius: 20px; padding: 20px; }</style>", unsafe_allow_html=True)
 
 # ==========================================
-# 3. NAVEGACIÓN Y LÓGICA DE PANELES
+# 2. LÓGICA DE NAVEGACIÓN
 # ==========================================
 query_params = st.query_params
 es_admin = query_params.get("admin") == "true"
 
-# --- VISTA PÚBLICA: D'UNIG LUXURY MALL ---
 if not es_admin:
+    # --- VISTA MALL PÚBLICO (FILTRADO POR PAGO) ---
     if st.session_state.view == 'mall':
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
-        busqueda = st.text_input("🔍 Buscar tiendas exclusivas...")
-        res = supabase.table("perfiles_comercio").select("*").execute()
-        tiendas = [t for t in res.data if busqueda.lower() in t['nombre_comercio'].lower()]
+        res = supabase.table("perfiles_comercio").select("*").neq("plan", "BRONCE").execute()
+        tiendas = res.data
         
-        cols = st.columns(2)
-        for idx, t in enumerate(tiendas):
-            with cols[idx % 2]:
-                st.markdown(f"<div class='luxury-card'><h3 style='text-align:center;'>{t['nombre_comercio'].upper()}</h3>", unsafe_allow_html=True)
-                if st.button("VISITAR", key=f"t_{t['id']}", use_container_width=True):
-                    st.session_state.tienda_actual = t
-                    ir_a('tienda')
-                st.markdown("</div>", unsafe_allow_html=True)
+        if not tiendas:
+            st.info("Próximamente más tiendas exclusivas disponibles.")
+        else:
+            cols = st.columns(2)
+            for idx, t in enumerate(tiendas):
+                with cols[idx % 2]:
+                    st.markdown(f"<div class='luxury-card'><h3 style='text-align:center;'>{t['nombre_comercio'].upper()}</h3>", unsafe_allow_html=True)
+                    if st.button("VISITAR", key=f"t_{t['id']}", use_container_width=True):
+                        st.session_state.tienda_actual = t
+                        ir_a('tienda')
+                    st.markdown("</div>", unsafe_allow_html=True)
 
     elif st.session_state.view == 'tienda':
         t = st.session_state.tienda_actual
-        st.button("⬅️ VOLVER AL MALL", on_click=ir_a, args=('mall',))
+        st.button("⬅️ VOLVER", on_click=ir_a, args=('mall',))
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
         for p in prods.data:
             st.video(p['video_url'])
             st.divider()
 
-# --- VISTA RESTRINGIDA: PANEL DE CONTROL LUXURY ---
+# ==========================================
+# 3. PANEL DE CONTROL (CÓDIGO PERSISTENTE)
+# ==========================================
 else:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL LUXURY</h1>", unsafe_allow_html=True)
     
     if not st.session_state.logged_in:
-        with st.form("auth_form"):
-            st.subheader("🔑 Acceso Propietario")
-            mail = st.text_input("Email registrado")
-            whatsapp = st.text_input("WhatsApp (con código de país, ej: 584120000000)")
-            submit = st.form_submit_button("GENERAR CÓDIGO DE SEGURIDAD")
+        with st.form("login_f"):
+            mail = st.text_input("Email Registrado")
+            cod_acceso = st.text_input("Tu Código Luxury (7 dígitos)", type="password").upper()
+            if st.form_submit_button("INGRESAR AL SISTEMA"):
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail).execute()
+                if res.data:
+                    user = res.data[0]
+                    # Si no tiene código, se le asigna uno para siempre
+                    if not user.get('codigo_acceso'):
+                        nuevo_c = generar_codigo_fijo()
+                        supabase.table("perfiles_comercio").update({"codigo_acceso": nuevo_c}).eq("id", user['id']).execute()
+                        st.warning(f"Tu nuevo código permanente es: {nuevo_c}. Guárdalo bien.")
+                    elif user.get('codigo_acceso') == cod_acceso:
+                        st.session_state.logged_in = True
+                        st.session_state.user_data = user
+                        st.rerun()
+                    else: st.error("Código incorrecto.")
+                else: st.error("Email no encontrado.")
+    else:
+        perf = st.session_state.user_data
+        plan = perf.get('plan', 'BRONCE').upper()
+        
+        if plan == "BRONCE":
+            st.warning("⚠️ TU TIENDA ESTÁ OCULTA EN EL MALL. Activa un plan para ser visible al público.")
+        
+        t1, t2, t3, t4 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 MI PLAN"])
+        
+        with t4:
+            st.markdown("### 🏆 Membresía Luxury")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("#### 👑 PLATINUM ($9.99)")
+                with st.expander("Pagar"): st.write("Zelle: pagos@luxury.com")
+            with c2:
+                st.markdown("#### 💎 DIAMANTE ($29.99)")
+                with st.expander("Pagar"): st.write("Zelle: vip@luxury.com")
             
-            if submit and mail and whatsapp:
-                if not st.session_state.auth_code:
-                    st.session_state.auth_code = generar_codigo_luxury()
-                
-                msj_wa = f"Tu código de acceso D'UNIG LUXURY es: *{st.session_state.auth_code}*"
-                wa_url = f"https://wa.me/{whatsapp}?text={urllib.parse.quote(msj_wa)}"
-                st.info("Presiona el botón para recibir tu código por WhatsApp:")
-                st.link_button("📩 RECIBIR CÓDIGO", wa_url)
-
-        st.divider()
-        input_codigo = st.text_input("Introduce el código de 7 dígitos", max_chars=7).upper()
-        if st.button("INGRESAR AL PANEL"):
-            if input_codigo == st.session_state.auth_code:
-                st.session_state.logged_in
+            ref = st.text_input("Referencia de Pago")
+            if st.button("ENVIAR AL GMAIL"):
+                link = f"mailto:idealiting@gmail.com?subject=PAGO_{perf['nombre_comercio']}&body=Ref:{ref}"
+                st.link_button("📩 REPORTAR", link)
