@@ -1,49 +1,62 @@
 import streamlit as st
 from supabase import create_client, Client
-import urllib.parse
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import random
 import string
+import urllib.parse
 
 # ==========================================
-# 1. CONEXIÓN Y CONFIGURACIÓN
+# 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
 st.set_page_config(page_title="D'UNIG LUXURY", layout="centered")
 
+# Credenciales de Supabase
 @st.cache_resource
 def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 supabase = init_connection()
 
-# Límites de inventario según el plan
-PLANES_LIMITES = {"BRONCE": 3, "PLATINUM": 15, "DIAMANTE": 50}
+# --- FUNCIÓN PARA ENVIAR EMAIL AUTOMÁTICO ---
+def enviar_email_automatico(destinatario, nombre_tienda, codigo):
+    # DATOS DEL EMISOR (Configura esto en tus Secrets de Streamlit)
+    remitente = "idealiting@gmail.com" 
+    password = st.secrets["GMAIL_PASSWORD"] # La contraseña de aplicación de 16 letras
 
-def generar_codigo_fijo():
-    # Genera una combinación única de 7 caracteres (Letras y Números)
-    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
+    msg = MIMEMultipart()
+    msg['From'] = f"D'UNIG LUXURY <{remitente}>"
+    msg['To'] = destinatario
+    msg['Subject'] = f"🔐 Código de Acceso - {nombre_tienda}"
 
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'user_email' not in st.session_state: st.session_state.user_email = None
+    cuerpo = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #000; color: #fff; padding: 20px;">
+        <h2 style="color: #D4AF37;">D'UNIG LUXURY</h2>
+        <p>Has solicitado el acceso al Panel de Control para <b>{nombre_tienda}</b>.</p>
+        <div style="background-color: #1a1a1a; border: 1px solid #D4AF37; padding: 15px; text-align: center; border-radius: 10px;">
+            <span style="font-size: 24px; letter-spacing: 5px; color: #D4AF37;"><b>{codigo}</b></span>
+        </div>
+        <p style="font-size: 12px; color: #888;">Si no solicitaste este código, ignora este mensaje.</p>
+    </body>
+    </html>
+    """
+    msg.attach(MIMEText(cuerpo, 'html'))
 
-# --- ESTÉTICA LUXURY ---
-st.markdown("""
-    <style>
-    .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: white; }
-    .stButton>button { 
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295); 
-        color: black !important; border-radius: 30px; font-weight: 800; border: none; width: 100%;
-    }
-    .luxury-card { 
-        background: rgba(255,255,255,0.03); border: 1px solid rgba(212,175,55,0.2); 
-        border-radius: 20px; padding: 20px; margin-bottom: 15px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(remitente, password)
+        server.sendmail(remitente, destinatario, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Error al enviar: {e}")
+        return False
 
 # ==========================================
-# 2. PANEL DE CONTROL (LÓGICA CORREGIDA)
+# 2. PANEL DE CONTROL (LÓGICA AUTOMÁTICA)
 # ==========================================
 query_params = st.query_params
 es_admin = query_params.get("admin") == "true"
@@ -51,97 +64,46 @@ es_admin = query_params.get("admin") == "true"
 if es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL LUXURY</h1>", unsafe_allow_html=True)
     
-    if not st.session_state.logged_in:
-        st.markdown("<div class='luxury-card'>", unsafe_allow_html=True)
-        st.subheader("🔑 Acceso Propietario")
+    if not st.session_state.get('logged_in', False):
+        st.markdown("<div style='background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;'>", unsafe_allow_html=True)
         
-        # Usamos campos de texto fuera de un 'st.form' para evitar bloqueos de refresco
-        email_input = st.text_input("Email Registrado", placeholder="ejemplo@correo.com").lower().strip()
-        pass_input = st.text_input("Tu Código Luxury (7 caracteres)", type="password", placeholder="Ingresa tu llave").upper().strip()
+        email_log = st.text_input("Email Registrado").lower().strip()
+        pass_log = st.text_input("Código de Acceso", type="password").upper().strip()
         
-        col1, col2 = st.columns(2)
+        c1, c2 = st.columns(2)
         
-        with col1:
-            if st.button("🔓 INGRESAR"):
-                if email_input and pass_input:
-                    # Consulta directa a Supabase para verificar credenciales
-                    res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_input).execute()
-                    if res.data:
-                        user = res.data[0]
-                        # Verificamos si el código coincide exactamente
-                        if user.get('codigo_acceso') == pass_input:
-                            st.session_state.logged_in = True
-                            st.session_state.user_email = email_input
-                            st.success("Acceso verificado. Entrando...")
-                            st.rerun()
-                        else:
-                            st.error("El código ingresado es incorrecto.")
-                    else:
-                        st.error("Este email no está registrado.")
+        with c1:
+            if st.button("🔓 ENTRAR"):
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_log).execute()
+                if res.data and res.data[0].get('codigo_acceso') == pass_log:
+                    st.session_state.logged_in = True
+                    st.session_state.user_email = email_log
+                    st.rerun()
                 else:
-                    st.warning("Por favor, rellena ambos campos.")
+                    st.error("Credenciales inválidas.")
 
-        with col2:
-            if st.button("✨ CREAR / VER MI CÓDIGO"):
-                if email_input:
-                    res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_input).execute()
+        with c2:
+            if st.button("📩 ENVIAR CÓDIGO AL GMAIL"):
+                if email_log:
+                    res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_log).execute()
                     if res.data:
                         user = res.data[0]
-                        cod_db = user.get('codigo_acceso')
+                        cod = user.get('codigo_acceso')
+                        if not cod:
+                            cod = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
+                            supabase.table("perfiles_comercio").update({"codigo_acceso": cod}).eq("id", user['id']).execute()
                         
-                        if not cod_db:
-                            # Si no tiene código, lo creamos y guardamos permanentemente
-                            nuevo_c = generar_codigo_fijo()
-                            supabase.table("perfiles_comercio").update({"codigo_acceso": nuevo_c}).eq("id", user['id']).execute()
-                            st.success(f"¡Código Creado! Tu llave permanente es: {nuevo_c}")
-                        else:
-                            # Si ya tiene uno, se lo recordamos
-                            st.info(f"Tu código asignado es: {cod_db}")
+                        # Aquí ocurre la magia: envío invisible
+                        with st.spinner("Enviando código de forma segura..."):
+                            if enviar_email_automatico(email_log, user['nombre_comercio'], cod):
+                                st.success(f"El código ha sido enviado a {email_log}. Revisa tu bandeja de entrada o SPAM.")
                     else:
-                        st.error("Email no encontrado en la base de datos.")
+                        st.error("Email no encontrado.")
                 else:
-                    st.warning("Escribe tu email primero.")
+                    st.warning("Escribe tu correo primero.")
         st.markdown("</div>", unsafe_allow_html=True)
-
     else:
-        # --- PANEL DE GESTIÓN INTERNO ---
-        res_p = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
-        if res_p.data:
-            perf = res_p.data[0]
-            plan = perf.get('plan', 'BRONCE').upper()
-            
-            if plan == "BRONCE":
-                st.warning("⚠️ TIENDA OCULTA: Tu tienda no es visible en el Mall. Activa un plan para atraer clientes.")
-            
-            # Navegación interna del Admin
-            tabs = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 MI PLAN"])
-            
-            with tabs[0]: # Agregar Productos
-                limite = PLANES_LIMITES.get(plan, 3)
-                st.write(f"Cupos disponibles: {limite} productos.")
-                # Lógica de subida aquí...
-
-            with tabs[3]: # Mi Plan y Reporte de Pago
-                st.markdown("### 🏆 Gestión de Membresía")
-                st.write("Reporta tu pago para habilitar más productos y aparecer en el Mall.")
-                ref_pago = st.text_input("Referencia de la transacción")
-                if st.button("REPORTAR PAGO AL GMAIL"):
-                    if ref_pago:
-                        asunto = f"PAGO_LUXURY_{perf['nombre_comercio']}"
-                        cuerpo = f"Comercio: {perf['nombre_comercio']}%0AReferencia: {ref_pago}"
-                        st.link_button("📩 ENVIAR CORREO", f"mailto:idealiting@gmail.com?subject={asunto}&body={cuerpo}")
-
-        if st.sidebar.button("CERRAR SESIÓN"):
+        st.success(f"Bienvenido: {st.session_state.user_email}")
+        if st.button("Cerrar Sesión"):
             st.session_state.logged_in = False
             st.rerun()
-
-else:
-    # --- MALL PÚBLICO ---
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
-    # Solo mostramos tiendas que NO están en plan Bronce
-    res_m = supabase.table("perfiles_comercio").select("*").neq("plan", "BRONCE").execute()
-    if res_m.data:
-        for t in res_m.data:
-            st.markdown(f"<div class='luxury-card'><h3>{t['nombre_comercio'].upper()}</h3></div>", unsafe_allow_html=True)
-    else:
-        st.info("Mall exclusivo. Las tiendas aparecerán una vez activen su plan.")
