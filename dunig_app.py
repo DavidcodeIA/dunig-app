@@ -21,9 +21,9 @@ supabase = init_connection()
 
 # --- FUNCIÓN PARA ENVIAR EMAIL AUTOMÁTICO ---
 def enviar_email_automatico(destinatario, nombre_tienda, codigo):
-    # DATOS DEL EMISOR (Configura esto en tus Secrets de Streamlit)
+    # DATOS DEL EMISOR
     remitente = "idealiting@gmail.com" 
-    password = st.secrets["GMAIL_PASSWORD"] # La contraseña de aplicación de 16 letras
+    password = st.secrets["GMAIL_PASSWORD"]
 
     msg = MIMEMultipart()
     msg['From'] = f"D'UNIG LUXURY <{remitente}>"
@@ -44,8 +44,8 @@ def enviar_email_automatico(destinatario, nombre_tienda, codigo):
     """
     msg.attach(MIMEText(cuerpo, 'html'))
 
-try:
-        # Usamos SSL (puerto 465) que es más directo y suele saltarse el bloqueo
+    try:
+        # Puerto 465 con SSL es más estable para Gmail
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(remitente, password)
         server.sendmail(remitente, destinatario, msg.as_string())
