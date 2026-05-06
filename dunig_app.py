@@ -70,7 +70,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS
+# 3. DIÁLOGOS Y REGISTRO
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -133,7 +133,7 @@ else:
         with col1:
             if st.button("🔓 ENTRAR"):
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail).execute()
-                if res.data and str(res.data[0].get('codigo_acceso')).strip().upper() == pass_input:
+                if res.data and str(res.data[0].get('codigo_acceso', '')).strip().upper() == pass_input:
                     st.session_state.logged_in = True
                     st.session_state.user_email = mail
                     st.rerun()
@@ -174,10 +174,11 @@ else:
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-            t1, t2, t3, t4 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 MI PLAN"])
+            # --- TABS INCLUYENDO REGISTRO ---
+            t1, t2, t3, t4, t5 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 MI PLAN", "✨ REGISTRO"])
             
             with t1:
-                if total_p >= limite: st.warning("Cupos agotados. Aumenta tu plan en la pestaña 'MI PLAN'.")
+                if total_p >= limite: st.warning("Cupos agotados. Aumenta tu plan en 'MI PLAN'.")
                 else:
                     with st.form("p", clear_on_submit=True):
                         n = st.text_input("Nombre del Producto")
@@ -200,19 +201,36 @@ else:
                             st.rerun()
 
             with t3:
-                p_inf = st.text_area("Información para pagos (Pago móvil, Zelle, etc.)", value=str(perf.get('datos_pago', '')))
+                p_inf = st.text_area("Información para pagos", value=str(perf.get('datos_pago', '')))
                 if st.button("ACTUALIZAR DATOS"):
                     supabase.table("perfiles_comercio").update({"datos_pago": p_inf}).eq("id", perf['id']).execute()
                     st.success("Datos guardados")
 
             with t4:
                 st.markdown("### 🚀 Aumenta tu capacidad")
-                st.write("Selecciona un plan para subir tu límite de productos:")
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.markdown("**PLAN PLATINUM**\n- 15 Cupos\n- Soporte VIP")
-                    st.link_button("💎 SUBIR A PLATINUM", "https://wa.me/TU_NUMERO?text=Deseo_Platinum")
+                    st.markdown("**PLAN PLATINUM**\n- 15 Cupos")
+                    st.link_button("💎 SUBIR A PLATINUM", f"https://wa.me/{perf['whatsapp']}?text=Deseo_Platinum")
                 with c2:
-                    st.markdown("**PLAN DIAMANTE**\n- 50 Cupos\n- Destacado en Mall")
-                    st.link_button("👑 SUBIR A DIAMANTE", "https://wa.me/TU_NUMERO?text=Deseo_Diamante")
+                    st.markdown("**PLAN DIAMANTE**\n- 50 Cupos")
+                    st.link_button("👑 SUBIR A DIAMANTE", f"https://wa.me/{perf['whatsapp']}?text=Deseo_Diamante")
+
+            with t5:
+                st.markdown("### 🆕 Registrar Nuevo Propietario")
+                with st.form("reg_nuevo"):
+                    reg_nom = st.text_input("Nombre de la Tienda").strip()
+                    reg_mail = st.text_input("Email Propietario").strip().lower()
+                    reg_tel = st.text_input("WhatsApp (Ej: 58412...)").strip()
+                    reg_plan = st.selectbox("Asignar Plan", ["BRONCE", "PLATINUM", "DIAMANTE"])
+                    if st.form_submit_button("💎 REGISTRAR TIENDA"):
+                        if reg_nom and reg_mail and reg_tel:
+                            supabase.table("perfiles_comercio").insert({
+                                "nombre_comercio": reg_nom,
+                                "email_propietario": reg_mail,
+                                "whatsapp": reg_tel,
+                                "plan": reg_plan
+                            }).execute()
+                            st.success(f"Tienda {reg_nom} creada con éxito.")
+                        else: st.error("Llenar campos obligatorios.")
         else: st.error("Error de sesión")
