@@ -166,41 +166,19 @@ if not es_admin:
                 ventana_pago(p, t)
             st.divider()
 
-# --- PANEL PROPIETARIOS: D'UNIG LUXURY CONTROL ---
-else:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL LUXURY</h1>", unsafe_allow_html=True)
-    mail = st.text_input("Acceso de Propietario (Email)")
-    
-    if mail:
-        res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail).execute()
-        if res.data:
-            perf = res.data[0]
-            plan = perf.get('plan', 'BRONCE').upper()
-            limite = PLANES.get(plan, 5)
-            
-            # Opción 3: Estadísticas en tiempo real
-            res_c = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-            total_p = res_c.count if res_c.count else 0
-            
-            st.markdown(f"<div class='luxury-card'><h3>Bienvenido, {perf['nombre_comercio']}</h3>", unsafe_allow_html=True)
-            col_a, col_b = st.columns(2)
-            col_a.metric("Plan Activo", plan)
-            col_b.metric("Inventario", f"{total_p} / {limite}")
-            st.progress(min(total_p/limite, 1.0))
-            st.markdown("</div>", unsafe_allow_html=True)
+# --- NUEVA ESTRUCTURA DE PESTAÑAS AUTÓNOMAS ---
+            tab1, tab2, tab3, tab4 = st.tabs(["➕ AGREGAR", "📦 GESTIONAR", "💳 PAGOS", "💎 MI PLAN"])
 
-            tab1, tab2, tab3 = st.tabs(["➕ AGREGAR", "📦 GESTIONAR", "💳 PAGOS"])
-
-            with tab1: # Opción 1: Compresión de Video (Validación de tamaño)
-                if total_p >= limite: st.error("Límite de plan alcanzado.")
+            with tab1: # AGREGAR PRODUCTO (OPCIÓN 1: CON VALIDACIÓN)
+                if total_p >= limite: 
+                    st.error("Límite de plan alcanzado. Sube de nivel en la pestaña 'MI PLAN'.")
                 else:
                     with st.form("new_p", clear_on_submit=True):
                         n = st.text_input("Nombre del Producto")
                         p = st.number_input("Precio ($)", min_value=0.0)
-                        v = st.file_uploader("Video publicitario (MP4 recomendado)", type=['mp4'])
-                        if st.form_submit_button("🚀 PUBLICAR"):
+                        v = st.file_uploader("Video publicitario (MP4)", type=['mp4'])
+                        if st.form_submit_button("🚀 PUBLICAR EN LUXURY MALL"):
                             if n and v:
-                                # Validación de seguridad
                                 v_path = f"videos/{perf['id']}_{random.randint(1000,9999)}.mp4"
                                 supabase.storage.from_("fotos_productos").upload(v_path, v.getvalue())
                                 v_url = supabase.storage.from_("fotos_productos").get_public_url(v_path)
@@ -210,18 +188,49 @@ else:
                                 }).execute()
                                 st.rerun()
 
-            with tab2: # Gestión de Inventario
+            with tab2: # GESTIONAR INVENTARIO
                 items = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 for i in items.data:
                     with st.expander(f"📝 {i['nombre_producto']} - ${i['precio']}"):
-                        if st.button("🗑️ ELIMINAR PRODUCTO", key=f"del_{i['id']}"):
+                        if st.button("🗑️ ELIMINAR", key=f"del_{i['id']}"):
                             supabase.table("productos").delete().eq("id", i['id']).execute()
                             st.rerun()
 
-            with tab3: # Configuración de Pagos
-                pago_info = st.text_area("Instrucciones de Pago para el Cliente", value=str(perf.get('datos_pago', '')))
-                if st.button("💾 GUARDAR MÉTODO"):
+            with tab3: # CONFIGURACIÓN DE COBRO (CLIENTES)
+                st.markdown("#### 💳 Cómo te pagan tus clientes")
+                pago_info = st.text_area("Instrucciones de Pago Móvil / Transferencia", value=str(perf.get('datos_pago', '')))
+                if st.button("💾 GUARDAR MÉTODO DE COBRO"):
                     supabase.table("perfiles_comercio").update({"datos_pago": pago_info}).eq("id", perf['id']).execute()
-                    st.success("Configuración guardada exitosamente.")
-        else:
-            st.error("Credenciales no encontradas.")
+                    st.success("Configuración de cobro actualizada.")
+
+            with tab4: # 💎 MI PLAN (AUTOGESTIÓN DE PAGOS A D'UNIG LUXURY)
+                st.markdown("### 🏆 Membresía D'UNIG LUXURY")
+                precios = {"BRONCE": "Gratis", "PLATINUM": "29.99", "DIAMANTE": "99.99"}
+                
+                col_p, col_c = st.columns(2)
+                col_p.metric("Tu Plan", plan)
+                col_c.metric("Costo Mensual", f"${precios.get(plan, '0.00')} USD")
+
+                st.divider()
+                st.markdown("#### ✨ Mejora tu presencia")
+                c1, c2 = st.columns(2)
+                
+                with c1:
+                    st.markdown("**PLAN PLATINUM**\n* 15 Productos\n* Soporte 24/7\n* Sello Verificado")
+                    st.link_button("💎 PAGAR PLATINUM", "https://tu-link-de-pago.com/platinum") # Reemplazar con tu link real
+
+                with c2:
+                    st.markdown("**PLAN DIAMANTE**\n* Productos Ilimitados\n* Destacado VIP\n* Video 4K")
+                    st.link_button("👑 PAGAR DIAMANTE", "https://tu-link-de-pago.com/diamante") # Reemplazar con tu link real
+
+                st.divider()
+                with st.expander("🔄 ¿Ya pagaste? Reporta tu referencia"):
+                    plan_pagado = st.selectbox("Plan Adquirido", ["PLATINUM", "DIAMANTE"])
+                    ref_pago = st.text_input("Número de Referencia")
+                    if st.button("ENVIAR REPORTE"):
+                        if ref_pago:
+                            # Notificación rápida vía WhatsApp para que tú solo verifiques y cambies el plan en Supabase
+                            msj_admin = f"🚨 *PAGO RECIBIDO D'UNIG LUXURY*\n🏪 *Tienda:* {perf['nombre_comercio']}\n💎 *Plan:* {plan_pagado}\n🎫 *Ref:* {ref_pago}"
+                            url_admin = f"https://wa.me/584XXXXXXXXX?text={urllib.parse.quote(msj_admin)}" # Pon tu número aquí
+                            st.success("Reporte enviado. Tu plan se activará tras la verificación.")
+                            st.link_button("CONFIRMAR POR WHATSAPP", url_admin)
