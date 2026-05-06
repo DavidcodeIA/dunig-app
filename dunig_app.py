@@ -1,14 +1,11 @@
 import streamlit as st
 from supabase import create_client, Client
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import random
 import string
 import urllib.parse
 
 # ==========================================
-# 1. CONFIGURACIÓN Y CONEXIÓN
+# 1. CONEXIÓN
 # ==========================================
 st.set_page_config(page_title="D'UNIG LUXURY", layout="centered")
 
@@ -18,88 +15,71 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- FUNCIÓN DE ENVÍO AUTOMÁTICO (CORREGIDA) ---
-def enviar_email_automatico(destinatario, nombre_tienda, codigo):
-    remitente = "idealiting@gmail.com" 
-    password = st.secrets["GMAIL_PASSWORD"]
+def generar_codigo_fijo():
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
 
-    msg = MIMEMultipart()
-    msg['From'] = f"D'UNIG LUXURY <{remitente}>"
-    msg['To'] = destinatario
-    msg['Subject'] = f"🔐 Código de Acceso - {nombre_tienda}"
-
-    cuerpo = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; background-color: #000; color: #fff; padding: 20px;">
-        <h2 style="color: #D4AF37;">D'UNIG LUXURY</h2>
-        <p>Has solicitado el acceso al Panel de Control para <b>{nombre_tienda}</b>.</p>
-        <div style="background-color: #1a1a1a; border: 1px solid #D4AF37; padding: 15px; text-align: center; border-radius: 10px;">
-            <span style="font-size: 24px; letter-spacing: 5px; color: #D4AF37;"><b>{codigo}</b></span>
-        </div>
-        <p style="font-size: 12px; color: #888;">Si no solicitaste este código, ignora este mensaje.</p>
-    </body>
-    </html>
-    """
-    msg.attach(MIMEText(cuerpo, 'html'))
-
-    try:
-        # Puerto 465 con SSL es el más seguro para evitar bloqueos de Google
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.login(remitente, password)
-        server.sendmail(remitente, destinatario, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        st.error(f"Error de conexión: {e}")
-        return False
+# --- ESTÉTICA ---
+st.markdown("<style>.main { background: #000; color: white; } .stButton>button { background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295); color: black !important; border-radius: 30px; font-weight: 800; border: none; width: 100%; }</style>", unsafe_allow_html=True)
 
 # ==========================================
-# 2. INTERFAZ Y LÓGICA
+# 2. LÓGICA DE ACCESO PERSONAL
 # ==========================================
-st.markdown("<style>.main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: white; } .stButton>button { background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295); color: black !important; border-radius: 30px; font-weight: 800; border: none; width: 100%; }</style>", unsafe_allow_html=True)
-
 query_params = st.query_params
 es_admin = query_params.get("admin") == "true"
 
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-
 if es_admin:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL LUXURY</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     
-    if not st.session_state.logged_in:
-        email_log = st.text_input("Email Registrado").lower().strip()
+    if not st.session_state.get('logged_in', False):
+        st.markdown("<div style='background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;'>", unsafe_allow_html=True)
+        
+        email_log = st.text_input("Email del Negocio").lower().strip()
         pass_log = st.text_input("Código de Acceso", type="password").upper().strip()
         
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🔓 ENTRAR"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🔓 ENTRAR AL PANEL"):
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_log).execute()
                 if res.data and res.data[0].get('codigo_acceso') == pass_log:
                     st.session_state.logged_in = True
                     st.session_state.user_email = email_log
                     st.rerun()
-                else: st.error("Credenciales inválidas.")
+                else:
+                    st.error("Código o Email incorrecto.")
 
-        with c2:
-            if st.button("📩 ENVIAR CÓDIGO AL GMAIL"):
+        with col2:
+            if st.button("🔑 SOLICITAR MI CÓDIGO"):
                 if email_log:
                     res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", email_log).execute()
                     if res.data:
                         user = res.data[0]
                         cod = user.get('codigo_acceso')
+                        
+                        # Si no existe código, lo creamos
                         if not cod:
-                            cod = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
+                            cod = generar_codigo_fijo()
                             supabase.table("perfiles_comercio").update({"codigo_acceso": cod}).eq("id", user['id']).execute()
                         
-                        if enviar_email_automatico(email_log, user['nombre_comercio'], cod):
-                            st.success(f"Código enviado a {email_log}")
-                    else: st.error("Email no registrado.")
-                else: st.warning("Escribe tu correo.")
+                        # Preparamos el mensaje de WhatsApp
+                        # Usamos el número guardado en la base de datos (asegúrate de tener columna 'whatsapp')
+                        telefono = user.get('whatsapp', '') 
+                        mensaje = f"*D'UNIG LUXURY*\n\nHola, tu código de acceso permanente es: *{cod}*\n\nGuarda este mensaje para entrar a tu panel."
+                        msg_encoded = urllib.parse.quote(mensaje)
+                        
+                        # Botón que abre WhatsApp directamente
+                        st.info("Haz clic abajo para recibir tu código por WhatsApp:")
+                        st.link_button("🟢 RECIBIR POR WHATSAPP", f"https://wa.me/{telefono}?text={msg_encoded}")
+                    else:
+                        st.error("Email no registrado.")
+                else:
+                    st.warning("Escribe tu email primero.")
+        st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.success(f"Sesión activa: {st.session_state.user_email}")
+        st.success(f"Bienvenido: {st.session_state.user_email}")
         if st.button("Cerrar Sesión"):
             st.session_state.logged_in = False
             st.rerun()
 else:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
-    st.info("Mall Privado - Solo tiendas activas.")
+    st.info("Tiendas activas pronto.")
