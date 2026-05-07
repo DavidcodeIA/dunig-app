@@ -33,6 +33,7 @@ es_admin = query_params.get("admin") == "true"
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'user_email' not in st.session_state: st.session_state.user_email = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
@@ -70,7 +71,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS Y REGISTRO
+# 3. DIÁLOGOS
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -102,7 +103,9 @@ if not es_admin:
         cols = st.columns(2)
         for idx, t in enumerate(tiendas):
             with cols[idx % 2]:
-                st.markdown(f"<div class='luxury-card'><h3 style='text-align:center;'>{t['nombre_comercio'].upper()}</h3>", unsafe_allow_html=True)
+                st.markdown(f"<div class='luxury-card'>", unsafe_allow_html=True)
+                if t.get('portada_url'): st.image(t['portada_url'])
+                st.markdown(f"<h3 style='text-align:center;'>{t['nombre_comercio'].upper()}</h3>", unsafe_allow_html=True)
                 if st.button("VISITAR", key=f"t_{t['id']}", use_container_width=True):
                     st.session_state.tienda_actual = t
                     ir_a('tienda')
@@ -111,6 +114,7 @@ if not es_admin:
     elif st.session_state.view == 'tienda':
         t = st.session_state.tienda_actual
         if st.button("⬅️ VOLVER"): ir_a('mall')
+        if t.get('portada_url'): st.image(t['portada_url'], use_container_width=True)
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
         for p in prods.data:
@@ -147,7 +151,6 @@ else:
                     cod = u.get('codigo_acceso') or generar_codigo()
                     if not u.get('codigo_acceso'):
                         supabase.table("perfiles_comercio").update({"codigo_acceso": cod}).eq("id", u['id']).execute()
-                    
                     tel = str(u['whatsapp']).replace("+", "").strip()
                     msg = urllib.parse.quote(f"*D'UNIG LUXURY*\nTu llave de acceso es: *{cod}*")
                     st.link_button("🟢 VER EN WHATSAPP", f"https://wa.me/{tel}?text={msg}")
@@ -158,11 +161,15 @@ else:
         # PANEL ACTIVO
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
         if res.data:
-            perf = res.data[0]
-            plan = perf.get('plan', 'BRONCE').upper()
+            perf = res.data[0] # <--- AQUÍ CORREGIMOS EL ERROR (Extraer diccionario de la lista)
+            
+            # Manejo seguro del plan
+            p_raw = perf.get('plan')
+            plan = str(p_raw).upper() if p_raw else "BRONCE"
             limite = PLANES.get(plan, 5)
+            
             res_c = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-            total_p = res_c.count if res_c.count else 0
+            total_p = res_c.count if res_c.count is not None else 0
             
             st.markdown(f"<div class='luxury-card'><h3>Tienda: {perf['nombre_comercio']}</h3>", unsafe_allow_html=True)
             c_a, c_b = st.columns(2)
@@ -174,11 +181,11 @@ else:
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # --- TABS INCLUYENDO REGISTRO ---
-            t1, t2, t3, t4, t5 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 MI PLAN", "✨ REGISTRO"])
+            # --- TABS ---
+            t1, t2, t3, t4, t5, t6 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "🖼️ PORTADA", "💎 MI PLAN", "✨ REGISTRO"])
             
             with t1:
-                if total_p >= limite: st.warning("Cupos agotados. Aumenta tu plan en 'MI PLAN'.")
+                if total_p >= limite: st.warning("Cupos agotados.")
                 else:
                     with st.form("p", clear_on_submit=True):
                         n = st.text_input("Nombre del Producto")
@@ -207,16 +214,23 @@ else:
                     st.success("Datos guardados")
 
             with t4:
-                st.markdown("### 🚀 Aumenta tu capacidad")
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("**PLAN PLATINUM**\n- 15 Cupos")
-                    st.link_button("💎 SUBIR A PLATINUM", f"https://wa.me/{perf['whatsapp']}?text=Deseo_Platinum")
-                with c2:
-                    st.markdown("**PLAN DIAMANTE**\n- 50 Cupos")
-                    st.link_button("👑 SUBIR A DIAMANTE", f"https://wa.me/{perf['whatsapp']}?text=Deseo_Diamante")
+                st.subheader("🖼️ Imagen de Portada")
+                if perf.get('portada_url'): st.image(perf['portada_url'], width=300)
+                file_portada = st.file_uploader("Subir Nueva Portada", type=['jpg', 'png', 'jpeg'])
+                if st.button("GUARDAR PORTADA"):
+                    if file_portada:
+                        path_p = f"portadas/{perf['id']}.jpg"
+                        supabase.storage.from_("fotos_productos").upload(path_p, file_portada.getvalue(), {"upsert": "true"})
+                        url_p = supabase.storage.from_("fotos_productos").get_public_url(path_p)
+                        supabase.table("perfiles_comercio").update({"portada_url": url_p}).eq("id", perf['id']).execute()
+                        st.success("Portada actualizada")
+                        st.rerun()
 
             with t5:
+                st.markdown("### 🚀 Aumenta tu capacidad")
+                st.write("Contacta a soporte para subir de plan.")
+
+            with t6:
                 st.markdown("### 🆕 Registrar Nuevo Propietario")
                 with st.form("reg_nuevo"):
                     reg_nom = st.text_input("Nombre de la Tienda").strip()
@@ -233,4 +247,3 @@ else:
                             }).execute()
                             st.success(f"Tienda {reg_nom} creada con éxito.")
                         else: st.error("Llenar campos obligatorios.")
-        else: st.error("Error de sesión")
