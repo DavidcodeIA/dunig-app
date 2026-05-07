@@ -32,13 +32,13 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS ENFOCADO EN VIDEO)
+# 2. ESTÉTICA LUXURY (CSS MEJORADO)
 # ==========================================
 st.markdown("""
     <style>
     .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
     
-    /* Contenedor tipo Tarjeta TikTok */
+    /* Contenedor tipo Tarjeta Luxury */
     .video-container {
         position: relative;
         width: 100%;
@@ -46,8 +46,7 @@ st.markdown("""
         margin: 0 auto;
         border-radius: 20px;
         overflow: hidden;
-        border: 2px solid rgba(212, 175, 55, 0.4);
-        box-shadow: 0px 0px 25px rgba(0,0,0,0.5);
+        border: 1px solid rgba(212, 175, 55, 0.3);
     }
 
     /* Etiqueta de Sonido Centralizada */
@@ -58,19 +57,20 @@ st.markdown("""
         transform: translate(-50%, -50%);
         background: rgba(0, 0, 0, 0.6);
         color: #D4AF37;
-        padding: 10px 20px;
+        padding: 12px 24px;
         border-radius: 30px;
         font-size: 14px;
         font-weight: bold;
         border: 1px solid #D4AF37;
         z-index: 5;
-        pointer-events: none; /* No estorba el clic al video */
-        animation: fadeInOut 2.5s infinite;
+        pointer-events: none;
+        animation: pulse 2s infinite;
     }
 
-    @keyframes fadeInOut {
-        0%, 100% { opacity: 0.3; }
-        50% { opacity: 1; }
+    @keyframes pulse {
+        0% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.95); }
+        50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.95); }
     }
 
     .price-bubble {
@@ -78,6 +78,7 @@ st.markdown("""
         background: rgba(0, 0, 0, 0.85); color: #39FF14; 
         padding: 8px 18px; border-radius: 50px;
         font-weight: 900; border: 2px solid #39FF14; z-index: 10;
+        box-shadow: 0px 0px 10px #39FF14;
     }
 
     .stButton>button {
@@ -85,12 +86,20 @@ st.markdown("""
         background-size: 200% 100% !important;
         color: #000 !important; border-radius: 30px !important;
         font-weight: 800 !important; text-transform: uppercase; border: none !important;
+        transition: 0.3s;
+    }
+    .stButton>button:hover { transform: scale(1.02); }
+
+    .img-redonda {
+        width: 120px; height: 120px; border-radius: 50%;
+        object-fit: cover; border: 2px solid #D4AF37;
+        margin: 0 auto 10px auto; display: block;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS
+# 3. DIÁLOGOS (COMPRA Y EDICIÓN)
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -102,37 +111,4 @@ def ventana_pago(producto, tienda):
     ref = st.text_input("Ingrese Ref. de Pago")
     if st.button("🚀 CONFIRMAR PEDIDO"):
         if ref:
-            msj = f"✨ *PEDIDO LUXURY*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cant:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
-            tel = str(tienda['whatsapp']).replace("+", "").replace(" ", "").strip()
-            st.link_button("ENVIAR POR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
-
-@st.dialog("✏️ EDITAR PRODUCTO")
-def editar_producto(prod):
-    nuevo_nom = st.text_input("Nombre", value=prod['nombre_producto'])
-    nuevo_pre = st.number_input("Precio ($)", value=float(prod['precio']))
-    if st.button("ACTUALIZAR"):
-        supabase.table("productos").update({"nombre_producto": nuevo_nom, "precio": nuevo_pre}).eq("id", prod['id']).execute()
-        st.success("Actualizado"); st.rerun()
-
-# ==========================================
-# 4. LÓGICA DE VISTAS
-# ==========================================
-es_admin = st.query_params.get("admin") == "true"
-es_registro = st.query_params.get("reg") == "true"
-
-if es_registro:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE NUEVO SOCIO</h1>", unsafe_allow_html=True)
-    with st.form("form_reg_externo"):
-        rn = st.text_input("Tienda")
-        rm = st.text_input("Email")
-        rt = st.text_input("WhatsApp")
-        plan_sel = st.selectbox("Plan", ["GRATUITO", "BRONCE", "PLATA", "ORO"])
-        ri = st.file_uploader("Portada", type=['jpg', 'png'])
-        ref_s = st.text_input("Referencia")
-        if st.form_submit_button("REGISTRAR"):
-            if rn and rm and rt and ri and ref_s:
-                path_i = f"portadas/reg_{random.randint(1000,9999)}.jpg"
-                supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue())
-                url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
-                supabase.table("perfiles_comercio").insert({"nombre_comercio": rn, "email_propietario": rm.lower(), "whatsapp": rt, "portada_url": url_i, "plan": plan_sel, "codigo_acceso": "LUXURY7"}).execute()
-                st
+            msj = f"
