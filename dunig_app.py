@@ -117,13 +117,24 @@ if not es_admin:
                     ir_a('tienda')
                 st.markdown("</div>", unsafe_allow_html=True)
 
-    elif st.session_state.view == 'tienda':
+elif st.session_state.view == 'tienda':
         t = st.session_state.tienda_actual
         if st.button("⬅️ VOLVER"): ir_a('mall')
         
-        # Banner de Portada
-        if t.get('portada_url'):
-            st.markdown(f'<img src="{t["portada_url"]}" class="banner-tienda">', unsafe_allow_html=True)
+        # --- ESTO ES LO QUE MUESTRA LA PORTADA ---
+        # Buscamos la URL en el diccionario de la tienda actual
+        url_portada = t.get('portada_url')
+        
+        if url_portada:
+            # Usamos HTML para que se vea como un banner de lujo
+            st.markdown(f'''
+                <div style="width: 100%; height: 250px; overflow: hidden; border-radius: 20px; border: 2px solid #D4AF37; margin-bottom: 20px;">
+                    <img src="{url_portada}" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+            ''', unsafe_allow_html=True)
+        else:
+            # Si no tiene foto, ponemos un aviso elegante
+            st.info("✨ Bienvenido a esta experiencia Luxury")
             
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
