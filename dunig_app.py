@@ -154,25 +154,37 @@ else:
                 else: st.error("Email no registrado")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    else:
-        # PANEL ACTIVO
+else:
+        # PANEL ACTIVO - Buscamos el perfil del usuario logueado
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
-        if res.data:
-            perf = res.data[0]
-            plan = perf.get('plan', 'BRONCE').upper()
-            limite = PLANES.get(plan, 5)
-            res_c = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-            total_p = res_c.count if res_c.count else 0
+        
+        # VERIFICACIÓN DE SEGURIDAD: ¿Existe el perfil en la lista?
+        if res.data and len(res.data) > 0:
+            perf = res.data[0]  # Extraemos el primer (y único) resultado
             
-            st.markdown(f"<div class='luxury-card'><h3>Tienda: {perf['nombre_comercio']}</h3>", unsafe_allow_html=True)
+            # Usamos .get() de forma segura. Si 'plan' es None o no existe, ponemos 'BRONCE'
+            plan_raw = perf.get('plan')
+            plan = str(plan_raw).upper() if plan_raw else "BRONCE"
+            
+            limite = PLANES.get(plan, 5)
+            
+            # Contamos productos
+            res_c = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
+            total_p = res_c.count if res_c.count is not None else 0
+            
+            st.markdown(f"<div class='luxury-card'><h3>Tienda: {perf.get('nombre_comercio', 'Sin Nombre')}</h3>", unsafe_allow_html=True)
             c_a, c_b = st.columns(2)
             c_a.metric("Plan Actual", plan)
             c_b.metric("Inventario", f"{total_p}/{limite}")
             st.progress(min(total_p/limite, 1.0))
+            
             if st.button("🚪 CERRAR SESIÓN"):
                 st.session_state.logged_in = False
+                st.session_state.user_email = None
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
+
+            # ... Aquí continúan tus TABS (t1, t2, t3, t4, t5) ...
 
             # --- TABS INCLUYENDO REGISTRO ---
             t1, t2, t3, t4, t5 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 MI PLAN", "✨ REGISTRO"])
