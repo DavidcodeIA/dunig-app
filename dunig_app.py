@@ -53,7 +53,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGO DEL CARRITO (REINTEGRADO)
+# 3. DIÁLOGO DEL CARRITO
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -67,7 +67,6 @@ def ventana_pago(producto, tienda):
     if st.button("🚀 CONFIRMAR PEDIDO"):
         if ref:
             msj = f"✨ *PEDIDO LUXURY*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cant:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
-            # Limpiar el número de WhatsApp por si tiene símbolos
             tel = str(tienda['whatsapp']).replace("+", "").strip()
             st.link_button("ENVIAR POR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
         else: st.error("Por favor, ingrese la referencia de pago")
@@ -99,20 +98,17 @@ if not es_admin:
         t = st.session_state.tienda_actual
         if st.button("⬅️ MALL"): ir_a('mall')
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
-        
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
         for p in prods.data:
             with st.container():
                 st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
                 st.video(p['video_url'])
                 st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
-                # EL BOTÓN MÁGICO DEL CARRITO:
                 if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
                     ventana_pago(p, t)
                 st.divider()
-
 else:
-    # (Panel Admin igual que el anterior, con las pestañas de Cobros y Registro funcionando)
+    # --- PANEL ADMIN ---
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
         with st.container(border=True):
@@ -120,7 +116,7 @@ else:
             c = st.text_input("Código", type="password").strip().upper()
             if st.button("🔓 ENTRAR"):
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m).execute()
-                if res.data and str(res.data[0].get('codigo_acceso','')).upper() == c:
+                if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c:
                     st.session_state.logged_in = True; st.session_state.user_email = m; st.rerun()
                 else: st.error("Acceso denegado")
     else:
@@ -129,10 +125,48 @@ else:
             perf = res.data[0]
             t1, t2, t3, t4 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "✨ REGISTRO"])
             
-            with t3: # Pestaña Cobros
-                d_p = st.text_area("Datos de Pago", value=perf.get('datos_pago','') or "")
-                if st.button("GUARDAR COBROS"):
+            with t1: # LÓGICA AGREGAR
+                st.subheader("Subir Producto")
+                with st.form("form_add", clear_on_submit=True):
+                    nom_p = st.text_input("Nombre del Producto")
+                    pre_p = st.number_input("Precio ($)", min_value=0.0)
+                    vid_p = st.file_uploader("Video MP4", type=['mp4'])
+                    if st.form_submit_button("PUBLICAR"):
+                        if nom_p and vid_p:
+                            path = f"v/{random.randint(1000,9999)}.mp4"
+                            supabase.storage.from_("fotos_productos").upload(path, vid_p.getvalue())
+                            url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
+                            supabase.table("productos").insert({"nombre_producto":nom_p, "precio":pre_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
+                            st.success("¡Producto en línea!"); st.rerun()
+
+            with t3: # LÓGICA COBROS
+                st.subheader("Configurar mis Pagos")
+                d_p = st.text_area("Datos de Pago (Zelle, Pago Móvil, etc.)", value=perf.get('datos_pago','') or "")
+                if st.button("GUARDAR DATOS"):
                     supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
-                    st.success("Guardado")
-            # ... (Resto de pestañas igual)
-            if st.button("🚪 SALIR"): st.session_state.logged_in = False; st.rerun()
+                    st.success("Datos actualizados correctamente")
+
+            with t4: # LÓGICA REGISTRO + BOTÓN EDITAR
+                st.subheader("Registrar Nuevo Socio")
+                with st.form("form_reg", clear_on_submit=True):
+                    rn = st.text_input("Nombre de Tienda")
+                    rm = st.text_input("Email")
+                    rt = st.text_input("WhatsApp")
+                    
+                    c1, c2 = st.columns([3, 1])
+                    with c1:
+                        ri = st.file_uploader("Cargar Portada", type=['jpg', 'png'])
+                    with c2:
+                        st.write("") # Espaciador
+                        st.write("")
+                        st.button("✏️", help="Editar portada actual")
+                        
+                    if st.form_submit_button("REGISTRAR"):
+                        if rn and rm and rt and ri:
+                            path_i = f"portadas/{random.randint(1000,9999)}.jpg"
+                            supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue(), {"x-upsert": "true"})
+                            url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
+                            supabase.table("perfiles_comercio").insert({"nombre_comercio":rn, "email_propietario":rm.lower(), "whatsapp":rt, "portada_url":url_i, "codigo_acceso": "LUXURY7"}).execute()
+                            st.success(f"Socio {rn} registrado con éxito")
+
+            if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
