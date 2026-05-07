@@ -16,7 +16,6 @@ def init_connection():
 
 supabase = init_connection()
 
-# Definición de límites de productos por plan
 PLANES = {
     "GRATUITO": 3,
     "BRONCE": 10,
@@ -79,25 +78,40 @@ def ventana_pago(producto, tienda):
         else: st.error("Por favor, ingrese la referencia de pago")
 
 # ==========================================
-# 4. LÓGICA DE VISTAS (PÁGINA APARTE PARA REGISTRO)
+# 4. LÓGICA DE VISTAS
 # ==========================================
 es_admin = st.query_params.get("admin") == "true"
 es_registro = st.query_params.get("reg") == "true"
 
-# --- VISTA INDEPENDIENTE DE REGISTRO ---
 if es_registro:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE NUEVO SOCIO</h1>", unsafe_allow_html=True)
+    
+    # --- BLOQUE NUEVO: DATOS DE PAGO PARA EL SOCIO ---
+    with st.expander("💳 VER CUENTAS BANCARIAS PARA ACTIVACIÓN", expanded=True):
+        st.markdown("""
+        **Paga tu plan y pega la referencia abajo para activar tu tienda:**
+        * **Pago Móvil:** Banco (0102) - Telf: 0412-1234567 - CI: 12.345.678
+        * **Zelle:** pagos@tuemail.com
+        * **Binance ID:** 987654321
+        """)
+        st.caption("Copia el número de referencia antes de llenar el formulario.")
+
     with st.form("form_reg_externo", clear_on_submit=True):
         rn = st.text_input("Nombre de la Tienda")
         rm = st.text_input("Email del Propietario")
         rt = st.text_input("WhatsApp (Ej: 58412...)")
         plan_sel = st.selectbox("Selecciona tu Plan", ["GRATUITO", "BRONCE", "PLATA", "ORO"])
         ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
+        
+        # --- BLOQUE NUEVO: CASILLA DE REFERENCIA ---
+        ref_socio = st.text_input("Referencia de Pago")
+
         if st.form_submit_button("REGISTRAR COMERCIO"):
-            if rn and rm and rt and ri:
+            if rn and rm and rt and ri and ref_socio:
                 path_i = f"portadas/reg_{random.randint(1000,9999)}.jpg"
                 supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue(), {"x-upsert": "true"})
                 url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
+                
                 supabase.table("perfiles_comercio").insert({
                     "nombre_comercio": rn, 
                     "email_propietario": rm.lower(), 
@@ -106,11 +120,18 @@ if es_registro:
                     "plan": plan_sel,
                     "codigo_acceso": "LUXURY7"
                 }).execute()
-                st.success("¡Registro Exitoso! Ya puedes entrar al Panel de Control.")
-            else: st.error("Completa todos los campos")
+                
+                # --- BLOQUE NUEVO: MENSAJE PARA TI (EL ADMIN) ---
+                tu_telf = "584241234567" # <<--- PON TU WHATSAPP AQUÍ
+                msj_pago = f"🚀 *NUEVO SOCIO LUXURY*\n\n🏪 Tienda: {rn}\n💎 Plan: {plan_sel}\n🎫 Ref: {ref_socio}"
+                
+                st.success("¡Registro Exitoso! Notifica tu pago ahora.")
+                st.link_button("📲 ENVIAR COMPROBANTE AL ADMIN", f"https://wa.me/{tu_telf}?text={urllib.parse.quote(msj_pago)}")
+            else: 
+                st.error("Por favor llena todos los campos, incluyendo la referencia de pago.")
 
 elif not es_admin:
-    # --- MALL Y TIENDA (TU CÓDIGO INTACTO) ---
+    # --- MALL Y TIENDA ---
     if st.session_state.view == 'mall':
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
         res = supabase.table("perfiles_comercio").select("*").execute()
@@ -143,7 +164,7 @@ elif not es_admin:
                 st.divider()
 
 else:
-    # --- PANEL ADMIN (SIN LA PESTAÑA REGISTRO) ---
+    # --- PANEL ADMIN ---
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
         with st.container(border=True):
@@ -158,15 +179,12 @@ else:
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
         if res.data:
             perf = res.data[0]
-            # Solo 3 pestañas: Registro ya no está aquí.
             t1, t2, t3 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS"])
             
-            with t1: # AGREGAR CON LÍMITE DE PLAN
-                # Contar productos actuales para el límite
+            with t1:
                 c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 actual = c_res.count if c_res.count is not None else 0
                 limite = PLANES.get(perf.get('plan', 'GRATUITO'), 3)
-
                 st.write(f"Plan: **{perf.get('plan', 'GRATUITO')}** ({actual}/{limite} productos)")
                 
                 if actual < limite:
@@ -181,10 +199,9 @@ else:
                                 url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
                                 supabase.table("productos").insert({"nombre_producto":nom_p, "precio":pre_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
                                 st.success("¡Publicado!"); st.rerun()
-                else:
-                    st.warning("Límite de plan alcanzado. Contacta a soporte para subir de nivel.")
+                else: st.warning("Límite de plan alcanzado.")
 
-            with t2: # GESTIÓN (TODA TU LÓGICA ANTERIOR)
+            with t2:
                 st.subheader("Configuración de Tienda")
                 if perf.get('portada_url'): st.image(perf['portada_url'], width=120)
                 nueva_f = st.file_uploader("Actualizar logo", type=['jpg', 'png'])
@@ -196,7 +213,7 @@ else:
                         supabase.table("perfiles_comercio").update({"portada_url": url_i}).eq("id", perf['id']).execute()
                         st.success("Foto actualizada"); st.rerun()
 
-            with t3: # COBROS (TU LÓGICA ANTERIOR)
+            with t3:
                 d_p = st.text_area("Datos de Pago", value=perf.get('datos_pago','') or "")
                 if st.button("GUARDAR COBROS"):
                     supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
