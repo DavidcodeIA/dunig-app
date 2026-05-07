@@ -66,6 +66,11 @@ st.markdown("""
         padding: 8px 20px; border-radius: 50px;
         font-weight: 900; border: 2px solid #39FF14; z-index: 10;
     }
+    .banner-tienda {
+        width: 100%; height: 200px; object-fit: cover;
+        border-radius: 20px; border: 1px solid #D4AF37;
+        margin-bottom: 20px;
+    }
     footer {visibility: hidden;} header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -103,7 +108,10 @@ if not es_admin:
         cols = st.columns(2)
         for idx, t in enumerate(tiendas):
             with cols[idx % 2]:
-                st.markdown(f"<div class='luxury-card'><h3 style='text-align:center;'>{t['nombre_comercio'].upper()}</h3>", unsafe_allow_html=True)
+                st.markdown(f"<div class='luxury-card'>", unsafe_allow_html=True)
+                if t.get('portada_url'):
+                    st.image(t['portada_url'], use_container_width=True)
+                st.markdown(f"<h3 style='text-align:center;'>{t['nombre_comercio'].upper()}</h3>", unsafe_allow_html=True)
                 if st.button("VISITAR", key=f"t_{t['id']}", use_container_width=True):
                     st.session_state.tienda_actual = t
                     ir_a('tienda')
@@ -112,6 +120,11 @@ if not es_admin:
     elif st.session_state.view == 'tienda':
         t = st.session_state.tienda_actual
         if st.button("⬅️ VOLVER"): ir_a('mall')
+        
+        # Banner de Portada
+        if t.get('portada_url'):
+            st.markdown(f'<img src="{t["portada_url"]}" class="banner-tienda">', unsafe_allow_html=True)
+            
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
         for p in prods.data:
@@ -122,14 +135,14 @@ if not es_admin:
             st.divider()
 
 else:
-    # --- PANEL ADMIN (SISTEMA DE CONTROL) ---
+    # --- PANEL ADMIN ---
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ CONTROL LUXURY</h1>", unsafe_allow_html=True)
     
     if not st.session_state.logged_in:
+        # (Lógica de login idéntica a la anterior...)
         st.markdown("<div class='luxury-card'>", unsafe_allow_html=True)
         mail_input = st.text_input("Email de Propietario").strip().lower()
         pass_input = st.text_input("Código de Acceso", type="password").strip().upper()
-        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🔓 ENTRAR"):
@@ -139,16 +152,13 @@ else:
                     st.session_state.user_email = mail_input
                     st.rerun()
                 else: st.error("Acceso denegado")
-        
         with col2:
             if st.button("🔑 RECIBIR LLAVE"):
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", mail_input).execute()
                 if res.data:
-                    u = res.data[0]
-                    cod = u.get('codigo_acceso') or generar_codigo()
+                    u = res.data[0]; cod = u.get('codigo_acceso') or generar_codigo()
                     if not u.get('codigo_acceso'):
                         supabase.table("perfiles_comercio").update({"codigo_acceso": cod}).eq("id", u['id']).execute()
-                    
                     tel = str(u['whatsapp']).replace("+", "").strip()
                     msg = urllib.parse.quote(f"*D'UNIG LUXURY*\nTu llave de acceso es: *{cod}*")
                     st.link_button("🟢 VER EN WHATSAPP", f"https://wa.me/{tel}?text={msg}")
@@ -158,92 +168,69 @@ else:
     else:
         # --- PANEL DE GESTIÓN ACTIVO ---
         res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
-        if res.data and len(res.data) > 0:
+        if res.data:
             perf = res.data[0]
-            plan_raw = perf.get('plan')
-            plan = str(plan_raw).upper() if plan_raw else "BRONCE"
+            plan = str(perf.get('plan', 'BRONCE')).upper()
             limite = PLANES.get(plan, 5)
-            
             res_c = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
             total_p = res_c.count if res_c.count is not None else 0
             
             st.markdown(f"<div class='luxury-card'><h3>Tienda: {perf['nombre_comercio']}</h3>", unsafe_allow_html=True)
             c_a, c_b = st.columns(2)
-            c_a.metric("Plan Actual", plan)
-            c_b.metric("Inventario", f"{total_p}/{limite}")
-            st.progress(min(total_p/limite, 1.0))
+            c_a.metric("Plan", plan); c_b.metric("Cupos", f"{total_p}/{limite}")
             if st.button("🚪 CERRAR SESIÓN"):
-                st.session_state.logged_in = False
-                st.session_state.user_email = None
-                st.rerun()
+                st.session_state.logged_in = False; st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-            t1, t2, t3, t4, t5 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 MI PLAN", "✨ REGISTRO"])
+            t1, t2, t3, t4, t5, t6 = st.tabs(["➕ PROD", "📦 GESTIÓN", "💳 COBROS", "🖼️ PORTADA", "💎 PLAN", "✨ REG"])
             
-            with t1:
-                if total_p >= limite: st.warning("Cupos agotados. Aumenta tu plan.")
+            with t1: # Agregar Producto
+                if total_p >= limite: st.warning("Cupos agotados.")
                 else:
                     with st.form("p", clear_on_submit=True):
-                        n = st.text_input("Nombre del Producto")
-                        pr = st.number_input("Precio ($)", min_value=0.0)
-                        v = st.file_uploader("Video (MP4)", type=['mp4'])
+                        n = st.text_input("Nombre"); pr = st.number_input("Precio"); v = st.file_uploader("Video", type=['mp4'])
                         if st.form_submit_button("PUBLICAR"):
                             if n and v:
                                 path = f"v/{random.randint(1000,9999)}.mp4"
                                 supabase.storage.from_("fotos_productos").upload(path, v.getvalue())
                                 url = supabase.storage.from_("fotos_productos").get_public_url(path)
-                                supabase.table("productos").insert({
-                                    "nombre_producto": n, 
-                                    "precio": pr, 
-                                    "video_url": url, 
-                                    "comercio_relacionado": perf['nombre_comercio']
-                                }).execute()
-                                st.success("¡Producto publicado!")
+                                supabase.table("productos").insert({"nombre_producto":n, "precio":pr, "video_url":url, "comercio_relacionado":perf['nombre_comercio']}).execute()
                                 st.rerun()
 
-            with t2:
+            with t2: # Gestión
                 items = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 for i in items.data:
-                    with st.expander(f"📦 {i['nombre_producto']} - ${i['precio']}"):
+                    with st.expander(f"{i['nombre_producto']}"):
                         if st.button("ELIMINAR", key=f"del_{i['id']}"):
-                            supabase.table("productos").delete().eq("id", i['id']).execute()
-                            st.rerun()
+                            supabase.table("productos").delete().eq("id", i['id']).execute(); st.rerun()
 
-            with t3:
-                p_inf = st.text_area("Información para pagos", value=str(perf.get('datos_pago', '')))
-                if st.button("ACTUALIZAR DATOS"):
-                    supabase.table("perfiles_comercio").update({"datos_pago": p_inf}).eq("id", perf['id']).execute()
-                    st.success("Datos guardados")
+            with t3: # Cobros
+                p_inf = st.text_area("Datos de pago", value=str(perf.get('datos_pago', '')))
+                if st.button("GUARDAR COBROS"):
+                    supabase.table("perfiles_comercio").update({"datos_pago": p_inf}).eq("id", perf['id']).execute(); st.success("Guardado")
 
-            with t4:
-                st.markdown("### 🚀 Aumenta tu capacidad")
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("**PLATINUM** (15 Cupos)")
-                    st.link_button("💎 PAGAR PLATINUM", f"https://wa.me/TU_NUMERO?text=Deseo_Platinum_Tienda_{perf['nombre_comercio']}")
-                with c2:
-                    st.markdown("**DIAMANTE** (50 Cupos)")
-                    st.link_button("👑 PAGAR DIAMANTE", f"https://wa.me/TU_NUMERO?text=Deseo_Diamante_Tienda_{perf['nombre_comercio']}")
+            with t4: # NUEVA: PORTADA
+                st.markdown("### Configurar Imagen de Portada")
+                if perf.get('portada_url'):
+                    st.image(perf['portada_url'], caption="Portada Actual", width=300)
+                
+                img_file = st.file_uploader("Subir Nueva Portada (JPG/PNG)", type=['jpg', 'png', 'jpeg'])
+                if st.button("ACTUALIZAR PORTADA"):
+                    if img_file:
+                        path_img = f"portadas/{perf['id']}_{random.randint(100,999)}.jpg"
+                        supabase.storage.from_("fotos_productos").upload(path_img, img_file.getvalue())
+                        url_img = supabase.storage.from_("fotos_productos").get_public_url(path_img)
+                        supabase.table("perfiles_comercio").update({"portada_url": url_img}).eq("id", perf['id']).execute()
+                        st.success("¡Portada actualizada!")
+                        st.rerun()
 
-            with t5:
-                st.markdown("### 🆕 Registro de Nuevos Propietarios")
+            with t5: # Planes
+                st.write("Mejorar a Platinum o Diamante vía WhatsApp.")
+                st.link_button("💎 CONTACTAR SOPORTE", f"https://wa.me/TU_NUMERO")
+
+            with t6: # Registro (Solo para crear nuevos)
                 with st.form("reg_nuevo"):
-                    reg_nom = st.text_input("Nombre de la Tienda").strip()
-                    reg_mail = st.text_input("Email Propietario").strip().lower()
-                    reg_tel = st.text_input("WhatsApp (Ej: 58412...)").strip()
-                    reg_plan = st.selectbox("Asignar Plan", ["BRONCE", "PLATINUM", "DIAMANTE"])
-                    if st.form_submit_button("💎 REGISTRAR TIENDA"):
-                        if reg_nom and reg_mail and reg_tel:
-                            try:
-                                supabase.table("perfiles_comercio").insert({
-                                    "nombre_comercio": reg_nom,
-                                    "email_propietario": reg_mail,
-                                    "whatsapp": reg_tel,
-                                    "plan": reg_plan
-                                }).execute()
-                                st.success(f"Tienda {reg_nom} creada con éxito.")
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-                        else: st.error("Faltan campos obligatorios.")
-        else:
-            st.error("Error al cargar el perfil. Revisa tu conexión.")
+                    r_n = st.text_input("Tienda"); r_m = st.text_input("Email"); r_t = st.text_input("WA")
+                    if st.form_submit_button("REGISTRAR"):
+                        supabase.table("perfiles_comercio").insert({"nombre_comercio":r_n, "email_propietario":r_m.lower(), "whatsapp":r_t, "plan":"BRONCE"}).execute()
+                        st.success("Creado")
