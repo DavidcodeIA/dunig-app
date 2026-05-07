@@ -32,7 +32,7 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS MEJORADO)
+# 2. ESTÉTICA LUXURY (CSS)
 # ==========================================
 st.markdown("""
     <style>
@@ -49,13 +49,6 @@ st.markdown("""
         padding: 8px 18px; border-radius: 50px;
         font-weight: 900; border: 2px solid #39FF14; z-index: 10;
     }
-    .video-card {
-        background: rgba(255,255,255,0.05);
-        border-radius: 15px;
-        padding: 10px;
-        margin-bottom: 20px;
-        border: 1px solid rgba(212, 175, 55, 0.3);
-    }
     .img-redonda {
         width: 140px; height: 140px; border-radius: 50%;
         object-fit: cover; border: 3px solid #D4AF37;
@@ -65,7 +58,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS (PAGO Y EDICIÓN)
+# 3. DIÁLOGOS
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -137,23 +130,16 @@ elif not es_admin:
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
         for p in prods.data:
-            st.markdown(f"""
-                <div class="video-card">
-                    <div style='position: relative;'>
-                        <div class='price-bubble'>${p['precio']}</div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            # El video corre solo con sonido (muted=False). 
-            # Nota: Algunos navegadores podrían pausarlo hasta que el usuario haga clic.
-            st.video(p['video_url'], autoplay=True, loop=True, muted=False)
-            st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
-            if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
-                ventana_pago(p, t)
-            st.divider()
+            with st.container():
+                st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
+                st.video(p['video_url'], autoplay=True, loop=True, muted=False)
+                st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
+                if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
+                    ventana_pago(p, t)
+                st.divider()
 
 else:
-    # --- PANEL ADMIN CON GESTIÓN ---
+    # --- PANEL ADMIN ---
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
         with st.container(border=True):
@@ -169,56 +155,50 @@ else:
         if res.data:
             perf = res.data[0]
             
-            # --- LÍNEA DE ESTADÍSTICA ---
+            # --- ESTADÍSTICA DE USO ---
             c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
             actual = c_res.count if c_res.count is not None else 0
             limite = PLANES.get(perf.get('plan', 'GRATUITO'), 3)
-            porcentaje = min(actual/limite, 1.0)
             
-            st.markdown(f"### 📊 Uso de Plan: {perf['plan']}")
-            st.progress(porcentaje)
-            st.write(f"Has usado **{actual}** de **{limite}** espacios de productos.")
+            st.markdown(f"### 📊 Plan: {perf['plan']} ({actual}/{limite})")
+            st.progress(min(actual/limite, 1.0))
 
-            t1, t2, t3, t4 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "💎 UPGRADE"])
+            t1, t2, t3 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS"])
             
             with t1:
                 if actual >= limite:
-                    st.warning("⚠️ Límite alcanzado. Ve a 'Upgrade' para ampliar."); ir_a_up = st.button("IR A UPGRADE")
+                    st.warning("⚠️ HAS ALCANZADO EL LÍMITE DE TU PLAN")
+                    # REDIRECCIÓN EXTERNA DIRECTA
+                    st.link_button("🚀 MEJORAR PLAN AQUÍ", "https://dunig-app-luxury-v2.streamlit.app/?reg=true", use_container_width=True)
                 else:
                     with st.form("form_add", clear_on_submit=True):
                         nom_p = st.text_input("Nombre")
                         pre_p = st.number_input("Precio ($)", min_value=0.0)
                         vid_p = st.file_uploader("Video MP4", type=['mp4'])
-                        if st.form_submit_button("PUBLICAR"):
+                        if st.form_submit_button("PUBLICAR PRODUCTO"):
                             if nom_p and vid_p:
                                 path = f"v/{random.randint(1000,9999)}.mp4"
                                 supabase.storage.from_("fotos_productos").upload(path, vid_p.getvalue())
                                 url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
                                 supabase.table("productos").insert({"nombre_producto":nom_p, "precio":pre_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
-                                st.success("¡Listo!"); st.rerun()
+                                st.success("¡Publicado!"); st.rerun()
 
             with t2:
-                st.subheader("Tus Productos Publicados")
+                st.subheader("Gestión de Inventario")
                 prods_gest = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 for pg in prods_gest.data:
                     c1, c2, c3 = st.columns([3, 1, 1])
-                    c1.write(f"**{pg['nombre_producto']}** (${pg['precio']})")
+                    c1.write(f"**{pg['nombre_producto']}**")
                     if c2.button("✏️", key=f"ed_{pg['id']}"): editar_producto(pg)
                     if c3.button("🗑️", key=f"del_{pg['id']}"):
                         supabase.table("productos").delete().eq("id", pg['id']).execute()
-                        st.success("Borrado"); st.rerun()
+                        st.success("Eliminado"); st.rerun()
 
             with t3:
-                d_p = st.text_area("Datos de Pago", value=perf.get('datos_pago','') or "")
-                if st.button("GUARDAR"):
+                d_p = st.text_area("Datos de Pago para Clientes", value=perf.get('datos_pago','') or "")
+                if st.button("GUARDAR CONFIGURACIÓN"):
                     supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
-                    st.success("Guardado")
+                    st.success("Datos guardados")
 
-            with t4:
-                st.markdown("### 🚀 SOLICITAR MEJORA")
-                st.write("Datos para pagar el Upgrade: Pago Móvil 0102... etc.")
-                ref_up = st.text_input("Referencia de Pago Upgrade")
-                if st.button("SOLICITAR ACTIVACIÓN"):
-                    st.link_button("📲 ENVIAR AL ADMIN", f"https://wa.me/584241234567?text=Upgrade Tienda: {perf['nombre_comercio']}, Ref: {ref_up}")
-
+            st.divider()
             if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
