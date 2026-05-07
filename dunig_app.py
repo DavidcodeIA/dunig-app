@@ -52,7 +52,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGO DEL CARRITO (EL CORAZÓN DE LA VENTA)
+# 3. DIÁLOGO DEL CARRITO
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -71,7 +71,7 @@ def ventana_pago(producto, tienda):
         else: st.error("Por favor, ingrese la referencia de pago")
 
 # ==========================================
-# 4. VISTAS DE LA APP
+# 4. LÓGICA DE VISTAS
 # ==========================================
 es_admin = st.query_params.get("admin") == "true"
 
@@ -124,7 +124,7 @@ else:
             perf = res.data[0]
             t1, t2, t3, t4 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "✨ REGISTRO"])
             
-            with t1: # AGREGAR PRODUCTOS
+            with t1:
                 with st.form("form_add", clear_on_submit=True):
                     nom_p = st.text_input("Nombre del Producto")
                     pre_p = st.number_input("Precio ($)", min_value=0.0)
@@ -135,10 +135,36 @@ else:
                             supabase.storage.from_("fotos_productos").upload(path, vid_p.getvalue())
                             url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
                             supabase.table("productos").insert({"nombre_producto":nom_p, "precio":pre_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
-                            st.success("¡Producto publicado!")
+                            st.success("¡Publicado!")
 
-            with t2: # GESTIÓN + EDITAR FOTO
+            with t2:
                 st.subheader("Configuración de Tienda")
-                col_f1, col_f2 = st.columns([1, 2])
-                with col_f1:
-                    if perf.get('portada
+                if perf.get('portada_url'): st.image(perf['portada_url'], width=120)
+                nueva_f = st.file_uploader("Actualizar logo", type=['jpg', 'png'])
+                if st.button("✏️ GUARDAR FOTO"):
+                    if nueva_f:
+                        path_i = f"portadas/p_{perf['id']}.jpg"
+                        supabase.storage.from_("fotos_productos").upload(path_i, nueva_f.getvalue(), {"x-upsert": "true"})
+                        url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
+                        supabase.table("perfiles_comercio").update({"portada_url": url_i}).eq("id", perf['id']).execute()
+                        st.success("Foto actualizada"); st.rerun()
+
+            with t3:
+                d_p = st.text_area("Datos de Pago", value=perf.get('datos_pago','') or "")
+                if st.button("GUARDAR COBROS"):
+                    supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
+                    st.success("Guardado")
+
+            with t4:
+                with st.form("form_reg", clear_on_submit=True):
+                    rn = st.text_input("Tienda"); rm = st.text_input("Email"); rt = st.text_input("WhatsApp")
+                    ri = st.file_uploader("Foto Inicial", type=['jpg', 'png'])
+                    if st.form_submit_button("REGISTRAR SOCIO"):
+                        if rn and rm and rt and ri:
+                            path_i = f"portadas/{random.randint(1000,9999)}.jpg"
+                            supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue(), {"x-upsert": "true"})
+                            url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
+                            supabase.table("perfiles_comercio").insert({"nombre_comercio":rn, "email_propietario":rm.lower(), "whatsapp":rt, "portada_url":url_i, "codigo_acceso": "LUXURY7"}).execute()
+                            st.success(f"{rn} registrado!")
+
+            if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
