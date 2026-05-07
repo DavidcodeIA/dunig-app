@@ -40,17 +40,42 @@ st.markdown("""
         width: 140px; height: 140px; border-radius: 50%;
         object-fit: cover; border: 3px solid #D4AF37;
         margin: 0 auto 10px auto; display: block;
+        box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.4);
+    }
+    .price-bubble {
+        position: absolute; top: 10px; right: 10px;
+        background: rgba(0, 0, 0, 0.9); color: #39FF14; 
+        padding: 5px 15px; border-radius: 50px;
+        font-weight: 900; border: 2px solid #39FF14; z-index: 10;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. VISTAS DE LA APP
+# 3. DIÁLOGO DEL CARRITO (EL CORAZÓN DE LA VENTA)
+# ==========================================
+@st.dialog("💎 CARRITO D'UNIG LUXURY")
+def ventana_pago(producto, tienda):
+    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    cantidad = st.number_input("Cantidad", min_value=1, value=1)
+    total = float(producto['precio']) * cantidad
+    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
+    st.divider()
+    st.info(f"💳 **DATOS DE PAGO:**\n{tienda.get('datos_pago', 'Consultar al vendedor')}")
+    ref = st.text_input("Ingrese Ref. de Pago")
+    if st.button("🚀 CONFIRMAR PEDIDO"):
+        if ref:
+            msj = f"✨ *PEDIDO LUXURY*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cant:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
+            tel = str(tienda['whatsapp']).replace("+", "").replace(" ", "").strip()
+            st.link_button("ENVIAR POR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+        else: st.error("Por favor, ingrese la referencia de pago")
+
+# ==========================================
+# 4. VISTAS DE LA APP
 # ==========================================
 es_admin = st.query_params.get("admin") == "true"
 
 if not es_admin:
-    # --- VISTA MALL / TIENDA (IGUAL A LA ANTERIOR) ---
     if st.session_state.view == 'mall':
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
         res = supabase.table("perfiles_comercio").select("*").execute()
@@ -74,12 +99,15 @@ if not es_admin:
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
         for p in prods.data:
-            st.video(p['video_url'])
-            st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']} - ${p['precio']}</h3>", unsafe_allow_html=True)
-            st.divider()
-
+            with st.container():
+                st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
+                st.video(p['video_url'])
+                st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
+                if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
+                    ventana_pago(p, t)
+                st.divider()
 else:
-    # --- PANEL ADMIN (CORREGIDO) ---
+    # --- PANEL ADMIN ---
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
         with st.container(border=True):
@@ -96,7 +124,7 @@ else:
             perf = res.data[0]
             t1, t2, t3, t4 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS", "✨ REGISTRO"])
             
-            with t1:
+            with t1: # AGREGAR PRODUCTOS
                 with st.form("form_add", clear_on_submit=True):
                     nom_p = st.text_input("Nombre del Producto")
                     pre_p = st.number_input("Precio ($)", min_value=0.0)
@@ -107,46 +135,10 @@ else:
                             supabase.storage.from_("fotos_productos").upload(path, vid_p.getvalue())
                             url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
                             supabase.table("productos").insert({"nombre_producto":nom_p, "precio":pre_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
-                            st.success("¡Producto en línea!"); st.rerun()
+                            st.success("¡Producto publicado!")
 
-            with t2:
-                st.subheader("Mi Perfil")
-                st.markdown(f"**Tienda:** {perf['nombre_comercio']}")
-                if perf.get('portada_url'): st.image(perf['portada_url'], width=100)
-                
-                # Aquí puse la edición de foto FUERA del formulario de registro
-                nueva_f = st.file_uploader("Actualizar mi logo/portada", type=['jpg', 'png'])
-                if st.button("ACTUALIZAR MI FOTO"):
-                    if nueva_f:
-                        path_i = f"portadas/p_{perf['id']}.jpg"
-                        supabase.storage.from_("fotos_productos").upload(path_i, nueva_f.getvalue(), {"x-upsert": "true"})
-                        url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
-                        supabase.table("perfiles_comercio").update({"portada_url": url_i}).eq("id", perf['id']).execute()
-                        st.success("Foto actualizada"); st.rerun()
-
-            with t3:
-                st.subheader("Configurar mis Pagos")
-                d_p = st.text_area("Datos de Pago", value=perf.get('datos_pago','') or "")
-                if st.button("GUARDAR DATOS DE PAGO"):
-                    supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
-                    st.success("Datos actualizados")
-
-            with t4:
-                st.subheader("Registrar Nuevo Socio")
-                with st.form("form_reg", clear_on_submit=True):
-                    rn = st.text_input("Nombre de Tienda")
-                    rm = st.text_input("Email")
-                    rt = st.text_input("WhatsApp")
-                    ri = st.file_uploader("Cargar Portada", type=['jpg', 'png'])
-                    # ÚNICO BOTÓN PERMITIDO DENTRO DEL FORM
-                    submit = st.form_submit_button("REGISTRAR NUEVO SOCIO")
-                    
-                    if submit:
-                        if rn and rm and rt and ri:
-                            path_i = f"portadas/{random.randint(1000,9999)}.jpg"
-                            supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue(), {"x-upsert": "true"})
-                            url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
-                            supabase.table("perfiles_comercio").insert({"nombre_comercio":rn, "email_propietario":rm.lower(), "whatsapp":rt, "portada_url":url_i, "codigo_acceso": "LUXURY7"}).execute()
-                            st.success(f"Socio {rn} registrado")
-
-            if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
+            with t2: # GESTIÓN + EDITAR FOTO
+                st.subheader("Configuración de Tienda")
+                col_f1, col_f2 = st.columns([1, 2])
+                with col_f1:
+                    if perf.get('portada
