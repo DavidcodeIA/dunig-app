@@ -32,28 +32,55 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS)
+# 2. ESTÉTICA LUXURY (CSS MEJORADO)
 # ==========================================
 st.markdown("""
     <style>
     .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
+    
+    /* Botón Dorado Estilo D'UNIG */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; border-radius: 30px !important;
         font-weight: 800 !important; text-transform: uppercase;
+        border: none !important;
+        transition: 0.3s;
     }
+    .stButton>button:hover { transform: scale(1.05); box-shadow: 0px 0px 20px rgba(212, 175, 55, 0.6); }
+
+    /* Burbuja de Precio Neón */
+    .price-bubble {
+        position: absolute; top: 15px; right: 15px;
+        background: rgba(0, 0, 0, 0.8); color: #39FF14; 
+        padding: 8px 18px; border-radius: 50px;
+        font-weight: 900; border: 2px solid #39FF14; z-index: 10;
+        box-shadow: 0px 0px 10px #39FF14;
+    }
+
+    /* Etiqueta Flotante de Sonido */
+    .sound-hint {
+        position: absolute; bottom: 80px; left: 50%;
+        transform: translateX(-50%);
+        background: rgba(212, 175, 55, 0.2);
+        color: #D4AF37; padding: 5px 15px;
+        border-radius: 20px; font-size: 12px;
+        border: 1px solid #D4AF37;
+        animation: pulse 2s infinite;
+        z-index: 5; pointer-events: none;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 0.4; }
+        50% { opacity: 1; }
+        100% { opacity: 0.4; }
+    }
+
     .img-redonda {
         width: 140px; height: 140px; border-radius: 50%;
         object-fit: cover; border: 3px solid #D4AF37;
         margin: 0 auto 10px auto; display: block;
         box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.4);
-    }
-    .price-bubble {
-        position: absolute; top: 10px; right: 10px;
-        background: rgba(0, 0, 0, 0.9); color: #39FF14; 
-        padding: 5px 15px; border-radius: 50px;
-        font-weight: 900; border: 2px solid #39FF14; z-index: 10;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -91,24 +118,20 @@ if es_registro:
         **Paga tu plan y pega la referencia abajo para activar tu tienda:**
         * **Pago Móvil:** Banco (0102) - Telf: 0412-1234567 - CI: 12.345.678
         * **Zelle:** pagos@tuemail.com
-        * **Binance ID:** 987654321
         """)
-        st.caption("Copia el número de referencia antes de llenar el formulario.")
 
     with st.form("form_reg_externo", clear_on_submit=True):
         rn = st.text_input("Nombre de la Tienda")
         rm = st.text_input("Email del Propietario")
         rt = st.text_input("WhatsApp (Ej: 58412...)")
         
-        # --- PLANES CON BENEFICIOS ---
         opciones_plan = {
             "GRATUITO": "🎁 GRATUITO - 3 Productos ($0)",
             "BRONCE": "🥉 BRONCE - 10 Productos ($5)",
             "PLATA": "🥈 PLATA - 25 Productos ($15)",
-            "ORO": "🥇 ORO - Productos Ilimitados ($30)"
+            "ORO": "🥇 ORO - Ilimitado ($30)"
         }
         plan_label = st.selectbox("Selecciona tu Plan y Beneficios", options=list(opciones_plan.values()))
-        # Extraemos la clave (ej: "ORO") del texto seleccionado
         plan_sel = [k for k, v in opciones_plan.items() if v == plan_label][0]
         
         ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
@@ -121,25 +144,17 @@ if es_registro:
                 url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
                 
                 supabase.table("perfiles_comercio").insert({
-                    "nombre_comercio": rn, 
-                    "email_propietario": rm.lower(), 
-                    "whatsapp": rt, 
-                    "portada_url": url_i, 
-                    "plan": plan_sel,
-                    "codigo_acceso": "LUXURY7"
+                    "nombre_comercio": rn, "email_propietario": rm.lower(), "whatsapp": rt, 
+                    "portada_url": url_i, "plan": plan_sel, "codigo_acceso": "LUXURY7"
                 }).execute()
                 
-                # --- NOTIFICACIÓN AL ADMIN ---
-                tu_telf = "584241234567" # REEMPLAZA CON TU NÚMERO
-                msj_pago = f"🚀 *NUEVO SOCIO LUXURY*\n\n🏪 Tienda: {rn}\n💎 Plan: {plan_sel}\n🎫 Ref: {ref_socio}"
-                
-                st.success("¡Registro Exitoso! Notifica tu pago ahora.")
-                st.link_button("📲 ENVIAR COMPROBANTE AL ADMIN", f"https://wa.me/{tu_telf}?text={urllib.parse.quote(msj_pago)}")
-            else: 
-                st.error("Por favor completa todos los campos e ingresa la referencia de pago.")
+                tu_whatsapp_admin = "584241234567" # REEMPLAZA CON TU NÚMERO
+                msj_admin = f"🚀 *NUEVO SOCIO LUXURY*\n\n🏪 Tienda: {rn}\n💎 Plan: {plan_sel}\n🎫 Ref: {ref_socio}"
+                st.success("¡Registro Exitoso!")
+                st.link_button("📲 NOTIFICAR PAGO AL ADMIN", f"https://wa.me/{tu_whatsapp_admin}?text={urllib.parse.quote(msj_admin)}")
+            else: st.error("Completa todos los campos")
 
 elif not es_admin:
-    # --- MALL Y TIENDA ---
     if st.session_state.view == 'mall':
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
         res = supabase.table("perfiles_comercio").select("*").execute()
@@ -159,15 +174,22 @@ elif not es_admin:
 
     elif st.session_state.view == 'tienda':
         t = st.session_state.tienda_actual
-        if st.button("⬅️ MALL"): ir_a('mall')
+        if st.button("⬅️ REGRESAR AL MALL"): ir_a('mall')
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
+        
         for p in prods.data:
             with st.container():
-                st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
+                # CAPA VISUAL: Precio y Sugerencia de Sonido
+                st.markdown(f"""
+                    <div style='position: relative;'>
+                        <div class='price-bubble'>${p['precio']}</div>
+                        <div class='sound-hint'>🔊 Toca para activar sonido</div>
+                    </div>
+                """, unsafe_allow_html=True)
                 
-                # --- EFECTO TIKTOK (AUTOPLAY + LOOP + MUTED) ---
+                # VIDEO ESTILO TIKTOK
                 st.video(p['video_url'], autoplay=True, loop=True, muted=True)
                 
                 st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
@@ -198,7 +220,6 @@ else:
                 actual = c_res.count if c_res.count is not None else 0
                 limite = PLANES.get(perf.get('plan', 'GRATUITO'), 3)
                 st.write(f"Plan: **{perf.get('plan', 'GRATUITO')}** ({actual}/{limite} productos)")
-                
                 if actual < limite:
                     with st.form("form_add", clear_on_submit=True):
                         nom_p = st.text_input("Nombre del Producto")
@@ -211,7 +232,7 @@ else:
                                 url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
                                 supabase.table("productos").insert({"nombre_producto":nom_p, "precio":pre_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
                                 st.success("¡Publicado!"); st.rerun()
-                else: st.warning("Límite de plan alcanzado.")
+                else: st.warning("Límite alcanzado.")
 
             with t2:
                 st.subheader("Configuración de Tienda")
