@@ -86,7 +86,6 @@ es_registro = st.query_params.get("reg") == "true"
 if es_registro:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE NUEVO SOCIO</h1>", unsafe_allow_html=True)
     
-    # --- BLOQUE NUEVO: DATOS DE PAGO PARA EL SOCIO ---
     with st.expander("💳 VER CUENTAS BANCARIAS PARA ACTIVACIÓN", expanded=True):
         st.markdown("""
         **Paga tu plan y pega la referencia abajo para activar tu tienda:**
@@ -100,10 +99,19 @@ if es_registro:
         rn = st.text_input("Nombre de la Tienda")
         rm = st.text_input("Email del Propietario")
         rt = st.text_input("WhatsApp (Ej: 58412...)")
-        plan_sel = st.selectbox("Selecciona tu Plan", ["GRATUITO", "BRONCE", "PLATA", "ORO"])
-        ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
         
-        # --- BLOQUE NUEVO: CASILLA DE REFERENCIA ---
+        # --- PLANES CON BENEFICIOS ---
+        opciones_plan = {
+            "GRATUITO": "🎁 GRATUITO - 3 Productos ($0)",
+            "BRONCE": "🥉 BRONCE - 10 Productos ($5)",
+            "PLATA": "🥈 PLATA - 25 Productos ($15)",
+            "ORO": "🥇 ORO - Productos Ilimitados ($30)"
+        }
+        plan_label = st.selectbox("Selecciona tu Plan y Beneficios", options=list(opciones_plan.values()))
+        # Extraemos la clave (ej: "ORO") del texto seleccionado
+        plan_sel = [k for k, v in opciones_plan.items() if v == plan_label][0]
+        
+        ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
         ref_socio = st.text_input("Referencia de Pago")
 
         if st.form_submit_button("REGISTRAR COMERCIO"):
@@ -121,14 +129,14 @@ if es_registro:
                     "codigo_acceso": "LUXURY7"
                 }).execute()
                 
-                # --- BLOQUE NUEVO: MENSAJE PARA TI (EL ADMIN) ---
-                tu_telf = "584241234567" # <<--- PON TU WHATSAPP AQUÍ
+                # --- NOTIFICACIÓN AL ADMIN ---
+                tu_telf = "584241234567" # REEMPLAZA CON TU NÚMERO
                 msj_pago = f"🚀 *NUEVO SOCIO LUXURY*\n\n🏪 Tienda: {rn}\n💎 Plan: {plan_sel}\n🎫 Ref: {ref_socio}"
                 
                 st.success("¡Registro Exitoso! Notifica tu pago ahora.")
                 st.link_button("📲 ENVIAR COMPROBANTE AL ADMIN", f"https://wa.me/{tu_telf}?text={urllib.parse.quote(msj_pago)}")
             else: 
-                st.error("Por favor llena todos los campos, incluyendo la referencia de pago.")
+                st.error("Por favor completa todos los campos e ingresa la referencia de pago.")
 
 elif not es_admin:
     # --- MALL Y TIENDA ---
@@ -153,11 +161,15 @@ elif not es_admin:
         t = st.session_state.tienda_actual
         if st.button("⬅️ MALL"): ir_a('mall')
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
+        
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
         for p in prods.data:
             with st.container():
                 st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
-                st.video(p['video_url'])
+                
+                # --- EFECTO TIKTOK (AUTOPLAY + LOOP + MUTED) ---
+                st.video(p['video_url'], autoplay=True, loop=True, muted=True)
+                
                 st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
                 if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
                     ventana_pago(p, t)
