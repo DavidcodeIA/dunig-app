@@ -18,18 +18,12 @@ supabase = init_connection()
 
 def obtener_cuentas_admin():
     try:
-        # Recupera la información de pago configurada por el dueño del sistema
         res = supabase.table("ajustes_sistema").select("valor").eq("clave", "cuentas_activacion").execute()
         return res.data[0]['valor'] if res.data else "⚠️ Cuentas de activación no configuradas."
     except:
         return "❌ Error al conectar con los ajustes del sistema."
 
-PLANES = {
-    "GRATUITO": 3,
-    "BRONCE": 10,
-    "PLATA": 25,
-    "ORO": 9999
-}
+PLANES = {"GRATUITO": 3, "BRONCE": 10, "PLATA": 25, "ORO": 9999}
 
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -159,7 +153,6 @@ else: # PANEL ADMIN
     else:
         perf = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute().data[0]
         
-        # --- ESTADÍSTICAS ---
         count_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
         actual = count_res.count if count_res.count is not None else 0
         limite = PLANES.get(perf['plan'], 3)
@@ -192,9 +185,11 @@ else: # PANEL ADMIN
                 with st.container(border=True):
                     c1, c2 = st.columns([3, 1])
                     c1.write(f"**{it['nombre_producto']}** (${it['precio']})")
-                    if c2.button("🗑️", key=f"del_{it['id']}"):
+                    # AQUÍ ESTÁ EL ARREGLO:
+                    if c2.button("🗑️", key=f"del_{it['id']}", use_container_width=True):
                         supabase.table("productos").delete().eq("id", it['id']).execute()
-                        st.rerun()
+                        st.toast(f"Producto eliminado") # Un pequeño aviso visual
+                        st.rerun() # Esto obliga a la lista a actualizarse YA
 
         with t3:
             d_p = st.text_area("Instrucciones de pago para tus clientes", value=perf.get('datos_pago','') or "")
