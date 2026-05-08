@@ -26,6 +26,16 @@ def obtener_datos_pago():
     except Exception:
         return "❌ Error al cargar datos de pago."
 
+# Función para mostrar video correctamente (Evita pantalla negra)
+def renderizar_video(url_video):
+    video_html = f"""
+        <video width="100%" height="auto" autoplay muted loop playsinline style="border-radius: 10px; background-color: black;">
+            <source src="{url_video}" type="video/mp4">
+            Tu navegador no soporta el elemento de video.
+        </video>
+    """
+    st.components.v1.html(video_html, height=300)
+
 PLANES_INFO = {
     "GRATUITO": "✨ 3 Productos | Soporte Básico | Visibilidad Estándar",
     "BRONCE": "🥉 10 Productos | Etiqueta Bronce | Soporte Prioritario ($10)",
@@ -69,7 +79,6 @@ if es_registro:
         st.markdown("### 💳 DATOS DE PAGO D'UNIG")
         st.info("Realiza el pago de tu plan y guarda la referencia para completar el registro.")
         
-        # BLINDAJE: Los datos vienen de la base de datos, no del código
         banco_info = obtener_datos_pago()
         st.code(banco_info)
         
@@ -88,12 +97,10 @@ if es_registro:
         if st.form_submit_button("FINALIZAR REGISTRO"):
             if rn and rm and rt and ri and ref_pago:
                 codigo_generado = f"LUX-{random.randint(1000, 9999)}"
-                # Subida de imagen
                 path_i = f"portadas/tienda_{random.randint(100,999)}.jpg"
                 supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue())
                 url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
                 
-                # Inserción con referencia de pago
                 supabase.table("perfiles_comercio").insert({
                     "nombre_comercio": rn, 
                     "email_propietario": rm, 
@@ -119,14 +126,12 @@ elif es_admin:
             m = st.text_input("Email").strip().lower()
             c = st.text_input("Código", type="password").strip().upper()
             if st.button("🔓 ENTRAR"):
-                # Super Admin vía Secrets
                 if m == st.secrets["ADMIN_EMAIL"] and c == st.secrets["ADMIN_PASS"]:
                     st.session_state.logged_in = True
                     st.session_state.is_super_admin = True
                     st.session_state.user_email = m
                     st.rerun()
                 
-                # Socio Normal
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m).execute()
                 if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c:
                     st.session_state.logged_in = True
@@ -135,7 +140,6 @@ elif es_admin:
                 else:
                     st.error("Acceso denegado")
     else:
-        # Recuperar perfil
         res_p = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
         
         if res_p.data or st.session_state.is_super_admin:
@@ -163,25 +167,32 @@ elif es_admin:
                                 "video_url": url, 
                                 "comercio_relacionado": perf['nombre_comercio']
                             }).execute()
-                            st.success("¡Producto publicado exitosamente!"); st.rerun()
+                            st.success("¡Producto publicado!"); st.rerun()
 
-            with t[1]: # GESTIÓN
+            with t[1]: # GESTIÓN (Donde se ven los videos)
                 prods = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 for pg in prods.data:
-                    c1, c2, c3 = st.columns([3, 1, 1])
-                    c1.write(pg['nombre_producto'])
-                    if c2.button("✏️", key=f"e_{pg['id']}"): editar_producto(pg)
-                    if c3.button("🗑️", key=f"d_{pg['id']}"):
-                        supabase.table("productos").delete().eq("id", pg['id']).execute(); st.rerun()
+                    with st.container(border=True):
+                        col_vid, col_info = st.columns([1, 1])
+                        with col_vid:
+                            # Aplicamos la función para evitar el cuadro negro
+                            renderizar_video(pg['video_url'])
+                        with col_info:
+                            st.write(f"**{pg['nombre_producto']}**")
+                            st.write(f"Precio: ${pg['precio']}")
+                            if st.button("✏️ Editar", key=f"e_{pg['id']}"): editar_producto(pg)
+                            if st.button("🗑️ Eliminar", key=f"d_{pg['id']}"):
+                                supabase.table("productos").delete().eq("id", pg['id']).execute()
+                                st.rerun()
 
-            with t[2]: # COBROS (Cómo le pagan al comercio)
+            with t[2]: # COBROS
                 db = st.text_area("Instrucciones de pago para tus clientes", value=perf.get('datos_pago', ''))
                 if st.button("GUARDAR DATOS"):
                     supabase.table("perfiles_comercio").update({"datos_pago": db}).eq("id", perf['id']).execute()
-                    st.success("Información de cobro actualizada")
+                    st.success("Información actualizada")
 
             if st.session_state.is_super_admin:
-                with t[3]: # ADMIN GLOBAL (Control de pagos y comercios)
+                with t[3]: # ADMIN GLOBAL
                     st.subheader("🛠️ Control Maestro de Afiliados")
                     todos = supabase.table("perfiles_comercio").select("*").execute()
                     for tc in todos.data:
@@ -189,7 +200,8 @@ elif es_admin:
                             st.write(f"**Tienda:** {tc['nombre_comercio']} | **Plan:** {tc['plan']}")
                             st.caption(f"📢 Referencia de Registro: {tc.get('pago_administrador_status', 'N/A')}")
                             if st.button("ELIMINAR COMERCIO", key=f"del_m_{tc['id']}", type="primary"):
-                                supabase.table("perfiles_comercio").delete().eq("id", tc['id']).execute(); st.rerun()
+                                supabase.table("perfiles_comercio").delete().eq("id", tc['id']).execute()
+                                st.rerun()
 
         if st.button("🚪 CERRAR SESIÓN"):
             st.session_state.logged_in = False
