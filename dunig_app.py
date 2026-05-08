@@ -1,6 +1,5 @@
 import streamlit as st
 from supabase import create_client, Client
-import urllib.parse
 import random
 
 # ==========================================
@@ -16,25 +15,13 @@ def init_connection():
 
 supabase = init_connection()
 
-# Función para obtener datos bancarios desde Supabase (Blindaje)
+# Función para obtener datos bancarios (Blindaje para que no estén en el código)
 def obtener_datos_pago():
     try:
         res = supabase.table("ajustes_sistema").select("valor").eq("clave", "datos_bancarios").execute()
-        if res.data:
-            return res.data[0]['valor']
-        return "⚠️ Datos de pago no configurados en el sistema."
-    except Exception:
-        return "❌ Error al cargar datos de pago."
-
-# Función para mostrar video correctamente (Evita pantalla negra)
-def renderizar_video(url_video):
-    video_html = f"""
-        <video width="100%" height="auto" autoplay muted loop playsinline style="border-radius: 10px; background-color: black;">
-            <source src="{url_video}" type="video/mp4">
-            Tu navegador no soporta el elemento de video.
-        </video>
-    """
-    st.components.v1.html(video_html, height=300)
+        return res.data[0]['valor'] if res.data else "⚠️ Datos de pago no configurados."
+    except:
+        return "❌ Error al cargar datos bancarios."
 
 PLANES_INFO = {
     "GRATUITO": "✨ 3 Productos | Soporte Básico | Visibilidad Estándar",
@@ -67,7 +54,7 @@ def editar_producto(prod):
         st.success("¡Actualizado!"); st.rerun()
 
 # ==========================================
-# 3. VISTA: REGISTRO INDIVIDUAL
+# 3. VISTA: REGISTRO (CON DATOS BANCARIOS BLINDADOS)
 # ==========================================
 es_registro = st.query_params.get("reg") == "true"
 es_admin = st.query_params.get("admin") == "true"
@@ -77,10 +64,10 @@ if es_registro:
     
     with st.container(border=True):
         st.markdown("### 💳 DATOS DE PAGO D'UNIG")
-        st.info("Realiza el pago de tu plan y guarda la referencia para completar el registro.")
+        st.info("Realiza el pago de tu plan y guarda la referencia.")
         
-        banco_info = obtener_datos_pago()
-        st.code(banco_info)
+        # Datos desde Supabase, no escritos aquí
+        st.code(obtener_datos_pago())
         
         st.markdown("#### 💎 BENEFICIOS POR PLAN")
         for p, desc in PLANES_INFO.items():
@@ -102,21 +89,17 @@ if es_registro:
                 url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
                 
                 supabase.table("perfiles_comercio").insert({
-                    "nombre_comercio": rn, 
-                    "email_propietario": rm, 
-                    "whatsapp": rt,
-                    "portada_url": url_i, 
-                    "plan": plan_sel, 
-                    "codigo_acceso": codigo_generado,
+                    "nombre_comercio": rn, "email_propietario": rm, "whatsapp": rt,
+                    "portada_url": url_i, "plan": plan_sel, "codigo_acceso": codigo_generado,
                     "pago_administrador_status": f"INICIAL REF: {ref_pago}"
                 }).execute()
                 
                 ventana_bienvenida(rn, codigo_generado)
             else:
-                st.error("Por favor rellena todos los campos e incluye la referencia de pago.")
+                st.error("Rellena todos los campos e incluye la referencia.")
 
 # ==========================================
-# 4. VISTA: PANEL DE CONTROL
+# 4. VISTA: PANEL DE CONTROL (CON VISTA DE VIDEO DIRECTA)
 # ==========================================
 elif es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
@@ -127,31 +110,23 @@ elif es_admin:
             c = st.text_input("Código", type="password").strip().upper()
             if st.button("🔓 ENTRAR"):
                 if m == st.secrets["ADMIN_EMAIL"] and c == st.secrets["ADMIN_PASS"]:
-                    st.session_state.logged_in = True
-                    st.session_state.is_super_admin = True
-                    st.session_state.user_email = m
-                    st.rerun()
+                    st.session_state.logged_in = True; st.session_state.is_super_admin = True
+                    st.session_state.user_email = m; st.rerun()
                 
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m).execute()
                 if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c:
-                    st.session_state.logged_in = True
-                    st.session_state.user_email = m
-                    st.rerun()
-                else:
-                    st.error("Acceso denegado")
+                    st.session_state.logged_in = True; st.session_state.user_email = m; st.rerun()
+                else: st.error("Acceso denegado")
     else:
         res_p = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
         
         if res_p.data or st.session_state.is_super_admin:
             perf = res_p.data[0] if res_p.data else {"nombre_comercio": "ADMIN"}
-            
             pestañas = ["➕ AGREGAR", "📦 GESTIÓN", "💳 MIS COBROS"]
-            if st.session_state.is_super_admin:
-                pestañas.append("👑 ADMIN GLOBAL")
-            
+            if st.session_state.is_super_admin: pestañas.append("👑 ADMIN GLOBAL")
             t = st.tabs(pestañas)
 
-            with t[0]: # AGREGAR
+            with t[0]: # AGREGAR PRODUCTO
                 with st.form("add_p"):
                     nom = st.text_input("Nombre del Producto")
                     pre = st.number_input("Precio ($)")
@@ -161,50 +136,35 @@ elif es_admin:
                             path = f"v/{random.randint(100,999)}.mp4"
                             supabase.storage.from_("fotos_productos").upload(path, vid.getvalue())
                             url = supabase.storage.from_("fotos_productos").get_public_url(path)
-                            supabase.table("productos").insert({
-                                "nombre_producto": nom, 
-                                "precio": pre, 
-                                "video_url": url, 
-                                "comercio_relacionado": perf['nombre_comercio']
-                            }).execute()
-                            st.success("¡Producto publicado!"); st.rerun()
+                            supabase.table("productos").insert({"nombre_producto": nom, "precio": pre, "video_url": url, "comercio_relacionado": perf['nombre_comercio']}).execute()
+                            st.success("¡Publicado!"); st.rerun()
 
-            with t[1]: # GESTIÓN (Donde se ven los videos)
+            with t[1]: # GESTIÓN (RESTAURADO PARA VER VIDEOS)
                 prods = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
                 for pg in prods.data:
                     with st.container(border=True):
-                        col_vid, col_info = st.columns([1, 1])
-                        with col_vid:
-                            # Aplicamos la función para evitar el cuadro negro
-                            renderizar_video(pg['video_url'])
-                        with col_info:
-                            st.write(f"**{pg['nombre_producto']}**")
-                            st.write(f"Precio: ${pg['precio']}")
-                            if st.button("✏️ Editar", key=f"e_{pg['id']}"): editar_producto(pg)
-                            if st.button("🗑️ Eliminar", key=f"d_{pg['id']}"):
-                                supabase.table("productos").delete().eq("id", pg['id']).execute()
-                                st.rerun()
+                        st.video(pg['video_url']) # Método directo que siempre te funcionó
+                        st.write(f"**{pg['nombre_producto']}** | ${pg['precio']}")
+                        c1, c2 = st.columns(2)
+                        if c1.button("✏️", key=f"e_{pg['id']}"): editar_producto(pg)
+                        if c2.button("🗑️", key=f"d_{pg['id']}"):
+                            supabase.table("productos").delete().eq("id", pg['id']).execute(); st.rerun()
 
-            with t[2]: # COBROS
+            with t[2]: # COBROS DEL COMERCIO
                 db = st.text_area("Instrucciones de pago para tus clientes", value=perf.get('datos_pago', ''))
                 if st.button("GUARDAR DATOS"):
                     supabase.table("perfiles_comercio").update({"datos_pago": db}).eq("id", perf['id']).execute()
-                    st.success("Información actualizada")
+                    st.success("Ok")
 
             if st.session_state.is_super_admin:
                 with t[3]: # ADMIN GLOBAL
-                    st.subheader("🛠️ Control Maestro de Afiliados")
                     todos = supabase.table("perfiles_comercio").select("*").execute()
                     for tc in todos.data:
                         with st.container(border=True):
-                            st.write(f"**Tienda:** {tc['nombre_comercio']} | **Plan:** {tc['plan']}")
-                            st.caption(f"📢 Referencia de Registro: {tc.get('pago_administrador_status', 'N/A')}")
-                            if st.button("ELIMINAR COMERCIO", key=f"del_m_{tc['id']}", type="primary"):
-                                supabase.table("perfiles_comercio").delete().eq("id", tc['id']).execute()
-                                st.rerun()
+                            st.write(f"**{tc['nombre_comercio']}** | {tc['plan']}")
+                            st.caption(f"Ref Pago: {tc.get('pago_administrador_status')}")
+                            if st.button("ELIMINAR", key=f"del_m_{tc['id']}"):
+                                supabase.table("perfiles_comercio").delete().eq("id", tc['id']).execute(); st.rerun()
 
         if st.button("🚪 CERRAR SESIÓN"):
-            st.session_state.logged_in = False
-            st.session_state.is_super_admin = False
-            st.session_state.user_email = None
-            st.rerun()
+            st.session_state.logged_in = False; st.rerun()
