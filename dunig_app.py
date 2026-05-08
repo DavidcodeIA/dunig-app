@@ -25,7 +25,6 @@ def obtener_cuentas_admin():
 
 PLANES = {"GRATUITO": 3, "BRONCE": 10, "PLATA": 25, "ORO": 9999}
 
-# Nombres visuales para el selector de planes
 OPCIONES_PLAN_VISUAL = {
     "GRATUITO": "⚪ GRATUITO (Básico - 3 Productos)",
     "BRONCE": "🥉 BRONCE (Emprendedor - 10 Productos)",
@@ -42,13 +41,13 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS ACTUALIZADO)
+# 2. ESTÉTICA LUXURY (CSS RECTANGULAR OVALADO)
 # ==========================================
 st.markdown("""
     <style>
     .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
     
-    /* Botones Dorados Luxury */
+    /* Botones Dorados */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
@@ -57,15 +56,19 @@ st.markdown("""
         border: none !important;
     }
 
-    /* Portadas CUADRADAS con esquinas OVALADAS para el MALL */
-    .img-mall-luxury {
+    /* Portadas RECTANGULARES VERTICALES con esquinas OVALADAS */
+    .img-rect-luxury {
         width: 100%;
-        aspect-ratio: 1 / 1; /* Esto garantiza que sea un cuadrado perfecto */
-        object-fit: cover; /* Evita que la imagen se estire */
-        border-radius: 25px; /* Esquinas ovaladas */
+        aspect-ratio: 3 / 4; /* Proporción vertical como la imagen que enviaste */
+        object-fit: cover;
+        border-radius: 20px; /* Esquinas ovaladas */
         border: 2px solid #D4AF37;
-        box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.3);
-        margin-bottom: 10px;
+        box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s;
+    }
+    .img-rect-luxury:hover {
+        transform: translateY(-5px);
+        box-shadow: 0px 8px 20px rgba(212, 175, 55, 0.3);
     }
 
     .price-bubble {
@@ -114,7 +117,6 @@ es_registro = st.query_params.get("reg") == "true"
 if es_registro:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE SOCIO</h1>", unsafe_allow_html=True)
     
-    # Bloque visual de beneficios
     st.markdown("### 🏆 BENEFICIOS DEL CLUB")
     b1, b2, b3, b4 = st.columns(4)
     with b1: st.markdown("<div class='benefit-card'>⚪<br><b>GRATIS</b><br>3 Prods</div>", unsafe_allow_html=True)
@@ -151,15 +153,15 @@ elif not es_admin:
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
         tiendas = supabase.table("perfiles_comercio").select("*").execute().data
         
-        # GALERÍA DE 2 EN 2 - CUADRADAS Y OVALADAS
+        # GALERÍA RECTANGULAR EN 2 COLUMNAS
         for i in range(0, len(tiendas), 2):
             cols = st.columns(2)
             for j in range(2):
                 if i + j < len(tiendas):
                     t = tiendas[i + j]
                     with cols[j]:
-                        st.markdown(f'<img src="{t.get("portada_url")}" class="img-mall-luxury">', unsafe_allow_html=True)
-                        st.markdown(f"<p style='text-align:center; color:#D4AF37; font-weight:bold; margin-top:-5px;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
+                        st.markdown(f'<img src="{t.get("portada_url")}" class="img-rect-luxury">', unsafe_allow_html=True)
+                        st.markdown(f"<p style='text-align:center; color:#D4AF37; font-weight:bold; margin-top:5px; margin-bottom:15px;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
                         if st.button("VISITAR", key=f"m_{t['id']}", use_container_width=True):
                             st.session_state.tienda_actual = t
                             ir_a('tienda')
@@ -176,7 +178,7 @@ elif not es_admin:
                 if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
                     ventana_pago(p, t)
 
-else: # PANEL SOCIO
+else: # PANEL SOCIO (ADMIN)
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
         with st.container(border=True):
@@ -194,7 +196,7 @@ else: # PANEL SOCIO
         actual = count_res.count if count_res.count is not None else 0
         limite = PLANES.get(perf['plan'], 3)
         
-        st.write(f"💎 Plan: **{perf['plan']}**")
+        st.write(f"💎 Plan Actual: **{perf['plan']}**")
         st.progress(min(actual / limite, 1.0))
         st.caption(f"Capacidad: {actual} de {limite} productos.")
 
@@ -226,10 +228,11 @@ else: # PANEL SOCIO
                         st.rerun()
 
         with t3:
-            d_p = st.text_area("Instrucciones de pago", value=perf.get('datos_pago','') or "")
+            d_p = st.text_area("Instrucciones de pago para clientes", value=perf.get('datos_pago','') or "")
             if st.button("GUARDAR"):
                 supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
-                st.success("Actualizado.")
+                st.success("Datos actualizados.")
 
+        st.divider()
         if st.button("🚪 CERRAR SESIÓN"):
             st.session_state.logged_in = False; st.rerun()
