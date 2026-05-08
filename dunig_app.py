@@ -3,25 +3,28 @@ from supabase import create_client, Client
 import random
 
 # ==========================================
-# 1. CONEXIÓN Y CONFIGURACIÓN
+# 1. CONFIGURACIÓN INICIAL
 # ==========================================
 st.set_page_config(page_title="D'UNIG LUXURY ADMIN", layout="centered")
 
 @st.cache_resource
 def init_connection():
+    # Asegúrate de tener estas claves en los "Secrets" de Streamlit
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
 supabase = init_connection()
 
-# Función para obtener datos bancarios (Blindaje para que no estén en el código)
+# FUNCIÓN MAESTRA: Obtiene tus datos bancarios de Supabase (Blindaje)
 def obtener_datos_pago():
     try:
         res = supabase.table("ajustes_sistema").select("valor").eq("clave", "datos_bancarios").execute()
-        return res.data[0]['valor'] if res.data else "⚠️ Datos de pago no configurados."
-    except:
-        return "❌ Error al cargar datos bancarios."
+        if res.data:
+            return res.data[0]['valor']
+        return "⚠️ Configura 'datos_bancarios' en la tabla 'ajustes_sistema'."
+    except Exception:
+        return "❌ Error de conexión con los datos de pago."
 
 PLANES_INFO = {
     "GRATUITO": "✨ 3 Productos | Soporte Básico | Visibilidad Estándar",
@@ -30,17 +33,18 @@ PLANES_INFO = {
     "ORO": "🥇 Productos Ilimitados | Gestión VIP ($50)"
 }
 
+# Inicializar estados de sesión
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'is_super_admin' not in st.session_state: st.session_state.is_super_admin = False
 if 'user_email' not in st.session_state: st.session_state.user_email = None
 
 # ==========================================
-# 2. DIÁLOGOS
+# 2. DIÁLOGOS Y UTILIDADES
 # ==========================================
 @st.dialog("🙏 ¡BIENVENIDO A D'UNIG!")
 def ventana_bienvenida(nombre, codigo):
     st.markdown(f"### ✨ ¡Bendiciones, {nombre}!")
-    st.write("Tu comercio ha sido registrado. Dios bendiga tu emprendimiento.")
+    st.write("Tu comercio ha sido registrado con éxito.")
     st.success(f"**TU CÓDIGO DE ACCESO ES:** `{codigo}`")
     st.info("📌 *'Encomienda a Jehová tu camino, y confía en él; y él hará.' - Salmo 37:5*")
     if st.button("ENTRAR AL PANEL"): st.rerun()
@@ -54,117 +58,127 @@ def editar_producto(prod):
         st.success("¡Actualizado!"); st.rerun()
 
 # ==========================================
-# 3. VISTA: REGISTRO (CON DATOS BANCARIOS BLINDADOS)
+# 3. LÓGICA DE VISTAS (REG / ADMIN)
 # ==========================================
 es_registro = st.query_params.get("reg") == "true"
 es_admin = st.query_params.get("admin") == "true"
 
+# --- VISTA: REGISTRO DE SOCIOS ---
 if es_registro:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE NUEVO SOCIO</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE SOCIO</h1>", unsafe_allow_html=True)
     
     with st.container(border=True):
-        st.markdown("### 💳 DATOS DE PAGO D'UNIG")
-        st.info("Realiza el pago de tu plan y guarda la referencia.")
-        
-        # Datos desde Supabase, no escritos aquí
+        st.markdown("### 💳 DATOS DE PAGO")
+        st.info("Realiza tu pago y guarda la referencia.")
+        # Aquí se muestran tus datos bancarios ocultos del código
         st.code(obtener_datos_pago())
         
-        st.markdown("#### 💎 BENEFICIOS POR PLAN")
+        st.markdown("#### 💎 PLANES")
         for p, desc in PLANES_INFO.items():
-            st.write(f"**Plan {p}:** {desc}")
+            st.write(f"**{p}:** {desc}")
 
-    with st.form("form_registro_socio", clear_on_submit=True):
-        rn = st.text_input("Nombre de la Tienda")
-        rm = st.text_input("Email").lower()
-        rt = st.text_input("WhatsApp (Ej: 58412...)")
-        plan_sel = st.selectbox("Selecciona tu Plan", list(PLANES_INFO.keys()))
-        ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
-        ref_pago = st.text_input("Referencia de Pago (Obligatorio)")
+    with st.form("form_registro", clear_on_submit=True):
+        nombre_t = st.text_input("Nombre de la Tienda")
+        email_t = st.text_input("Email").lower()
+        whatsapp_t = st.text_input("WhatsApp (Ej: 58412...)")
+        plan_sel = st.selectbox("Plan", list(PLANES_INFO.keys()))
+        foto_p = st.file_uploader("Foto Portada", type=['jpg', 'png'])
+        referencia = st.text_input("Referencia de Pago")
         
-        if st.form_submit_button("FINALIZAR REGISTRO"):
-            if rn and rm and rt and ri and ref_pago:
-                codigo_generado = f"LUX-{random.randint(1000, 9999)}"
-                path_i = f"portadas/tienda_{random.randint(100,999)}.jpg"
-                supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue())
-                url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
+        if st.form_submit_button("REGISTRARME"):
+            if nombre_t and email_t and whatsapp_t and foto_p and referencia:
+                cod = f"LUX-{random.randint(1000, 9999)}"
+                path = f"portadas/{random.randint(100,999)}.jpg"
+                supabase.storage.from_("fotos_productos").upload(path, foto_p.getvalue())
+                url_f = supabase.storage.from_("fotos_productos").get_public_url(path)
                 
                 supabase.table("perfiles_comercio").insert({
-                    "nombre_comercio": rn, "email_propietario": rm, "whatsapp": rt,
-                    "portada_url": url_i, "plan": plan_sel, "codigo_acceso": codigo_generado,
-                    "pago_administrador_status": f"INICIAL REF: {ref_pago}"
+                    "nombre_comercio": nombre_t, "email_propietario": email_t, 
+                    "whatsapp": whatsapp_t, "portada_url": url_f, "plan": plan_sel, 
+                    "codigo_acceso": cod, "pago_administrador_status": f"REF: {referencia}"
                 }).execute()
-                
-                ventana_bienvenida(rn, codigo_generado)
+                ventana_bienvenida(nombre_t, cod)
             else:
-                st.error("Rellena todos los campos e incluye la referencia.")
+                st.error("Completa todos los campos.")
 
-# ==========================================
-# 4. VISTA: PANEL DE CONTROL (CON VISTA DE VIDEO DIRECTA)
-# ==========================================
+# --- VISTA: PANEL DE ADMINISTRACIÓN ---
 elif es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     
     if not st.session_state.logged_in:
         with st.container(border=True):
-            m = st.text_input("Email").strip().lower()
-            c = st.text_input("Código", type="password").strip().upper()
+            user_in = st.text_input("Email").strip().lower()
+            pass_in = st.text_input("Código", type="password").strip().upper()
             if st.button("🔓 ENTRAR"):
-                if m == st.secrets["ADMIN_EMAIL"] and c == st.secrets["ADMIN_PASS"]:
+                # Check Super Admin
+                if user_in == st.secrets["ADMIN_EMAIL"] and pass_in == st.secrets["ADMIN_PASS"]:
                     st.session_state.logged_in = True; st.session_state.is_super_admin = True
-                    st.session_state.user_email = m; st.rerun()
+                    st.session_state.user_email = user_in; st.rerun()
                 
-                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m).execute()
-                if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c:
-                    st.session_state.logged_in = True; st.session_state.user_email = m; st.rerun()
-                else: st.error("Acceso denegado")
+                # Check Socio
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", user_in).execute()
+                if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == pass_in:
+                    st.session_state.logged_in = True; st.session_state.user_email = user_in; st.rerun()
+                else:
+                    st.error("Credenciales incorrectas")
     else:
+        # Menú del Panel
         res_p = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
+        perf = res_p.data[0] if res_p.data else {"nombre_comercio": "ADMIN"}
         
-        if res_p.data or st.session_state.is_super_admin:
-            perf = res_p.data[0] if res_p.data else {"nombre_comercio": "ADMIN"}
-            pestañas = ["➕ AGREGAR", "📦 GESTIÓN", "💳 MIS COBROS"]
-            if st.session_state.is_super_admin: pestañas.append("👑 ADMIN GLOBAL")
-            t = st.tabs(pestañas)
+        tabs = ["➕ AGREGAR", "📦 GESTIÓN", "💳 MIS COBROS"]
+        if st.session_state.is_super_admin: tabs.append("👑 ADMIN GLOBAL")
+        t = st.tabs(tabs)
 
-            with t[0]: # AGREGAR PRODUCTO
-                with st.form("add_p"):
-                    nom = st.text_input("Nombre del Producto")
-                    pre = st.number_input("Precio ($)")
-                    vid = st.file_uploader("Video", type=['mp4'])
-                    if st.form_submit_button("PUBLICAR"):
-                        if nom and vid:
-                            path = f"v/{random.randint(100,999)}.mp4"
-                            supabase.storage.from_("fotos_productos").upload(path, vid.getvalue())
-                            url = supabase.storage.from_("fotos_productos").get_public_url(path)
-                            supabase.table("productos").insert({"nombre_producto": nom, "precio": pre, "video_url": url, "comercio_relacionado": perf['nombre_comercio']}).execute()
-                            st.success("¡Publicado!"); st.rerun()
+        with t[0]: # AGREGAR
+            with st.form("add_p"):
+                n = st.text_input("Producto")
+                p = st.number_input("Precio ($)")
+                v = st.file_uploader("Video MP4", type=['mp4'])
+                if st.form_submit_button("SUBIR"):
+                    if n and v:
+                        path_v = f"v/{random.randint(1000,9999)}.mp4"
+                        # Forzamos el tipo de contenido para evitar pantalla negra en móvil
+                        supabase.storage.from_("fotos_productos").upload(path_v, v.getvalue(), {"content-type": "video/mp4"})
+                        url_v = supabase.storage.from_("fotos_productos").get_public_url(path_v)
+                        supabase.table("productos").insert({
+                            "nombre_producto": n, "precio": p, "video_url": url_v, 
+                            "comercio_relacionado": perf['nombre_comercio']
+                        }).execute()
+                        st.success("Subido con éxito"); st.rerun()
 
-            with t[1]: # GESTIÓN (RESTAURADO PARA VER VIDEOS)
-                prods = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-                for pg in prods.data:
+        with t[1]: # GESTIÓN (REPARADO PARA MÓVIL)
+            st.subheader("Tus Productos")
+            prods = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute()
+            for pg in prods.data:
+                with st.container(border=True):
+                    # Usamos st.video nativo, que es lo más estable
+                    st.video(pg['video_url'], format="video/mp4")
+                    st.write(f"**{pg['nombre_producto']}** | ${pg['precio']}")
+                    c1, c2 = st.columns(2)
+                    if c1.button("✏️", key=f"edit_{pg['id']}"): editar_producto(pg)
+                    if c2.button("🗑️", key=f"del_{pg['id']}"):
+                        supabase.table("productos").delete().eq("id", pg['id']).execute(); st.rerun()
+
+        with t[2]: # COBROS COMERCIO
+            instruc = st.text_area("Instrucciones para tus clientes", value=perf.get('datos_pago', ''))
+            if st.button("GUARDAR CONFIG"):
+                supabase.table("perfiles_comercio").update({"datos_pago": instruc}).eq("id", perf['id']).execute()
+                st.success("Guardado")
+
+        if st.session_state.is_super_admin:
+            with t[3]: # ADMIN GLOBAL
+                st.subheader("Maestro de Comercios")
+                todos = supabase.table("perfiles_comercio").select("*").execute()
+                for tc in todos.data:
                     with st.container(border=True):
-                        st.video(pg['video_url']) # Método directo que siempre te funcionó
-                        st.write(f"**{pg['nombre_producto']}** | ${pg['precio']}")
-                        c1, c2 = st.columns(2)
-                        if c1.button("✏️", key=f"e_{pg['id']}"): editar_producto(pg)
-                        if c2.button("🗑️", key=f"d_{pg['id']}"):
-                            supabase.table("productos").delete().eq("id", pg['id']).execute(); st.rerun()
-
-            with t[2]: # COBROS DEL COMERCIO
-                db = st.text_area("Instrucciones de pago para tus clientes", value=perf.get('datos_pago', ''))
-                if st.button("GUARDAR DATOS"):
-                    supabase.table("perfiles_comercio").update({"datos_pago": db}).eq("id", perf['id']).execute()
-                    st.success("Ok")
-
-            if st.session_state.is_super_admin:
-                with t[3]: # ADMIN GLOBAL
-                    todos = supabase.table("perfiles_comercio").select("*").execute()
-                    for tc in todos.data:
-                        with st.container(border=True):
-                            st.write(f"**{tc['nombre_comercio']}** | {tc['plan']}")
-                            st.caption(f"Ref Pago: {tc.get('pago_administrador_status')}")
-                            if st.button("ELIMINAR", key=f"del_m_{tc['id']}"):
-                                supabase.table("perfiles_comercio").delete().eq("id", tc['id']).execute(); st.rerun()
+                        st.write(f"**{tc['nombre_comercio']}** | Plan: {tc['plan']}")
+                        st.caption(f"Registro: {tc.get('pago_administrador_status')}")
+                        if st.button("ELIMINAR SOCIO", key=f"global_del_{tc['id']}"):
+                            supabase.table("perfiles_comercio").delete().eq("id", tc['id']).execute(); st.rerun()
 
         if st.button("🚪 CERRAR SESIÓN"):
             st.session_state.logged_in = False; st.rerun()
+
+else:
+    st.info("Usa ?admin=true para el panel o ?reg=true para registrarte.")
