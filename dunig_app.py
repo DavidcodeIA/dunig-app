@@ -8,7 +8,7 @@ import random
 # ==========================================
 st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
 
-@st.cache_resource
+@st.cache_resource 
 def init_connection():
     # Asegúrate de tener estos secrets en .streamlit/secrets.toml
     url = st.secrets["SUPABASE_URL"]
