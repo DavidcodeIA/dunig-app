@@ -185,11 +185,9 @@ else: # PANEL ADMIN
                 with st.container(border=True):
                     c1, c2 = st.columns([3, 1])
                     c1.write(f"**{it['nombre_producto']}** (${it['precio']})")
-                    # AQUÍ ESTÁ EL ARREGLO:
-                    if c2.button("🗑️", key=f"del_{it['id']}", use_container_width=True):
-                        supabase.table("productos").delete().eq("id", it['id']).execute()
-                        st.toast(f"Producto eliminado") # Un pequeño aviso visual
-                        st.rerun() # Esto obliga a la lista a actualizarse YA
+if c2.button("🗑️", key=f"del_{it['id']}"):
+    supabase.table("productos").delete().eq("id", it['id']).execute() # Borra el dato
+    st.rerun() # Limpia la pantalla y recarga la lista real
 
         with t3:
             d_p = st.text_area("Instrucciones de pago para tus clientes", value=perf.get('datos_pago','') or "")
