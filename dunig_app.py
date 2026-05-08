@@ -73,7 +73,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS
+# 3. DIÁLOGOS Y FUNCIONES DE BORRADO
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -95,13 +95,19 @@ def ventana_pago(producto, tienda):
 def editar_comercio_dialog(comercio):
     st.write(f"Editando: **{comercio['nombre_comercio']}**")
     nuevo_w = st.text_input("WhatsApp", value=comercio['whatsapp'])
-    # Manejo de error si el plan actual es None
     plan_actual = comercio.get('plan') if comercio.get('plan') in PLANES else "GRATUITO"
     nuevo_p = st.selectbox("Plan", options=list(PLANES.keys()), index=list(PLANES.keys()).index(plan_actual))
     if st.button("GUARDAR CAMBIOS"):
         supabase.table("perfiles_comercio").update({"whatsapp": nuevo_w, "plan": nuevo_p}).eq("id", comercio['id']).execute()
         st.success("Actualizado")
         st.rerun()
+
+def borrar_comercio_completo(comercio_id, nombre_comercio):
+    # 1. Borrar todos los productos asociados primero
+    supabase.table("productos").delete().eq("comercio_relacionado", nombre_comercio).execute()
+    # 2. Borrar el perfil del comercio
+    supabase.table("perfiles_comercio").delete().eq("id", comercio_id).execute()
+    st.rerun()
 
 # ==========================================
 # 4. LÓGICA DE VISTAS
@@ -123,7 +129,6 @@ if es_registro:
         rt = st.text_input("WhatsApp")
         plan_sel = st.selectbox("Plan", options=list(PLANES.keys()), format_func=lambda x: OPCIONES_PLAN_VISUAL[x])
         ri = st.file_uploader("Foto", type=['jpg', 'png'])
-        ref_socio = st.text_input("Ref. Pago")
         if st.form_submit_button("REGISTRAR"):
             if rn and rm and rt and ri:
                 path_i = f"portadas/reg_{random.randint(1000,9999)}.jpg"
@@ -203,11 +208,11 @@ else: # PANEL
             for c in supabase.table("perfiles_comercio").select("*").execute().data:
                 with st.container(border=True):
                     col1, col2, col3, col4 = st.columns([1, 2, 1, 1])
-                    # PROTECCIÓN ANTI-ERROR DE IMAGEN
                     if c.get('portada_url'): col1.image(c['portada_url'], width=50)
                     else: col1.write("🖼️❌")
                     col2.write(f"**{c['nombre_comercio']}**\n{c.get('plan','S/N')}")
                     if col3.button("📝", key=f"ed_{c['id']}"): editar_comercio_dialog(c)
                     if col4.button("🗑️", key=f"dl_{c['id']}"):
-                        supabase.table("perfiles_comercio").delete().eq("id", c['id']).execute(); st.rerun()
+                        # LLAMADA A LA FUNCIÓN DE BORRADO EN CASCADA
+                        borrar_comercio_completo(c['id'], c['nombre_comercio'])
         if st.button("🚪 CERRAR"): st.session_state.logged_in = False; st.rerun()
