@@ -35,6 +35,7 @@ def ir_a(pagina):
 # ==========================================
 st.markdown("""
     <style>
+    /* Fondo y reseteo de márgenes */
     .main { background-color: #000000 !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; }
     header {visibility: hidden;} 
@@ -61,7 +62,7 @@ st.markdown("""
     .play-overlay {
         position: absolute;
         z-index: 20;
-        background: rgba(0, 0, 0, 0.4);
+        background: rgba(0, 0, 0, 0.5);
         width: 80px;
         height: 80px;
         border-radius: 50%;
@@ -76,9 +77,10 @@ st.markdown("""
     .play-icon {
         color: white;
         font-size: 40px;
-        margin-left: 5px; /* Ajuste para centrar visualmente el triángulo */
+        margin-left: 5px;
     }
 
+    /* Info Superpuesta */
     .info-overlay {
         position: absolute;
         bottom: 30px;
@@ -103,6 +105,7 @@ st.markdown("""
         display: inline-block;
     }
 
+    /* Botones de Streamlit */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
@@ -121,8 +124,21 @@ st.markdown("""
         const overlay = document.getElementById('overlay-' + id);
         
         if (vid.paused) {
+            // Pausar cualquier otro video que esté sonando
+            const allVideos = document.querySelectorAll('video');
+            allVideos.forEach(v => {
+                if (v.id !== id) {
+                    v.pause();
+                    const otherOverlay = document.getElementById('overlay-' + v.id);
+                    if(otherOverlay) {
+                        otherOverlay.style.opacity = '1';
+                        otherOverlay.style.pointerEvents = 'auto';
+                    }
+                }
+            });
+
             vid.play();
-            vid.muted = false; // Activa sonido al dar play
+            vid.muted = false; 
             overlay.style.opacity = '0';
             overlay.style.pointerEvents = 'none';
         } else {
@@ -135,7 +151,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS
+# 3. DIÁLOGOS (CARRITO)
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
@@ -156,6 +172,7 @@ def ventana_pago(producto, tienda):
 # 4. LÓGICA DE VISTAS
 # ==========================================
 
+# --- VISTA: MALL ---
 if st.session_state.view == 'mall':
     st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
@@ -171,6 +188,7 @@ if st.session_state.view == 'mall':
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
+# --- VISTA: TIENDA ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
@@ -178,10 +196,9 @@ elif st.session_state.view == 'tienda':
     for idx, p in enumerate(prods):
         v_id = f"vid_{idx}"
         
-        # Contenedor con Botón de Play Central
+        # Renderizado del Video con botón de Play Central
         st.markdown(f"""
             <div class="tiktok-full-container">
-                <!-- Botón Overlay -->
                 <div id="overlay-{v_id}" class="play-overlay" onclick="playVideo('{v_id}')">
                     <span class="play-icon">▶</span>
                 </div>
@@ -198,6 +215,7 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
+        # Botones de Acción (Fuera del contenedor de video para que funcionen los clics de Streamlit)
         col_buy, col_back = st.columns([4, 1])
         with col_buy:
             if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
