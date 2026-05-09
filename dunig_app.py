@@ -53,23 +53,23 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* BOTÓN DE VOLUMEN FLOTANTE */
-    .btn-volumen {
+    /* BURBUJA DE AUDIO */
+    .audio-bubble {
         position: absolute;
         top: 20px;
         right: 20px;
         z-index: 100;
-        background: rgba(0, 0, 0, 0.4);
+        background: rgba(0, 0, 0, 0.5);
         color: white;
-        border: 1px solid rgba(255, 255, 255, 0.3);
         width: 45px;
         height: 45px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
         cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.2);
+        font-size: 20px;
     }
 
     .info-overlay {
@@ -112,6 +112,29 @@ st.markdown("""
         pointer-events: auto !important; 
     }
     </style>
+
+    <script>
+    function controlAudio(id) {
+        const allVideos = document.querySelectorAll('video');
+        const targetVideo = document.getElementById(id);
+        const bubble = document.getElementById('btn-' + id);
+        
+        // Si el video actual ya tiene audio, lo silenciamos
+        if (!targetVideo.muted) {
+            targetVideo.muted = true;
+            bubble.innerText = '🔇';
+        } else {
+            // Silenciamos TODOS los demás antes de activar este
+            allVideos.forEach(v => {
+                v.muted = true;
+                const otherBtn = document.getElementById('btn-' + v.id);
+                if(otherBtn) otherBtn.innerText = '🔇';
+            });
+            targetVideo.muted = false;
+            bubble.innerText = '🔊';
+        }
+    }
+    </script>
     """, unsafe_allow_html=True)
 
 # ==========================================
@@ -156,17 +179,15 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        v_id = f"vid_{idx}" # ID único para cada video
-        
-        # Contenedor del Video con el Botón de Volumen
+        v_id = f"vid_{idx}"
+        # Contenedor del Video con Burbuja de Audio
         st.markdown(f"""
             <div class="tiktok-full-container">
                 <video id="{v_id}" class="tiktok-video-full" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
                 
-                <!-- BOTÓN DE VOLUMEN -->
-                <div class="btn-volumen" onclick="const v=document.getElementById('{v_id}'); v.muted=!v.muted; this.innerText=v.muted?'🔇':'🔊';">
+                <div id="btn-{v_id}" class="audio-bubble" onclick="controlAudio('{v_id}')">
                     🔇
                 </div>
 
