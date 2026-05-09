@@ -18,7 +18,6 @@ def init_connection():
         key = st.secrets["SUPABASE_KEY"]
         return create_client(url, key)
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
         return None
 
 supabase = init_connection()
@@ -31,21 +30,26 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA "AUDIO FOCUS" & FULL UI (CSS)
+# 2. CSS DE ALTA PRECISIÓN (ELIMINA EL ESPACIO SUPERIOR)
 # ==========================================
 st.markdown("""
     <style>
-    /* ELIMINACIÓN TOTAL DE MÁRGENES (FIX PARA SCREENSHOT) */
+    /* 1. ELIMINAR EL "GHOST SPACE" DE ARRIBA */
     .main { background-color: #000000 !important; }
-    header { visibility: hidden; height: 0px !important; } 
+    header { visibility: hidden; display: none; }
     footer { visibility: hidden; }
     
+    /* Forzar que el bloque de la app empiece en el pixel 0 */
     [data-testid="stAppViewBlockContainer"] {
-        padding: 0rem !important;
-        margin: 0rem !important;
+        padding-top: 0rem !important;
+        margin-top: -60px !important; /* Ajuste crítico para subir todo */
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        max-width: 100% !important;
     }
 
-    /* Scroll Snapping para control de Audio Activo */
+    /* 2. EFECTO MAGNÉTICO (SNAP) */
     [data-testid="stVerticalBlock"] {
         scroll-snap-type: y mandatory;
         overflow-y: scroll;
@@ -68,12 +72,14 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Botón ATRÁS (Burbuja Naranja - Visible Arriba) */
+    /* 3. BOTONES FLOTANTES (UI DE LUJO) */
+    
+    /* ATRÁS (Naranja Neón) */
     div.stButton > button[key^="back_"] {
         position: fixed;
-        top: 10px !important; 
-        left: 10px !important;
-        z-index: 1000 !important;
+        top: 20px !important; 
+        left: 15px !important;
+        z-index: 2000 !important;
         background: rgba(0, 0, 0, 0.7) !important;
         color: #FF5F1F !important; 
         border: 2px solid #FF5F1F !important;
@@ -83,29 +89,26 @@ st.markdown("""
         padding: 0px 20px !important;
     }
 
-    /* Botón COMPRAR (Dorado - Fijo en Base) */
+    /* COMPRAR (Dorado Luxury) */
     div.stButton > button[key^="buy_"] {
         position: fixed;
         bottom: 0px !important;
         left: 0px !important;
-        z-index: 999 !important;
+        z-index: 1000 !important;
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         color: #000 !important; 
         border-radius: 0px !important; 
         font-weight: 900 !important;
-        height: 70px !important;
-        border: none !important;
+        height: 75px !important;
         width: 100% !important;
-        font-size: 1.4rem !important;
+        font-size: 1.5rem !important;
     }
 
     .floating-info {
         position: absolute;
-        bottom: 90px;
+        bottom: 100px;
         left: 20px;
-        z-index: 100;
-        color: white;
-        text-shadow: 2px 2px 5px #000;
+        z-index: 500;
         pointer-events: none;
     }
 
@@ -114,42 +117,38 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. LÓGICA DE TIENDA E INTERFAZ
+# 3. LÓGICA DE TIENDA
 # ==========================================
 if st.session_state.view == 'mall':
+    # Vista simple de tiendas para no estorbar
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i + j]
-                with cols[j]:
-                    st.image(t.get("portada_url", ""), use_container_width=True)
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    for t in tiendas:
+        st.image(t.get("portada_url", ""), use_container_width=True)
+        if st.button(f"ENTRAR A {t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
+            st.session_state.tienda_actual = t
+            ir_a('tienda')
 
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
-    # Botón Atrás Maestro
-    if st.button("⬅ ATRÁS", key="back_master"):
+    if st.button("⬅ ATRÁS", key="back_button_fixed"):
         ir_a('mall')
 
     for idx, p in enumerate(prods):
-        # Reproducción con Audio Focus simulado: Autoplay sin mute
+        # Seccion Snap con Audio Focus habilitado (autoplay sin mute)
         st.markdown(f"""
             <div class="snap-section">
                 <video class="tiktok-video" autoplay loop playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
                 <div class="floating-info">
-                    <div style="font-size: 1.8rem; font-weight: 800; color: #D4AF37;">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div style="color: #39FF14; font-size: 1.5rem; font-weight: 900; border: 1px solid #39FF14; padding: 5px 15px; border-radius: 20px; display: inline-block; background: rgba(0,0,0,0.5);">$ {p['precio']}</div>
+                    <div style="font-size: 2rem; font-weight: 800; color: #D4AF37; text-shadow: 2px 2px 8px #000;">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
+                    <div style="color: #39FF14; font-size: 1.6rem; font-weight: 900; border: 2px solid #39FF14; padding: 8px 20px; border-radius: 50px; display: inline-block; background: rgba(0,0,0,0.7);">$ {p['precio']}</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}"):
-            st.toast(f"Procesando: {p['nombre_producto']}")
+            # Aquí va tu ventana_pago anterior
+            st.toast(f"Añadido: {p['nombre_producto']}")
