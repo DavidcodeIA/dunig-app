@@ -251,35 +251,15 @@ else:
                 if c2.button("🗑️", key=f"del_{it['id']}"):
                     supabase.table("productos").delete().eq("id", it['id']).execute(); st.rerun()
 
-# --- Dentro de la pestaña de Perfil (t3) ---
-with t3:
-    st.subheader("Editar Perfil Luxury")
-    nueva_p = st.file_uploader("Actualizar Portada", type=['jpg', 'png'])
-    
-    if st.button("🖼️ GUARDAR PORTADA") and nueva_p:
-        # 1. Generamos un nombre único o usamos un timestamp para evitar caché
-        import time
-        ts = int(time.time())
-        path = f"portadas/perfil_{perfil_socio['id']}_{ts}.png"
-        
-        try:
-            # 2. Subimos la nueva imagen
-            supabase.storage.from_("fotos_productos").upload(
-                path, 
-                nueva_p.getvalue(), 
-                {"content-type": nueva_p.type}
-            )
-            
-            # 3. Obtenemos la URL pública
-            new_url = supabase.storage.from_("fotos_productos").get_public_url(path)
-            
-            # 4. Actualizamos la base de datos
-            supabase.table("perfiles_comercio").update({"portada_url": new_url}).eq("id", perfil_socio['id']).execute()
-            
-            st.success("¡Portada actualizada con éxito!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error al subir: {e}")
+        with t3: # CONFIGURACIÓN PERFIL
+            st.subheader("Editar Perfil Luxury")
+            nueva_p = st.file_uploader("Actualizar Portada", type=['jpg', 'png'])
+            if st.button("🖼️ GUARDAR PORTADA") and nueva_p:
+                path = f"portadas/upd_{perfil_socio['id']}.png"
+                supabase.storage.from_("fotos_productos").upload(path, nueva_p.getvalue(), {"x-upsert": "true"})
+                new_url = supabase.storage.from_("fotos_productos").get_public_url(path)
+                supabase.table("perfiles_comercio").update({"portada_url": new_url}).eq("id", perfil_socio['id']).execute()
+                st.success("Portada actualizada."); st.rerun()
             inst = st.text_area("Datos de Pago (WhatsApp)", value=perfil_socio.get('datos_pago', ''), height=100)
             if st.button("💾 GUARDAR PAGOS"):
                 supabase.table("perfiles_comercio").update({"datos_pago": inst}).eq("id", perfil_socio['id']).execute(); st.success("Guardado.")
