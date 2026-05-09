@@ -1,9 +1,8 @@
 import streamlit as st
-from supabase import create_client, Client
-import urllib.parse
+from supabase import create_client
 
 # ==========================================
-# 1. CONFIGURACIÓN Y CONEXIÓN
+# 1. CONFIGURACIÓN E INICIALIZACIÓN
 # ==========================================
 st.set_page_config(
     page_title="D'UNIG LUXURY", 
@@ -11,178 +10,167 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+if 'view' not in st.session_state: st.session_state.view = 'mall'
+if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
+
 @st.cache_resource 
 def init_connection():
     try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception as e:
-        return None
+        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    except: return None
 
 supabase = init_connection()
-
-if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA 9:16 FULL SCREEN (CSS)
+# 2. CSS "SPLIT-SCREEN" & FULL BORDERLESS
 # ==========================================
 st.markdown("""
     <style>
-    .main { background-color: #000000 !important; }
-    header {visibility: hidden; height: 0px;} 
-    footer {visibility: hidden;}
-    
+    /* ELIMINAR TODO EL MARCO DE STREAMLIT */
     [data-testid="stAppViewBlockContainer"] {
-        padding: 0rem !important;
-        max-width: 100% !important;
+        padding: 0px !important;
+        margin-top: -100px !important; /* Succiona el header */
+        max-width: 100vw !important;
     }
+    
+    .main { background-color: #000; }
+    header, footer { visibility: hidden; }
 
-    /* EFECTO IMÁN */
-    [data-testid="stVerticalBlock"] {
-        scroll-snap-type: y mandatory;
-        overflow-y: scroll;
+    /* CONTENEDOR DE TIENDAS DIVIDIDAS (MALL) */
+    .split-container {
+        display: flex;
+        flex-direction: column;
         height: 100vh;
-        gap: 0rem !important;
-    }
-
-    .video-container-916 {
-        scroll-snap-align: start;
-        scroll-snap-stop: always;
-        position: relative;
         width: 100vw;
-        height: 100vh;
-        overflow: hidden;
-        background: #000;
     }
 
-    .tiktok-video {
+    .shop-half {
+        height: 50vh;
+        width: 100vw;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .shop-half img {
         width: 100%;
         height: 100%;
         object-fit: cover;
     }
 
-    .info-overlay {
+    .shop-label {
         position: absolute;
-        bottom: 30px;
-        left: 20px;
-        z-index: 10;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         color: white;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+        font-size: 2rem;
+        font-weight: 900;
+        text-shadow: 2px 2px 15px #000;
+        text-transform: uppercase;
+        letter-spacing: 5px;
         pointer-events: none;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.6rem; color: #D4AF37; margin-bottom: 5px; }
+    /* ESTILO TIKTOK PARA VIDEOS (TIENDA) */
+    [data-testid="stVerticalBlock"] {
+        scroll-snap-type: y mandatory;
+        overflow-y: scroll !important;
+        height: 100vh;
+        gap: 0px !important;
+    }
     
-    .price-tag {
-        background: rgba(0, 0, 0, 0.6);
-        color: #39FF14;
-        padding: 8px 25px;
-        border-radius: 50px;
-        font-weight: 900;
-        font-size: 1.5rem;
-        border: 2px solid #39FF14;
-        display: inline-block;
+    [data-testid="stVerticalBlock"]::-webkit-scrollbar { display: none; }
+
+    .snap-section {
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        width: 100vw;
+        height: 100vh;
+        background: #000;
     }
 
-    /* BOTÓN COMPRAR (DORADO) */
-    div.stButton > button[key^="buy_"] {
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        color: #000 !important; 
-        border-radius: 0px !important; 
-        font-weight: 900 !important;
-        height: 70px !important;
-        border: none !important;
-        width: 100% !important;
-        font-size: 1.3rem !important;
-        margin-bottom: 0px !important;
+    video { width: 100%; height: 100%; object-fit: cover; }
+
+    /* BOTONES FLOTANTES */
+    div.stButton > button[key^="btn_"] {
+        width: 100% !important; height: 50vh !important;
+        background: transparent !important; border: none !important;
+        position: absolute; top: 0; z-index: 10;
     }
 
-    /* BOTÓN ATRÁS (AZUL MARINO DELGADO) */
     div.stButton > button[key^="back_"] {
-        background-color: #001F3F !important; /* Azul Marino */
-        color: #FFFFFF !important; 
-        border-radius: 0px !important; 
-        font-weight: 600 !important;
-        height: 40px !important; /* Más delgado */
-        border: none !important;
-        width: 100% !important;
-        font-size: 1rem !important;
-        margin-top: 0px !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        position: fixed; top: 30px; left: 20px; z-index: 2000;
+        background: rgba(0,0,0,0.7) !important; color: #FF5F1F !important;
+        border: 2px solid #FF5F1F !important; border-radius: 50px !important;
     }
 
-    ::-webkit-scrollbar { display: none; }
+    div.stButton > button[key^="buy_"] {
+        position: fixed; bottom: 0; left: 0; z-index: 1000;
+        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295);
+        color: #000 !important; font-weight: 900; height: 80px; width: 100%;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. CARRITO DE COMPRAS
+# 3. LÓGICA DE AUDIO FOCUS (Técnica TikTok)
 # ==========================================
-@st.dialog("💎 PROCESAR PEDIDO")
-def ventana_pago(producto, tienda):
-    st.markdown(f"### ✨ {producto['nombre_producto']}")
-    cantidad = st.number_input("Cantidad", min_value=1, value=1)
-    total = float(producto['precio']) * cantidad
-    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
-    st.divider()
-    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
-    ref = st.text_input("Referencia de Pago")
-    
-    if st.button("🚀 ENVIAR PEDIDO", key="final_confirm"):
-        if ref:
-            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
-            tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
-        else:
-            st.error("Por favor, ingresa la referencia de pago.")
+st.components.v1.html("""
+<script>
+    const manageAudio = () => {
+        const videos = window.parent.document.querySelectorAll('video');
+        const vh = window.parent.innerHeight;
+        videos.forEach(v => {
+            const rect = v.getBoundingClientRect();
+            if (rect.top >= -50 && rect.top <= 50) { 
+                v.muted = false; v.play().catch(()=>{}); 
+            } else { v.muted = true; }
+        });
+    };
+    window.parent.document.addEventListener('touchstart', () => {
+        window.parent.document.querySelectorAll('video').forEach(v => v.play());
+        manageAudio();
+    }, { once: true });
+    window.parent.addEventListener('scroll', manageAudio);
+</script>
+""", height=0)
 
 # ==========================================
 # 4. VISTAS
 # ==========================================
 if st.session_state.view == 'mall':
-    tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i + j]
-                with cols[j]:
-                    st.image(t.get("portada_url", ""), use_container_width=True)
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    if supabase:
+        tiendas = supabase.table("perfiles_comercio").select("*").limit(2).execute().data
+        for idx, t in enumerate(tiendas):
+            st.markdown(f"""
+                <div class="shop-half">
+                    <img src="{t.get('portada_url', '')}">
+                    <div class="shop-label">{t['nombre_comercio']}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("", key=f"btn_{t['id']}"):
+                st.session_state.tienda_actual = t
+                ir_a('tienda')
 
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
-    
-    for idx, p in enumerate(prods):
-        # El Video
-        st.markdown(f"""
-            <div class="video-container-916">
-                <video class="tiktok-video" autoplay loop muted playsinline>
-                    <source src="{p['video_url']}" type="video/mp4">
-                </video>
-                <div class="info-overlay">
-                    <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="price-tag">${p['precio']}</div>
+    if supabase and t:
+        prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+        if st.button("⬅ ATRÁS", key="back_master"): ir_a('mall')
+        
+        for p in prods:
+            st.markdown(f"""
+                <div class="snap-section">
+                    <video loop playsinline muted><source src="{p['video_url']}"></video>
+                    <div style="position:absolute; bottom:120px; left:20px; z-index:500;">
+                        <h1 style="color:#D4AF37; margin:0;">@{t['nombre_comercio']}</h1>
+                        <h2 style="color:#39FF14;">$ {p['precio']}</h2>
+                    </div>
                 </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # 1. BOTÓN COMPRAR (DORADO)
-        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-            ventana_pago(p, t)
-        
-        # 2. BOTÓN ATRÁS (AZUL MARINO - DE ÚLTIMO)
-        if st.button("VOLVER AL MALL", key=f"back_{idx}"):
-            ir_a('mall')
-        
-        # Espacio mínimo entre bloques de video para el snap
-        st.markdown("<div style='height:0px;'></div>", unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+            if st.button(f"🛒 COMPRAR", key=f"buy_{p['id']}"): st.toast("Añadido")
