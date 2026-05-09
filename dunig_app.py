@@ -6,20 +6,20 @@ import urllib.parse
 # 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
 st.set_page_config(
-    page_title="D'UNIG LUXURY", 
-    layout="centered", 
-    initial_sidebar_state="collapsed"
+    page_title="D'UNIG LUXURY", 
+    layout="centered", 
+    initial_sidebar_state="collapsed"
 )
 
-@st.cache_resource 
+@st.cache_resource 
 def init_connection():
-    try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception as e:
-        st.error(f"Error de conexión: {e}")
-        return None
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
+        return None
 
 supabase = init_connection()
 
@@ -27,96 +27,96 @@ if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
-    st.session_state.view = pagina
-    st.rerun()
+    st.session_state.view = pagina
+    st.rerun()
 
 # ==========================================
 # 2. ESTÉTICA DE PANTALLA COMPLETA (CSS)
 # ==========================================
 st.markdown("""
-    <style>
-    /* Fondo negro y eliminación de márgenes de Streamlit */
-    .main { background-color: #000000 !important; }
-    .block-container { padding: 0 !important; max-width: 100% !important; }
-    header {visibility: hidden;} /* Oculta la barra superior de Streamlit */
-    
-    /* Contenedor TikTok sin bordes y ancho total */
-    .tiktok-full-container {
-        position: relative;
-        width: 100vw;
-        height: 88vh;
-        background: #000;
-        overflow: hidden;
-    }
+    <style>
+    /* Fondo negro y eliminación de márgenes de Streamlit */
+    .main { background-color: #000000 !important; }
+    .block-container { padding: 0 !important; max-width: 100% !important; }
+    header {visibility: hidden;} /* Oculta la barra superior de Streamlit */
+    
+    /* Contenedor TikTok sin bordes y ancho total */
+    .tiktok-full-container {
+        position: relative;
+        width: 100vw;
+        height: 88vh;
+        background: #000;
+        overflow: hidden;
+    }
 
-    .tiktok-video-full {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
+    .tiktok-video-full {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 
-    /* Info Superpuesta (Abajo Izquierda) */
-    .info-overlay {
-        position: absolute;
-        bottom: 30px;
-        left: 20px;
-        z-index: 10;
-        color: white;
-        text-shadow: 2px 2px 8px rgba(0,0,0,1);
-        pointer-events: none;
-    }
+    /* Info Superpuesta (Abajo Izquierda) */
+    .info-overlay {
+        position: absolute;
+        bottom: 30px;
+        left: 20px;
+        z-index: 10;
+        color: white;
+        text-shadow: 2px 2px 8px rgba(0,0,0,1);
+        pointer-events: none;
+    }
 
-    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 5px; }
-    .product-title { font-size: 1rem; opacity: 0.9; margin-bottom: 10px; }
-    
-    .price-tag {
-        background: rgba(0, 0, 0, 0.7);
-        color: #39FF14;
-        padding: 5px 15px;
-        border-radius: 50px;
-        font-weight: 900;
-        font-size: 1.3rem;
-        border: 2px solid #39FF14;
-        display: inline-block;
-    }
+    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 5px; }
+    .product-title { font-size: 1rem; opacity: 0.9; margin-bottom: 10px; }
+    
+    .price-tag {
+        background: rgba(0, 0, 0, 0.7);
+        color: #39FF14;
+        padding: 5px 15px;
+        border-radius: 50px;
+        font-weight: 900;
+        font-size: 1.3rem;
+        border: 2px solid #39FF14;
+        display: inline-block;
+    }
 
-    /* Estilo del Botón de Compra y Botón Atrás */
-    .stButton>button {
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        background-size: 200% 100% !important;
-        color: #000 !important; 
-        border-radius: 0px !important;
-        font-weight: 800 !important;
-        height: 55px !important;
-        border: none !important;
-        width: 100% !important;
-    }
+    /* Estilo del Botón de Compra y Botón Atrás */
+    .stButton>button {
+        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
+        background-size: 200% 100% !important;
+        color: #000 !important; 
+        border-radius: 0px !important;
+        font-weight: 800 !important;
+        height: 55px !important;
+        border: none !important;
+        width: 100% !important;
+    }
 
-    /* Botón Volver estilizado (Flecha abajo del precio) */
-    .back-btn-container {
-        margin-top: 15px;
-        pointer-events: auto !important; /* Permite clics en el overlay */
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    /* Botón Volver estilizado (Flecha abajo del precio) */
+    .back-btn-container {
+        margin-top: 15px;
+        pointer-events: auto !important; /* Permite clics en el overlay */
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ==========================================
 # 3. DIÁLOGOS (CARRITO)
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
-    st.markdown(f"### ✨ {producto['nombre_producto']}")
-    cantidad = st.number_input("Cantidad", min_value=1, value=1)
-    total = float(producto['precio']) * cantidad
-    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
-    st.divider()
-    st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar')}")
-    ref = st.text_input("Referencia de Pago")
-    if st.button("🚀 CONFIRMAR PEDIDO"):
-        if ref:
-            msj = f"💎 *PEDIDO*\n📦 {producto['nombre_producto']}\n🔢 Cant: {cantidad}\n💰 Total: ${total}\n🎫 Ref: {ref}"
-            tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("ENVIAR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    cantidad = st.number_input("Cantidad", min_value=1, value=1)
+    total = float(producto['precio']) * cantidad
+    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
+    st.divider()
+    st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar')}")
+    ref = st.text_input("Referencia de Pago")
+    if st.button("🚀 CONFIRMAR PEDIDO"):
+        if ref:
+            msj = f"💎 *PEDIDO*\n📦 {producto['nombre_producto']}\n🔢 Cant: {cantidad}\n💰 Total: ${total}\n🎫 Ref: {ref}"
+            tel = str(tienda['whatsapp']).replace("+", "").strip()
+            st.link_button("ENVIAR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
 
 # ==========================================
 # 4. LÓGICA DE VISTAS
@@ -124,48 +124,48 @@ def ventana_pago(producto, tienda):
 
 # --- VISTA: MALL (SIN TÍTULO) ---
 if st.session_state.view == 'mall':
-    # Eliminamos el título h1 y usamos un espaciado discreto
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-    tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-    
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i + j]
-                with cols[j]:
-                    st.image(t.get("portada_url", ""), use_container_width=True)
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    # Eliminamos el título h1 y usamos un espaciado discreto
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
+    
+    for i in range(0, len(tiendas), 2):
+        cols = st.columns(2)
+        for j in range(2):
+            if i + j < len(tiendas):
+                t = tiendas[i + j]
+                with cols[j]:
+                    st.image(t.get("portada_url", ""), use_container_width=True)
+                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
+                        st.session_state.tienda_actual = t
+                        ir_a('tienda')
 
 # --- VISTA: TIENDA (FULL SCREEN CON BOTÓN INTEGRADO) ---
 elif st.session_state.view == 'tienda':
-    t = st.session_state.tienda_actual
-    prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
-    
-    for idx, p in enumerate(prods):
-        # Contenedor del Video
-        st.markdown(f"""
-            <div class="tiktok-full-container">
-                <video class="tiktok-video-full" autoplay loop muted playsinline>
-                    <source src="{p['video_url']}" type="video/mp4">
-                </video>
-                <div class="info-overlay">
-                    <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="product-title">{p['nombre_producto']}</div>
-                    <div class="price-tag">${p['precio']}</div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Botón de Compra y Botón Volver (Estilo TikTok)
-        col_buy, col_back = st.columns([4, 1])
-        with col_buy:
-            if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-                ventana_pago(p, t)
-        with col_back:
-            if st.button("⬅️", key=f"back_{idx}", use_container_width=True):
-                ir_a('mall')
-        
-        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    t = st.session_state.tienda_actual
+    prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+    
+    for idx, p in enumerate(prods):
+        # Contenedor del Video
+        st.markdown(f"""
+            <div class="tiktok-full-container">
+                <video class="tiktok-video-full" autoplay loop muted playsinline>
+                    <source src="{p['video_url']}" type="video/mp4">
+                </video>
+                <div class="info-overlay">
+                    <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
+                    <div class="product-title">{p['nombre_producto']}</div>
+                    <div class="price-tag">${p['precio']}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Botón de Compra y Botón Volver (Estilo TikTok)
+        col_buy, col_back = st.columns([4, 1])
+        with col_buy:
+            if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+                ventana_pago(p, t)
+        with col_back:
+            if st.button("⬅️", key=f"back_{idx}", use_container_width=True):
+                ir_a('mall')
+        
+        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
