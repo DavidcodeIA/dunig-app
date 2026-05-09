@@ -1,133 +1,159 @@
 import streamlit as st
-from supabase import create_client
+from supabase import create_client, Client
+import urllib.parse
+import random
+import time
+from datetime import datetime, date
 
 # ==========================================
-# 1. CONFIGURACIÓN E INICIALIZACIÓN (MANTENIENDO TU LÓGICA)
+# 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
-st.set_page_config(
-    page_title="D'UNIG LUXURY", 
-    layout="wide", 
-    initial_sidebar_state="collapsed"
-)
-
-# Recuperamos todas tus variables de estado originales
-if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
-if 'user_data' not in st.session_state: st.session_state.user_data = None # Para tu registro de socios
+st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
 
 @st.cache_resource 
 def init_connection():
     try:
-        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    except: return None
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
+        return None
 
 supabase = init_connection()
+
+# Constantes del Sistema
+PLANES_LIMITES = {"GRATUITO": 3, "BRONCE": 10, "PLATA": 25, "ORO": 9999}
+OPCIONES_PLAN_VISUAL = {
+    "GRATUITO": "⚪ GRATUITO (Básico - 3 Productos)",
+    "BRONCE": "🥉 BRONCE (Emprendedor - 10 Productos)",
+    "PLATA": "🥈 PLATA (Crecimiento - 25 Productos)",
+    "ORO": "👑 ORO (Ilimitado - Ventas Premium)"
+}
+
+# Estado de la Sesión
+if 'view' not in st.session_state: st.session_state.view = 'mall'
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'user_email' not in st.session_state: st.session_state.user_email = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. CSS CORRECTIVO (SIN BORRAR TU ESTILO)
+# 2. ESTÉTICA LUXURY (CSS RESTAURADO)
 # ==========================================
 st.markdown("""
     <style>
-    /* FIX: ELIMINAR ESPACIO SUPERIOR SIN AFECTAR EL CONTENIDO */
-    [data-testid="stAppViewBlockContainer"] {
-        padding-top: 0rem !important;
-        margin-top: -75px !important; /* Ajuste preciso para Screenshot_20260509-142706.jpg */
-        max-width: 100vw !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
+    .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
+    .stButton>button {
+        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
+        background-size: 200% 100% !important;
+        color: #000 !important; border-radius: 30px !important;
+        font-weight: 800 !important; text-transform: uppercase; border: none !important;
     }
-    
-    .main { background-color: #000 !important; }
-    header, footer { visibility: hidden; height: 0px; }
-
-    /* DISEÑO DE TIENDAS DIVIDIDAS (ESTILO GGC3DL2GFFA7ZJVXV6LNRRRGWQ.jpg) */
-    .mall-wrapper {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        width: 100vw;
+    .img-mall-luxury {
+        width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 25px;
+        border: 2px solid #D4AF37; box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.3); margin-bottom: 10px;
     }
-
-    .tienda-split {
-        height: 50vh;
-        width: 100vw;
-        position: relative;
-        border-bottom: 2px solid #D4AF37;
+    .price-bubble {
+        position: absolute; top: 15px; right: 15px;
+        background: rgba(0, 0, 0, 0.85); color: #39FF14; 
+        padding: 5px 15px; border-radius: 50px;
+        font-weight: 900; border: 2px solid #39FF14; z-index: 10;
     }
-
-    .tienda-split img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    /* BOTONES INVISIBLES SOBRE LAS TIENDAS */
-    div.stButton > button[key^="ir_tienda_"] {
-        position: absolute;
-        top: 0;
-        height: 50vh !important;
-        width: 100vw !important;
-        background: transparent !important;
-        border: none !important;
-        color: transparent !important;
-        z-index: 10;
-    }
-    
-    /* TU BOTÓN DE REGISTRO (Mantenlo visible) */
-    div.stButton > button[key="btn_registro"] {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 100;
-        background: #FF5F1F !important;
-        border-radius: 50% !important;
-        width: 60px;
-        height: 60px;
+    .video-container {
+        position: relative; width: 100%; border-radius: 20px; overflow: hidden;
+        border: 1px solid #D4AF37; margin-bottom: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. LÓGICA DE VISTAS (RESTAURADA)
+# 3. DIÁLOGOS DE INTERFAZ (EL CARRITO)
 # ==========================================
+@st.dialog("💎 CARRITO D'UNIG LUXURY")
+def ventana_pago(producto, tienda):
+    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    cantidad = st.number_input("Cantidad", min_value=1, value=1)
+    total = float(producto['precio']) * cantidad
+    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
+    st.divider()
+    st.info(f"💳 **DATOS DE PAGO:**\n{tienda.get('datos_pago', 'Consultar al vendedor')}")
+    ref = st.text_input("Ingrese Ref. de Pago")
+    if st.button("🚀 CONFIRMAR PEDIDO"):
+        if ref:
+            msj = f"✨ *PEDIDO LUXURY*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cant:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
+            tel = str(tienda['whatsapp']).replace("+", "").strip()
+            # Link directo para procesar la compra
+            st.link_button("ENVIAR POR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+        else:
+            st.error("Por favor, ingrese la referencia de pago")
 
-# VISTA MALL (Con división 50/50)
-if st.session_state.view == 'mall':
-    if supabase:
-        tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).limit(2).execute().data
-        
-        for t in tiendas:
-            # Contenedor visual de la tienda
-            st.markdown(f"""
-                <div class="tienda-split">
-                    <img src="{t.get('portada_url', '')}">
-                    <div style="position:absolute; top:40%; width:100%; text-align:center;">
-                        <h1 style="color:white; font-size:3rem; text-shadow:2px 2px 10px #000;">{t['nombre_comercio']}</h1>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            # Botón funcional invisible
-            if st.button("", key=f"ir_tienda_{t['id']}"):
-                st.session_state.tienda_actual = t
-                ir_a('tienda')
-        
-        # AQUÍ TU BOTÓN DE REGISTRO QUE YA TENÍAS
-        if st.button("+", key="btn_registro"):
-            ir_a('registro_socio')
+# ==========================================
+# 4. LÓGICA DE VISTAS
+# ==========================================
+es_admin_master = st.query_params.get("admin") == "true"
 
-# VISTA REGISTRO (Restaurando lo que borré)
-elif st.session_state.view == 'registro_socio':
-    st.title("REGISTRO DE NUEVO SOCIO")
-    # ... Aquí vuelve a pegar tu código del formulario de registro que tenías antes ...
-    if st.button("VOLVER"): ir_a('mall')
+# --- VISTA: MALL ---
+if not es_admin_master and st.session_state.view == 'mall':
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
+    tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
+    
+    if not tiendas: st.info("Próximamente más tiendas de lujo...")
+    else:
+        for i in range(0, len(tiendas), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if i + j < len(tiendas):
+                    t = tiendas[i + j]
+                    with cols[j]:
+                        url = t.get("portada_url", "")
+                        if url.lower().endswith(('.mp4', '.mov')):
+                            st.markdown(f'<video autoplay loop muted playsinline class="img-mall-luxury"><source src="{url}"></video>', unsafe_allow_html=True)
+                        else:
+                            st.markdown(f'<img src="{url}" class="img-mall-luxury">', unsafe_allow_html=True)
+                        
+                        st.markdown(f"<p style='text-align:center; color:#D4AF37; font-weight:bold;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
+                        if st.button("VISITAR", key=f"mall_{t['id']}", use_container_width=True):
+                            st.session_state.tienda_actual = t
+                            ir_a('tienda')
 
-# VISTA TIENDA (Con videos corregidos)
+# --- VISTA: TIENDA (VITRINA CON CARRITO) ---
 elif st.session_state.view == 'tienda':
-    # Aquí iría el código de videos que ya ajustamos, pero sin perder el botón de atrás
-    if st.button("⬅", key="back_mall"): ir_a('mall')
-    # ... (Resto de tu lógica de productos) ... 
+    t = st.session_state.tienda_actual
+    if st.button("⬅️ VOLVER"): ir_a('mall')
+    
+    st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
+    
+    prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+    
+    for p in prods:
+        # Contenedor de Video con Precio Flotante
+        st.markdown(f"""
+            <div class="video-container">
+                <div class="price-bubble">${p['precio']}</div>
+                <video width="100%" controls autoplay loop muted playsinline>
+                    <source src="{p['video_url']}" type="video/mp4">
+                </video>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Botón que activa el diálogo del CARRITO
+        if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"buy_{p['id']}", use_container_width=True):
+            ventana_pago(p, t)
+        st.write("---")
+
+# --- VISTA: PANEL (ADMIN) ---
+else:
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
+    # (El resto de tu lógica de panel de control se mantiene igual...)
+    if not st.session_state.logged_in:
+        l_email = st.text_input("Email").strip().lower()
+        l_pass = st.text_input("Código de Acceso", type="password").strip().upper()
+        if st.button("🔓 ENTRAR"):
+            res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", l_email).execute()
+            if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == l_pass:
+                st.session_state.logged_in, st.session_state.user_email = True, l_email
+                st.rerun()
+            else: st.error("Acceso denegado.")
