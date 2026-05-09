@@ -31,16 +31,14 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA DE PANTALLA COMPLETA (CSS)
+# 2. ESTÉTICA Y SCRIPTS (CSS + JS)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo negro y eliminación de márgenes de Streamlit */
     .main { background-color: #000000 !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; }
-    header {visibility: hidden;} /* Oculta la barra superior de Streamlit */
+    header {visibility: hidden;} 
     
-    /* Contenedor TikTok sin bordes y ancho total */
     .tiktok-full-container {
         position: relative;
         width: 100vw;
@@ -55,7 +53,25 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Info Superpuesta (Abajo Izquierda) */
+    /* BURBUJA DE AUDIO FLOTANTE */
+    .audio-control {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.3);
+        font-size: 20px;
+    }
+
     .info-overlay {
         position: absolute;
         bottom: 30px;
@@ -80,7 +96,6 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* Estilo del Botón de Compra y Botón Atrás */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
@@ -91,13 +106,30 @@ st.markdown("""
         border: none !important;
         width: 100% !important;
     }
-
-    /* Botón Volver estilizado (Flecha abajo del precio) */
-    .back-btn-container {
-        margin-top: 15px;
-        pointer-events: auto !important; /* Permite clics en el overlay */
-    }
     </style>
+
+    <script>
+    function toggleAudio(id) {
+        const video = document.getElementById(id);
+        const allVideos = document.querySelectorAll('video');
+        const btn = document.getElementById('btn-' + id);
+        
+        if (video.muted) {
+            // Silenciar todos los demás primero
+            allVideos.forEach(v => {
+                v.muted = true;
+                const otherBtn = document.getElementById('btn-' + v.id);
+                if (otherBtn) otherBtn.innerText = '🔇';
+            });
+            // Activar este
+            video.muted = false;
+            btn.innerText = '🔊';
+        } else {
+            video.muted = true;
+            btn.innerText = '🔇';
+        }
+    }
+    </script>
     """, unsafe_allow_html=True)
 
 # ==========================================
@@ -122,9 +154,7 @@ def ventana_pago(producto, tienda):
 # 4. LÓGICA DE VISTAS
 # ==========================================
 
-# --- VISTA: MALL (SIN TÍTULO) ---
 if st.session_state.view == 'mall':
-    # Eliminamos el título h1 y usamos un espaciado discreto
     st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
@@ -139,18 +169,25 @@ if st.session_state.view == 'mall':
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
-# --- VISTA: TIENDA (FULL SCREEN CON BOTÓN INTEGRADO) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        # Contenedor del Video
+        video_id = f"video_{idx}"
+        
+        # Contenedor del Video con Burbuja de Audio
         st.markdown(f"""
             <div class="tiktok-full-container">
-                <video class="tiktok-video-full" autoplay loop muted playsinline>
+                <video id="{video_id}" class="tiktok-video-full" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
+                
+                <!-- Botón de Sonido -->
+                <div id="btn-{video_id}" class="audio-control" onclick="toggleAudio('{video_id}')">
+                    🔇
+                </div>
+
                 <div class="info-overlay">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
                     <div class="product-title">{p['nombre_producto']}</div>
@@ -159,7 +196,6 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón de Compra y Botón Volver (Estilo TikTok)
         col_buy, col_back = st.columns([4, 1])
         with col_buy:
             if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
