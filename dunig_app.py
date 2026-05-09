@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Inicialización de estado para evitar el AttributeError
+# Inicialización de estado segura
 if 'view' not in st.session_state:
     st.session_state.view = 'mall'
 if 'tienda_actual' not in st.session_state:
@@ -33,57 +33,61 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. CSS DE ALTA PRECISIÓN (SIN BARRA LATERAL)
+# 2. CSS "ULTRA-WIDE" (SIN MARCOS LATERALES)
 # ==========================================
 st.markdown("""
     <style>
-    /* ELIMINAR BARRA DE DESPLAZAMIENTO Y MÁRGENES */
+    /* ELIMINAR CUALQUIER MARGEN O RELLENO DEL CONTENEDOR DE STREAMLIT */
     html, body, [data-testid="stAppViewBlockContainer"] {
-        overflow: hidden !important; /* Adiós barra lateral */
+        overflow: hidden !important;
         margin: 0 !important;
         padding: 0 !important;
+        width: 100vw !important;
     }
 
     .main { background-color: #000000 !important; }
     header { visibility: hidden; display: none !important; }
     footer { visibility: hidden; }
     
+    /* SUCCIONAR ESPACIO SUPERIOR Y ELIMINAR RESTRICCIÓN DE ANCHO */
     [data-testid="stAppViewBlockContainer"] {
-        margin-top: -100px !important; /* Elimina espacio superior de Screenshot_20260509-142706.jpg */
-        max-width: 100% !important;
+        margin-top: -100px !important; 
+        max-width: 100vw !important;
+        min-width: 100vw !important;
     }
 
-    /* CONTENEDOR DE DESPLAZAMIENTO TÁCTIL (SNAP) */
+    /* ELIMINAR MARGENES INTERNOS DE LAS COLUMNAS Y BLOQUES */
     [data-testid="stVerticalBlock"] {
         scroll-snap-type: y mandatory;
         overflow-y: scroll !important;
-        height: 110vh; /* Un poco más alto para asegurar el flujo */
+        height: 100vh;
         gap: 0rem !important;
-        -ms-overflow-style: none;  /* Ocultar barra en IE/Edge */
-        scrollbar-width: none;  /* Ocultar barra en Firefox */
+        scrollbar-width: none;
     }
-
-    /* Ocultar barra en Chrome/Brave/Safari */
+    
     [data-testid="stVerticalBlock"]::-webkit-scrollbar {
         display: none !important;
     }
 
+    /* VIDEO SIN MARCOS (FULL SCREEN 9:16) */
     .snap-section {
         scroll-snap-align: start;
         scroll-snap-stop: always;
         position: relative;
-        width: 100vw;
+        width: 100vw; /* Ocupa todo el ancho */
         height: 100vh;
         background: #000;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* 1080x1920 Full Screen */
+        object-fit: cover; /* Asegura que no queden franjas negras */
     }
 
-    /* BOTONES FLOTANTES MEJORADOS */
+    /* BOTONES FLOTANTES */
     div.stButton > button[key^="back_"] {
         position: fixed;
         top: 30px !important; 
@@ -94,7 +98,6 @@ st.markdown("""
         border: 2px solid #FF5F1F !important;
         border-radius: 50px !important;
         font-weight: 900 !important;
-        padding: 8px 25px !important;
     }
 
     div.stButton > button[key^="buy_"] {
@@ -106,15 +109,14 @@ st.markdown("""
         color: #000 !important; 
         border: none !important;
         font-weight: 900 !important;
-        height: 80px !important;
+        height: 75px !important;
         width: 100% !important;
-        font-size: 1.6rem !important;
     }
 
     .floating-info {
         position: absolute;
-        bottom: 120px;
-        left: 25px;
+        bottom: 100px;
+        left: 20px;
         z-index: 500;
         pointer-events: none;
     }
@@ -122,29 +124,32 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. GESTOR DE AUDIO FOCUS (JAVASCRIPT)
+# 3. GESTOR DE AUDIO ACTIVO (AUDIO FOCUS)
 # ==========================================
 st.components.v1.html("""
 <script>
+    const videos = window.parent.document.querySelectorAll('video');
+    
     const manageAudio = () => {
-        const videos = window.parent.document.querySelectorAll('video');
         const vh = window.parent.innerHeight;
         videos.forEach(v => {
             const rect = v.getBoundingClientRect();
-            // Foco de audio: solo el video visible suena
-            if (rect.top >= -50 && rect.top <= 50) { 
+            // Si el video está centrado, desmutear y reproducir
+            if (rect.top >= -100 && rect.top <= 100) { 
                 v.muted = false;
-                v.play().catch(() => {}); 
+                v.play().catch(e => console.log("Audio bloqueado"));
             } else {
                 v.muted = true;
             }
         });
     };
     
-    // Activar al primer toque
+    // Desbloquear audio al primer toque en la pantalla
     window.parent.document.addEventListener('touchstart', () => {
-        const videos = window.parent.document.querySelectorAll('video');
-        videos.forEach(v => { v.play().catch(() => {}); });
+        videos.forEach(v => { 
+            v.muted = false;
+            v.play(); 
+        });
         manageAudio();
     }, { once: true });
 
@@ -160,7 +165,7 @@ if st.session_state.view == 'mall':
         tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
         for t in tiendas:
             st.image(t.get("portada_url", ""), use_container_width=True)
-            if st.button(f"ENTRAR A {t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
+            if st.button(f"ENTRAR A {t['nombre_comercio'].upper()}", key=f"t_{t['id']}"):
                 st.session_state.tienda_actual = t
                 ir_a('tienda')
 
@@ -169,7 +174,7 @@ elif st.session_state.view == 'tienda':
     if supabase and t:
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
         
-        # Botón único de Atrás (Arriba a la izquierda)
+        # Botón Atrás Maestro
         if st.button("⬅ ATRÁS", key="back_master"):
             ir_a('mall')
 
@@ -187,4 +192,4 @@ elif st.session_state.view == 'tienda':
             """, unsafe_allow_html=True)
             
             if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}"):
-                st.toast(f"Procesando pedido para {p['nombre_producto']}...")
+                st.toast(f"Pedido iniciado: {p['nombre_producto']}")
