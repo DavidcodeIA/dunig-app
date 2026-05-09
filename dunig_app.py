@@ -145,26 +145,40 @@ if es_via_register:
             r_foto = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
             r_ref = st.text_input("Referencia de Pago")
 
-            if st.form_submit_button("SOLICITAR REGISTRO"):
-                if r_nombre and r_email and r_whatsapp and r_foto and r_ref:
-                    try:
-                        path = f"portadas/{int(time.time())}_{r_foto.name}"
-                        supabase.storage.from_("fotos_productos").upload(path, r_foto.getvalue())
-                        url_p = supabase.storage.from_("fotos_productos").get_public_url(path)
-                        
-                        supabase.table("perfiles_comercio").insert({
-                            "nombre_comercio": r_nombre, "email_propietario": r_email, 
-                            "whatsapp": r_whatsapp, "portada_url": url_p, 
-                            "plan": r_plan, "referencia_pago": r_ref,
-                            "codigo_acceso": f"LUX{random.randint(10,99)}", "activo": False 
-                        }).execute()
-                        st.session_state.registered = True
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error técnico: {e}")
-                else:
-                    st.error("Todos los campos son obligatorios.")
+# --- BUSCA ESTA PARTE EN TU VISTA DE REGISTRO ---
+if st.form_submit_button("SOLICITAR REGISTRO"):
+    if r_nombre and r_email and r_whatsapp and r_foto and r_ref:
+        try:
+            # 1. Primero intentamos subir la foto
+            path = f"portadas/{int(time.time())}_{r_foto.name}"
+            supabase.storage.from_("fotos_productos").upload(path, r_foto.getvalue())
+            url_p = supabase.storage.from_("fotos_productos").get_public_url(path)
+            
+            # 2. Intentamos insertar el perfil
+            supabase.table("perfiles_comercio").insert({
+                "nombre_comercio": r_nombre, 
+                "email_propietario": r_email, 
+                "whatsapp": r_whatsapp, 
+                "portada_url": url_p, 
+                "plan": r_plan, 
+                "referencia_pago": r_ref,
+                "codigo_acceso": f"LUX{random.randint(10,99)}", 
+                "activo": False 
+            }).execute()
 
+            st.session_state.registered = True
+            st.rerun()
+
+        except Exception as e:
+            # --- AQUÍ ESTÁ LA MAGIA ---
+            # Convertimos el error a cadena para buscar el código de duplicado
+            error_str = str(e)
+            if "23505" in error_str or "already exists" in error_str:
+                st.warning(f"⚠️ El correo **{r_email}** ya se encuentra registrado en nuestra base de datos. Si es tuyo, intenta ingresar desde el Panel de Control.")
+            else:
+                st.error("❌ Ocurrió un error inesperado. Por favor, intenta de nuevo o contacta a soporte.")
+    else:
+        st.error("Todos los campos son obligatorios.")
 # --- VISTA: MALL / TIENDA ---
 elif not es_admin_master:
     if st.session_state.view == 'mall':
