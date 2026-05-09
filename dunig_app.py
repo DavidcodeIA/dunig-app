@@ -6,7 +6,7 @@ import random
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
-st.set_page_config(page_title="D'UNIG LUXURY", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
 
 @st.cache_resource
 def init_connection():
@@ -16,7 +16,12 @@ def init_connection():
 
 supabase = init_connection()
 
-PLANES = {"GRATUITO": 3, "BRONCE": 10, "PLATA": 25, "ORO": 9999}
+PLANES = {
+    "GRATUITO": 3,
+    "BRONCE": 10,
+    "PLATA": 25,
+    "ORO": 9999
+}
 
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -27,51 +32,203 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY Y LOGOS CUADRADOS (CSS)
+# 2. ESTÉTICA LUXURY (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    .block-container { padding: 0 !important; max-width: 100% !important; }
-    .stApp { background-color: #000; color: white; }
-    header, footer { visibility: hidden; }
-
-    /* LOGOS EN EL MALL: Pantalla cuadrada completa */
-    .img-cuadrada {
-        width: 100%;
-        aspect-ratio: 1 / 1;
-        object-fit: cover;
-        border: 2px solid #D4AF37;
-        margin-bottom: 10px;
-        display: block;
+    .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
+    .stButton>button {
+        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
+        background-size: 200% 100% !important;
+        color: #000 !important; border-radius: 30px !important;
+        font-weight: 800 !important; text-transform: uppercase;
     }
-
-    /* TIENDA: Video Full Screen */
-    .video-canvas { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
-    .stVideo { position: absolute; top: 0; left: 0; width: 100vw !important; height: 100vh !important; }
-    .stVideo video { object-fit: cover !important; width: 100vw !important; height: 100vh !important; }
-
-    /* UI SOBRE EL VIDEO */
-    .ui-overlay {
-        position: absolute; bottom: 50px; left: 20px; z-index: 999;
-        display: flex; flex-direction: column; gap: 15px; pointer-events: none;
+    .img-redonda {
+        width: 140px; height: 140px; border-radius: 50%;
+        object-fit: cover; border: 3px solid #D4AF37;
+        margin: 0 auto 10px auto; display: block;
+        box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.4);
     }
-    .ui-overlay button, .ui-overlay .price-bubble-float { pointer-events: auto !important; }
-
-    .stButton > button {
-        background: transparent !important; border: none !important; padding: 0 !important;
-        font-size: 60px !important; color: white !important; text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+    .price-bubble {
+        position: absolute; top: 10px; right: 10px;
+        background: rgba(0, 0, 0, 0.9); color: #39FF14; 
+        padding: 5px 15px; border-radius: 50px;
+        font-weight: 900; border: 2px solid #39FF14; z-index: 10;
     }
-
-    .price-bubble-float {
-        background: #FFD700; color: black; padding: 5px 20px; border-radius: 50px;
-        font-weight: 900; font-size: 2.2rem; display: inline-block; border: 2px solid #000;
-    }
-
-    .luxury-text {
-        color: #1E4D92; font-weight: 900; text-transform: uppercase;
-        -webkit-text-stroke: 1.5px white; margin: 0; line-height: 1;
-    }
-    .brand-title { font-size: 2.5rem; }
-    .product-title { font-size: 3rem; margin-top: -5px; }
     </style>
-    """, unsafe_allow_html
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# 3. DIÁLOGO DEL CARRITO
+# ==========================================
+@st.dialog("💎 CARRITO D'UNIG LUXURY")
+def ventana_pago(producto, tienda):
+    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    cantidad = st.number_input("Cantidad", min_value=1, value=1)
+    total = float(producto['precio']) * cantidad
+    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
+    st.divider()
+    st.info(f"💳 **DATOS DE PAGO:**\n{tienda.get('datos_pago', 'Consultar al vendedor')}")
+    ref = st.text_input("Ingrese Ref. de Pago")
+    if st.button("🚀 CONFIRMAR PEDIDO"):
+        if ref:
+            msj = f"✨ *PEDIDO LUXURY*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cant:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
+            tel = str(tienda['whatsapp']).replace("+", "").replace(" ", "").strip()
+            st.link_button("ENVIAR POR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+        else: st.error("Por favor, ingrese la referencia de pago")
+
+# ==========================================
+# 4. LÓGICA DE VISTAS
+# ==========================================
+es_admin = st.query_params.get("admin") == "true"
+es_registro = st.query_params.get("reg") == "true"
+
+if es_registro:
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE NUEVO SOCIO</h1>", unsafe_allow_html=True)
+    
+    with st.expander("💳 VER CUENTAS BANCARIAS PARA ACTIVACIÓN", expanded=True):
+        st.markdown("""
+        **Paga tu plan y pega la referencia abajo para activar tu tienda:**
+        * **Pago Móvil:** Banco (0102) - Telf: 0412-1234567 - CI: 12.345.678
+        * **Zelle:** pagos@tuemail.com
+        * **Binance ID:** 987654321
+        """)
+        st.caption("Copia el número de referencia antes de llenar el formulario.")
+
+    with st.form("form_reg_externo", clear_on_submit=True):
+        rn = st.text_input("Nombre de la Tienda")
+        rm = st.text_input("Email del Propietario")
+        rt = st.text_input("WhatsApp (Ej: 58412...)")
+        
+        # --- PLANES CON BENEFICIOS ---
+        opciones_plan = {
+            "GRATUITO": "🎁 GRATUITO - 3 Productos ($0)",
+            "BRONCE": "🥉 BRONCE - 10 Productos ($5)",
+            "PLATA": "🥈 PLATA - 25 Productos ($15)",
+            "ORO": "🥇 ORO - Productos Ilimitados ($30)"
+        }
+        plan_label = st.selectbox("Selecciona tu Plan y Beneficios", options=list(opciones_plan.values()))
+        # Extraemos la clave (ej: "ORO") del texto seleccionado
+        plan_sel = [k for k, v in opciones_plan.items() if v == plan_label][0]
+        
+        ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
+        ref_socio = st.text_input("Referencia de Pago")
+
+        if st.form_submit_button("REGISTRAR COMERCIO"):
+            if rn and rm and rt and ri and ref_socio:
+                path_i = f"portadas/reg_{random.randint(1000,9999)}.jpg"
+                supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue(), {"x-upsert": "true"})
+                url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
+                
+                supabase.table("perfiles_comercio").insert({
+                    "nombre_comercio": rn, 
+                    "email_propietario": rm.lower(), 
+                    "whatsapp": rt, 
+                    "portada_url": url_i, 
+                    "plan": plan_sel,
+                    "codigo_acceso": "LUXURY7"
+                }).execute()
+                
+                # --- NOTIFICACIÓN AL ADMIN ---
+                tu_telf = "584241234567" # REEMPLAZA CON TU NÚMERO
+                msj_pago = f"🚀 *NUEVO SOCIO LUXURY*\n\n🏪 Tienda: {rn}\n💎 Plan: {plan_sel}\n🎫 Ref: {ref_socio}"
+                
+                st.success("¡Registro Exitoso! Notifica tu pago ahora.")
+                st.link_button("📲 ENVIAR COMPROBANTE AL ADMIN", f"https://wa.me/{tu_telf}?text={urllib.parse.quote(msj_pago)}")
+            else: 
+                st.error("Por favor completa todos los campos e ingresa la referencia de pago.")
+
+elif not es_admin:
+    # --- MALL Y TIENDA ---
+    if st.session_state.view == 'mall':
+        st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
+        res = supabase.table("perfiles_comercio").select("*").execute()
+        tiendas = res.data
+        for i in range(0, len(tiendas), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if i + j < len(tiendas):
+                    t = tiendas[i + j]
+                    with cols[j]:
+                        url = t.get('portada_url') or "https://via.placeholder.com/150"
+                        st.markdown(f'<img src="{url}" class="img-redonda">', unsafe_allow_html=True)
+                        st.markdown(f"<p style='text-align:center; color:#D4AF37; font-weight:bold;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
+                        if st.button("VISITAR", key=f"m_{t['id']}", use_container_width=True):
+                            st.session_state.tienda_actual = t
+                            ir_a('tienda')
+
+    elif st.session_state.view == 'tienda':
+        t = st.session_state.tienda_actual
+        if st.button("⬅️ MALL"): ir_a('mall')
+        st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
+        
+        prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
+        for p in prods.data:
+            with st.container():
+                st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
+                
+                # --- EFECTO TIKTOK (AUTOPLAY + LOOP + MUTED) ---
+                st.video(p['video_url'], autoplay=True, loop=True, muted=True)
+                
+                st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
+                if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
+                    ventana_pago(p, t)
+                st.divider()
+
+else:
+    # --- PANEL ADMIN ---
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
+    if not st.session_state.logged_in:
+        with st.container(border=True):
+            m = st.text_input("Email").strip().lower()
+            c = st.text_input("Código", type="password").strip().upper()
+            if st.button("🔓 ENTRAR"):
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m).execute()
+                if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c:
+                    st.session_state.logged_in = True; st.session_state.user_email = m; st.rerun()
+                else: st.error("Acceso denegado")
+    else:
+        res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
+        if res.data:
+            perf = res.data[0]
+            t1, t2, t3 = st.tabs(["➕ AGREGAR", "📦 GESTIÓN", "💳 COBROS"])
+            
+            with t1:
+                c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
+                actual = c_res.count if c_res.count is not None else 0
+                limite = PLANES.get(perf.get('plan', 'GRATUITO'), 3)
+                st.write(f"Plan: **{perf.get('plan', 'GRATUITO')}** ({actual}/{limite} productos)")
+                
+                if actual < limite:
+                    with st.form("form_add", clear_on_submit=True):
+                        nom_p = st.text_input("Nombre del Producto")
+                        pre_p = st.number_input("Precio ($)", min_value=0.0)
+                        vid_p = st.file_uploader("Video MP4", type=['mp4'])
+                        if st.form_submit_button("PUBLICAR PRODUCTO"):
+                            if nom_p and vid_p:
+                                path = f"v/{random.randint(1000,9999)}.mp4"
+                                supabase.storage.from_("fotos_productos").upload(path, vid_p.getvalue())
+                                url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
+                                supabase.table("productos").insert({"nombre_producto":nom_p, "precio":pre_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
+                                st.success("¡Publicado!"); st.rerun()
+                else: st.warning("Límite de plan alcanzado.")
+
+            with t2:
+                st.subheader("Configuración de Tienda")
+                if perf.get('portada_url'): st.image(perf['portada_url'], width=120)
+                nueva_f = st.file_uploader("Actualizar logo", type=['jpg', 'png'])
+                if st.button("✏️ GUARDAR FOTO"):
+                    if nueva_f:
+                        path_i = f"portadas/p_{perf['id']}.jpg"
+                        supabase.storage.from_("fotos_productos").upload(path_i, nueva_f.getvalue(), {"x-upsert": "true"})
+                        url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
+                        supabase.table("perfiles_comercio").update({"portada_url": url_i}).eq("id", perf['id']).execute()
+                        st.success("Foto actualizada"); st.rerun()
+
+            with t3:
+                d_p = st.text_area("Datos de Pago", value=perf.get('datos_pago','') or "")
+                if st.button("GUARDAR COBROS"):
+                    supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
+                    st.success("Guardado")
+
+            if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
