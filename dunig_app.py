@@ -31,20 +31,24 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA "SNAP SCROLL" LUXURY (CSS)
+# 2. ESTÉTICA "FULL SCREEN" SIN MÁRGENES (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    /* Reset de espacios y scroll magnético */
+    /* ELIMINAR ESPACIO SUPERIOR Y MÁRGENES DE STREAMLIT */
     .main { background-color: #000000 !important; }
-    header {visibility: hidden;} 
+    header { visibility: hidden; height: 0px; } 
+    footer { visibility: hidden; }
     
+    /* Forzar que el contenedor no tenga padding arriba */
     [data-testid="stAppViewBlockContainer"] {
-        padding: 0rem !important;
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
         max-width: 100% !important;
     }
 
-    /* Contenedor Maestro con imán vertical */
     [data-testid="stVerticalBlock"] {
         scroll-snap-type: y mandatory;
         overflow-y: scroll;
@@ -52,7 +56,7 @@ st.markdown("""
         gap: 0rem !important;
     }
 
-    /* Cada bloque de video es una página completa */
+    /* Secciones de video */
     .snap-section {
         scroll-snap-align: start;
         scroll-snap-stop: always;
@@ -61,6 +65,7 @@ st.markdown("""
         height: 100vh;
         overflow: hidden;
         background: #000;
+        margin-top: 0px !important;
     }
 
     .tiktok-video {
@@ -69,10 +74,10 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Interfaz Flotante sobre el video */
+    /* Interfaz Flotante */
     .floating-ui {
         position: absolute;
-        bottom: 80px;
+        bottom: 100px;
         left: 20px;
         z-index: 100;
         pointer-events: none;
@@ -94,50 +99,46 @@ st.markdown("""
         font-size: 1.6rem;
         border: 2px solid #39FF14;
         display: inline-block;
-        box-shadow: 0 0 15px rgba(57, 255, 20, 0.4);
         margin-top: 10px;
     }
 
-    /* Estilo del Botón ATRÁS (Burbuja Naranja Flotante) */
+    /* Botón ATRÁS corregido y visible */
     div.stButton > button[key^="back_"] {
         position: fixed;
-        top: 20px;
-        left: 20px;
-        z-index: 1000;
+        top: 15px !important; /* Pegado arriba */
+        left: 15px !important;
+        z-index: 9999 !important;
         background: rgba(0, 0, 0, 0.6) !important;
         color: #FF5F1F !important; 
         border: 2px solid #FF5F1F !important;
         border-radius: 50px !important;
         font-weight: 900 !important;
-        height: 45px !important;
-        padding: 0px 20px !important;
-        box-shadow: 0 0 10px rgba(255, 95, 31, 0.5);
+        height: 40px !important;
+        padding: 0px 15px !important;
     }
 
-    /* Estilo del Botón de COMPRA (Dorado Flotante en la Base) */
+    /* Botón COMPRAR corregido y visible */
     div.stButton > button[key^="buy_"] {
         position: fixed;
-        bottom: 0px;
-        left: 0px;
-        z-index: 500;
+        bottom: 0px !important;
+        left: 0px !important;
+        z-index: 9998 !important;
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; 
         border-radius: 0px !important; 
         font-weight: 900 !important;
-        height: 70px !important;
+        height: 65px !important;
         border: none !important;
-        font-size: 1.4rem !important;
         width: 100% !important;
     }
 
-    /* Esconder scrollbars */
     ::-webkit-scrollbar { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. CARRITO DE COMPRAS (LÓGICA ANTERIOR)
+# 3. LÓGICA DE PAGO
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
@@ -160,8 +161,6 @@ def ventana_pago(producto, tienda):
 # ==========================================
 # 4. VISTAS
 # ==========================================
-
-# VISTA MALL (PORTADAS)
 if st.session_state.view == 'mall':
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     for i in range(0, len(tiendas), 2):
@@ -175,20 +174,19 @@ if st.session_state.view == 'mall':
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
-# VISTA TIENDA (INFINITE SCROLL 9:16)
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
-    # Botón Atrás Fijo (Arriba a la izquierda)
-    if st.button("⬅ ATRÁS", key="back_button_fixed"):
+    # Botón Atrás Fijo
+    if st.button("⬅ ATRÁS", key="back_fixed"):
         ir_a('mall')
 
     for idx, p in enumerate(prods):
-        # Cada video es una sección 'snap'
+        # Eliminado el "muted" para que intente sonar solo
         st.markdown(f"""
             <div class="snap-section">
-                <video class="tiktok-video" autoplay loop muted playsinline>
+                <video class="tiktok-video" autoplay loop playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
                 <div class="floating-ui">
@@ -198,6 +196,5 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón de Compra Fijo por video
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}"):
             ventana_pago(p, t)
