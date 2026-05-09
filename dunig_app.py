@@ -31,7 +31,7 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA DE PANTALLA COMPLETA (CSS)
+# 2. ESTÉTICA DE PANTALLA COMPLETA (CSS + JS)
 # ==========================================
 st.markdown("""
     <style>
@@ -53,13 +53,13 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* BURBUJA DE AUDIO */
+    /* BURBUJA DE AUDIO INDIVIDUAL */
     .audio-bubble {
         position: absolute;
         top: 20px;
         right: 20px;
         z-index: 100;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         color: white;
         width: 45px;
         height: 45px;
@@ -68,9 +68,11 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        border: 1px solid rgba(255,255,255,0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
         font-size: 20px;
+        transition: transform 0.2s;
     }
+    .audio-bubble:active { transform: scale(0.9); }
 
     .info-overlay {
         position: absolute;
@@ -106,32 +108,26 @@ st.markdown("""
         border: none !important;
         width: 100% !important;
     }
-
-    .back-btn-container {
-        margin-top: 15px;
-        pointer-events: auto !important; 
-    }
     </style>
 
     <script>
-    function controlAudio(id) {
-        const allVideos = document.querySelectorAll('video');
-        const targetVideo = document.getElementById(id);
-        const bubble = document.getElementById('btn-' + id);
-        
-        // Si el video actual ya tiene audio, lo silenciamos
-        if (!targetVideo.muted) {
-            targetVideo.muted = true;
-            bubble.innerText = '🔇';
-        } else {
-            // Silenciamos TODOS los demás antes de activar este
-            allVideos.forEach(v => {
+    function toggleMute(videoId) {
+        const targetVid = document.getElementById(videoId);
+        const allVids = document.querySelectorAll('video');
+        const bubble = document.getElementById('btn-' + videoId);
+
+        if (targetVid.muted) {
+            // Silenciar todos los demás antes de activar este
+            allVids.forEach(v => {
                 v.muted = true;
                 const otherBtn = document.getElementById('btn-' + v.id);
                 if(otherBtn) otherBtn.innerText = '🔇';
             });
-            targetVideo.muted = false;
+            targetVid.muted = false;
             bubble.innerText = '🔊';
+        } else {
+            targetVid.muted = true;
+            bubble.innerText = '🔇';
         }
     }
     </script>
@@ -179,15 +175,17 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        v_id = f"vid_{idx}"
-        # Contenedor del Video con Burbuja de Audio
+        v_id = f"video_player_{idx}" # ID único para controlar el audio
+        
+        # Contenedor del Video con Burbuja Individual
         st.markdown(f"""
             <div class="tiktok-full-container">
                 <video id="{v_id}" class="tiktok-video-full" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
                 
-                <div id="btn-{v_id}" class="audio-bubble" onclick="controlAudio('{v_id}')">
+                <!-- Burbuja de sonido individual -->
+                <div id="btn-{v_id}" class="audio-bubble" onclick="toggleMute('{v_id}')">
                     🔇
                 </div>
 
