@@ -31,7 +31,7 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA Y SCRIPTS (CSS + JS)
+# 2. ESTÉTICA Y LÓGICA DE PLAY (CSS + JS)
 # ==========================================
 st.markdown("""
     <style>
@@ -45,31 +45,38 @@ st.markdown("""
         height: 88vh;
         background: #000;
         overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .tiktok-video-full {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        cursor: pointer;
     }
 
-    /* BURBUJA DE AUDIO FLOTANTE */
-    .audio-control {
+    /* BOTÓN DE PLAY CENTRAL */
+    .play-overlay {
         position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.5);
-        color: white;
-        width: 45px;
-        height: 45px;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.4);
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
+        border: 2px solid white;
         cursor: pointer;
-        border: 1px solid rgba(255,255,255,0.3);
-        font-size: 20px;
+        transition: opacity 0.3s ease;
+    }
+
+    .play-icon {
+        color: white;
+        font-size: 40px;
+        margin-left: 5px; /* Ajuste para centrar visualmente el triángulo */
     }
 
     .info-overlay {
@@ -109,31 +116,26 @@ st.markdown("""
     </style>
 
     <script>
-    function toggleAudio(id) {
-        const video = document.getElementById(id);
-        const allVideos = document.querySelectorAll('video');
-        const btn = document.getElementById('btn-' + id);
+    function playVideo(id) {
+        const vid = document.getElementById(id);
+        const overlay = document.getElementById('overlay-' + id);
         
-        if (video.muted) {
-            // Silenciar todos los demás primero
-            allVideos.forEach(v => {
-                v.muted = true;
-                const otherBtn = document.getElementById('btn-' + v.id);
-                if (otherBtn) otherBtn.innerText = '🔇';
-            });
-            // Activar este
-            video.muted = false;
-            btn.innerText = '🔊';
+        if (vid.paused) {
+            vid.play();
+            vid.muted = false; // Activa sonido al dar play
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
         } else {
-            video.muted = true;
-            btn.innerText = '🔇';
+            vid.pause();
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
         }
     }
     </script>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS (CARRITO)
+# 3. DIÁLOGOS
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
@@ -174,19 +176,19 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        video_id = f"video_{idx}"
+        v_id = f"vid_{idx}"
         
-        # Contenedor del Video con Burbuja de Audio
+        # Contenedor con Botón de Play Central
         st.markdown(f"""
             <div class="tiktok-full-container">
-                <video id="{video_id}" class="tiktok-video-full" autoplay loop muted playsinline>
+                <!-- Botón Overlay -->
+                <div id="overlay-{v_id}" class="play-overlay" onclick="playVideo('{v_id}')">
+                    <span class="play-icon">▶</span>
+                </div>
+                
+                <video id="{v_id}" class="tiktok-video-full" loop playsinline onclick="playVideo('{v_id}')">
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-                
-                <!-- Botón de Sonido -->
-                <div id="btn-{video_id}" class="audio-control" onclick="toggleAudio('{video_id}')">
-                    🔇
-                </div>
 
                 <div class="info-overlay">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
