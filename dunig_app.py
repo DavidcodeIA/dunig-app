@@ -156,4 +156,4 @@ else:
             if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == l_pass:
                 st.session_state.logged_in, st.session_state.user_email = True, l_email
                 st.rerun()
-            else: st.error("Acceso denegado.")
+            else: st.error("Acceso denegado.") 
