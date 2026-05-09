@@ -31,59 +31,34 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA Y LÓGICA DE PLAY (CSS + JS)
+# 2. ESTÉTICA ULTRA-INMERSIVA (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo y reseteo de márgenes */
+    /* Fondo negro y eliminación de márgenes nativos de Streamlit */
     .main { background-color: #000000 !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; }
-    header {visibility: hidden;} 
     
+    /* Contenedor TikTok Pantalla Completa (Sin bordes ovalados) */
     .tiktok-full-container {
         position: relative;
-        width: 100vw;
-        height: 88vh;
+        width: 100vw; /* Ancho total de la ventana */
+        height: 90vh; /* Altura inmersiva */
         background: #000;
+        margin-bottom: 5px;
         overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
     .tiktok-video-full {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        cursor: pointer;
-    }
-
-    /* BOTÓN DE PLAY CENTRAL */
-    .play-overlay {
-        position: absolute;
-        z-index: 20;
-        background: rgba(0, 0, 0, 0.5);
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid white;
-        cursor: pointer;
-        transition: opacity 0.3s ease;
-    }
-
-    .play-icon {
-        color: white;
-        font-size: 40px;
-        margin-left: 5px;
     }
 
     /* Info Superpuesta */
     .info-overlay {
         position: absolute;
-        bottom: 30px;
+        bottom: 40px;
         left: 20px;
         z-index: 10;
         color: white;
@@ -91,69 +66,48 @@ st.markdown("""
         pointer-events: none;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 5px; }
-    .product-title { font-size: 1rem; opacity: 0.9; margin-bottom: 10px; }
+    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 2px; }
+    .product-title { font-size: 1.1rem; opacity: 0.9; margin-bottom: 12px; }
     
     .price-tag {
         background: rgba(0, 0, 0, 0.7);
         color: #39FF14;
-        padding: 5px 15px;
+        padding: 6px 18px;
         border-radius: 50px;
         font-weight: 900;
-        font-size: 1.3rem;
+        font-size: 1.4rem;
         border: 2px solid #39FF14;
         display: inline-block;
     }
 
-    /* Botones de Streamlit */
+    /* Botón ATRÁS Estático (Fixed) */
+    .st-emotion-cache-12fmueu { display: none; } /* Ocultar cabecera default */
+    
+    .fixed-back {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+    }
+
+    /* Estilo del Botón de Compra */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; 
-        border-radius: 0px !important;
+        border-radius: 0px !important; /* Cuadrado para match con video */
         font-weight: 800 !important;
-        height: 55px !important;
+        height: 60px !important;
         border: none !important;
         width: 100% !important;
     }
     </style>
-
-    <script>
-    function playVideo(id) {
-        const vid = document.getElementById(id);
-        const overlay = document.getElementById('overlay-' + id);
-        
-        if (vid.paused) {
-            // Pausar cualquier otro video que esté sonando
-            const allVideos = document.querySelectorAll('video');
-            allVideos.forEach(v => {
-                if (v.id !== id) {
-                    v.pause();
-                    const otherOverlay = document.getElementById('overlay-' + v.id);
-                    if(otherOverlay) {
-                        otherOverlay.style.opacity = '1';
-                        otherOverlay.style.pointerEvents = 'auto';
-                    }
-                }
-            });
-
-            vid.play();
-            vid.muted = false; 
-            overlay.style.opacity = '0';
-            overlay.style.pointerEvents = 'none';
-        } else {
-            vid.pause();
-            overlay.style.opacity = '1';
-            overlay.style.pointerEvents = 'auto';
-        }
-    }
-    </script>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS (CARRITO)
+# 3. DIÁLOGOS
 # ==========================================
-@st.dialog("💎 PROCESAR PEDIDO")
+@st.dialog("💎 DETALLES DEL PEDIDO")
 def ventana_pago(producto, tienda):
     st.markdown(f"### ✨ {producto['nombre_producto']}")
     cantidad = st.number_input("Cantidad", min_value=1, value=1)
@@ -162,7 +116,7 @@ def ventana_pago(producto, tienda):
     st.divider()
     st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar')}")
     ref = st.text_input("Referencia de Pago")
-    if st.button("🚀 CONFIRMAR PEDIDO"):
+    if st.button("🚀 CONFIRMAR"):
         if ref:
             msj = f"💎 *PEDIDO*\n📦 {producto['nombre_producto']}\n🔢 Cant: {cantidad}\n💰 Total: ${total}\n🎫 Ref: {ref}"
             tel = str(tienda['whatsapp']).replace("+", "").strip()
@@ -174,7 +128,7 @@ def ventana_pago(producto, tienda):
 
 # --- VISTA: MALL ---
 if st.session_state.view == 'mall':
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37; padding-top:20px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
     for i in range(0, len(tiendas), 2):
@@ -184,29 +138,29 @@ if st.session_state.view == 'mall':
                 t = tiendas[i + j]
                 with cols[j]:
                     st.image(t.get("portada_url", ""), use_container_width=True)
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
+                    if st.button(f"{t['nombre_comercio']}", key=f"t_{t['id']}", use_container_width=True):
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
-# --- VISTA: TIENDA ---
+# --- VISTA: TIENDA (FULL SCREEN TIKTOK) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
+    
+    # Botón Atrás Estático
+    st.markdown('<div class="fixed-back">', unsafe_allow_html=True)
+    if st.button("⬅️", key="static_back"):
+        ir_a('mall')
+    st.markdown('</div>', unsafe_allow_html=True)
+
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
-    for idx, p in enumerate(prods):
-        v_id = f"vid_{idx}"
-        
-        # Renderizado del Video con botón de Play Central
+    for p in prods:
+        # Contenedor de Video Sin Esquinas y Ancho Total
         st.markdown(f"""
             <div class="tiktok-full-container">
-                <div id="overlay-{v_id}" class="play-overlay" onclick="playVideo('{v_id}')">
-                    <span class="play-icon">▶</span>
-                </div>
-                
-                <video id="{v_id}" class="tiktok-video-full" loop playsinline onclick="playVideo('{v_id}')">
+                <video class="tiktok-video-full" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-
                 <div class="info-overlay">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
                     <div class="product-title">{p['nombre_producto']}</div>
@@ -215,13 +169,8 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botones de Acción (Fuera del contenedor de video para que funcionen los clics de Streamlit)
-        col_buy, col_back = st.columns([4, 1])
-        with col_buy:
-            if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-                ventana_pago(p, t)
-        with col_back:
-            if st.button("⬅️", key=f"back_{idx}", use_container_width=True):
-                ir_a('mall')
+        # Botón de compra pegado al video
+        if st.button(f"🛒 COMPRAR {p['nombre_producto'].upper()}", key=f"buy_{p['id']}", use_container_width=True):
+            ventana_pago(p, t)
         
-        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
