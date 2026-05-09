@@ -23,28 +23,26 @@ def init_connection():
 
 supabase = init_connection()
 
-if 'view' not in st.session_state: 
-    st.session_state.view = 'mall'
-if 'tienda_actual' not in st.session_state: 
-    st.session_state.tienda_actual = None
+if 'view' not in st.session_state: st.session_state.view = 'mall'
+if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY Y BOTÓN DE SONIDO (CSS)
+# 2. ESTÉTICA DE PANTALLA COMPLETA (CSS)
 # ==========================================
 st.markdown("""
     <style>
     .main { background-color: #000000 !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; }
-    header { visibility: hidden; }
+    header {visibility: hidden;} 
     
     .tiktok-full-container {
         position: relative;
         width: 100vw;
-        height: 85vh;
+        height: 88vh;
         background: #000;
         overflow: hidden;
     }
@@ -55,19 +53,19 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* BOTÓN DE VOLUMEN FLOTANTE DENTRO DEL VIDEO */
-    .vol-btn {
+    /* BOTÓN DE VOLUMEN (FLOTANTE DENTRO DEL VIDEO) */
+    .volume-btn {
         position: absolute;
         top: 20px;
         right: 20px;
         z-index: 100;
         background: rgba(0, 0, 0, 0.5);
-        color: white;
         border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
         padding: 10px;
         border-radius: 50%;
         cursor: pointer;
-        font-size: 20px;
+        font-size: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -84,6 +82,8 @@ st.markdown("""
     }
 
     .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 5px; }
+    .product-title { font-size: 1rem; opacity: 0.9; margin-bottom: 10px; }
+    
     .price-tag {
         background: rgba(0, 0, 0, 0.7);
         color: #39FF14;
@@ -105,61 +105,72 @@ st.markdown("""
         border: none !important;
         width: 100% !important;
     }
-    </style>
 
-    <script>
-    function toggleMute(id) {
-        var video = document.getElementById(id);
-        if (video.muted) {
-            video.muted = false;
-        } else {
-            video.muted = true;
-        }
+    .back-btn-container {
+        margin-top: 15px;
+        pointer-events: auto !important; 
     }
-    </script>
+    </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. LÓGICA DE VISTAS
+# 3. DIÁLOGOS (CARRITO)
+# ==========================================
+@st.dialog("💎 PROCESAR PEDIDO")
+def ventana_pago(producto, tienda):
+    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    cantidad = st.number_input("Cantidad", min_value=1, value=1)
+    total = float(producto['precio']) * cantidad
+    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
+    st.divider()
+    st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar')}")
+    ref = st.text_input("Referencia de Pago")
+    if st.button("🚀 CONFIRMAR PEDIDO"):
+        if ref:
+            msj = f"💎 *PEDIDO*\n📦 {producto['nombre_producto']}\n🔢 Cant: {cantidad}\n💰 Total: ${total}\n🎫 Ref: {ref}"
+            tel = str(tienda['whatsapp']).replace("+", "").strip()
+            st.link_button("ENVIAR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+
+# ==========================================
+# 4. LÓGICA DE VISTAS
 # ==========================================
 
 if st.session_state.view == 'mall':
     st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-    if tiendas:
-        for i in range(0, len(tiendas), 2):
-            cols = st.columns(2)
-            for j in range(2):
-                if i + j < len(tiendas):
-                    t = tiendas[i + j]
-                    with cols[j]:
-                        st.image(t.get("portada_url", ""), use_container_width=True)
-                        if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
-                            st.session_state.tienda_actual = t
-                            ir_a('tienda')
+    
+    for i in range(0, len(tiendas), 2):
+        cols = st.columns(2)
+        for j in range(2):
+            if i + j < len(tiendas):
+                t = tiendas[i + j]
+                with cols[j]:
+                    st.image(t.get("portada_url", ""), use_container_width=True)
+                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
+                        st.session_state.tienda_actual = t
+                        ir_a('tienda')
 
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        video_id = f"video_{idx}"
-        
-        # HTML del Video con Botón de Volumen interactivo
+        v_id = f"video_{idx}"
+        # Contenedor del Video con Botón de Volumen
         st.markdown(f"""
             <div class="tiktok-full-container">
-                <video id="{video_id}" class="tiktok-video-full" autoplay loop muted playsinline>
+                <video id="{v_id}" class="tiktok-video-full" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
                 
-                <!-- Botón de Volumen (Activa el audio al hacer clic) -->
-                <button class="vol-btn" onclick="document.getElementById('{video_id}').muted = !document.getElementById('{video_id}').muted">
-                    🔊
-                </button>
+                <!-- Botón de Volumen -->
+                <div class="volume-btn" onclick="const v = document.getElementById('{v_id}'); v.muted = !v.muted; this.innerText = v.muted ? '🔇' : '🔊';">
+                    🔇
+                </div>
 
                 <div class="info-overlay">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="product-title" style="font-size: 1rem; opacity: 0.9; margin-bottom: 10px;">{p['nombre_producto']}</div>
+                    <div class="product-title">{p['nombre_producto']}</div>
                     <div class="price-tag">${p['precio']}</div>
                 </div>
             </div>
@@ -167,11 +178,10 @@ elif st.session_state.view == 'tienda':
         
         col_buy, col_back = st.columns([4, 1])
         with col_buy:
-            if st.button(f"🛒 ADQUIRIR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-                # Lógica del diálogo de pago aquí
-                st.toast(f"Procesando: {p['nombre_producto']}")
+            if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+                ventana_pago(p, t)
         with col_back:
             if st.button("⬅️", key=f"back_{idx}", use_container_width=True):
                 ir_a('mall')
         
-        st.markdown("<div style='height:25px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
