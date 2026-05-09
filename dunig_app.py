@@ -10,7 +10,7 @@ from datetime import datetime, date
 # ==========================================
 st.set_page_config(
     page_title="D'UNIG LUXURY", 
-    layout="wide", # Cambiado a wide para que el Mall ocupe toda la pantalla
+    layout="centered", 
     initial_sidebar_state="collapsed"
 )
 
@@ -26,7 +26,7 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- LÓGICA DE NEGOCIO INTEGRADA (TU LÓGICA ORIGINAL) ---
+# --- TU LÓGICA DE NEGOCIO (EXPIRACIÓN) ---
 def verificar_expiracion(perfil):
     if perfil.get('plan') == "GRATUITO":
         try:
@@ -58,51 +58,40 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS MEJORADO)
+# 2. ESTÉTICA LUXURY (SIN 50-50, BOTONES CON TÍTULO)
 # ==========================================
 st.markdown("""
     <style>
-    /* ELIMINAR ESPACIO SUPERIOR Y MARGENES LATERALES */
+    /* ELIMINAR ESPACIO SUPERIOR */
     [data-testid="stAppViewBlockContainer"] {
-        padding-top: 0rem !important;
-        margin-top: -100px !important; 
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
-        max-width: 100vw !important;
+        padding-top: 1rem !important;
+        margin-top: -30px !important; 
     }
     
-    .main { background: #000; color: #ffffff; }
+    .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
     header, footer { visibility: hidden; }
 
-    /* DISEÑO MALL DIVIDIDO */
-    .split-container {
-        height: 50vh;
-        width: 100vw;
-        position: relative;
-        overflow: hidden;
-        border-bottom: 2px solid #D4AF37;
-    }
-    .split-container img { width: 100%; height: 100%; object-fit: cover; }
-    
-    /* BOTÓN INVISIBLE SOBRE LA TIENDA */
-    div.stButton > button[key^="btn_"] {
-        position: absolute; top: 0; height: 50vh !important; width: 100vw !important;
-        background: transparent !important; border: none !important; color: transparent !important;
-        z-index: 10;
+    /* ESTILO DE BOTÓN DORADO */
+    .stButton>button {
+        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
+        background-size: 200% 100% !important;
+        color: #000 !important; border-radius: 15px !important;
+        font-weight: 800 !important; border: none !important;
+        width: 100% !important;
     }
 
-    /* ESTILO FORMULARIOS (Para que no queden pegados arriba) */
-    .form-spacing { margin-top: 120px; padding: 20px; }
-    
-    .welcome-card {
-        background: rgba(0,0,0,0.8); padding: 40px; border-radius: 25px;
-        border: 2px solid #D4AF37; text-align: center; margin: 120px 20px 20px 20px;
+    /* IMAGEN DE TIENDA COMO ESTABA ANTES */
+    .img-mall-luxury {
+        width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 20px;
+        border: 1px solid #D4AF37; margin-bottom: 10px;
     }
+
+    .form-container { padding: 20px; margin-top: 50px; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. LÓGICA DE VISTAS (PANELES)
+# 3. LÓGICA DE VISTAS
 # ==========================================
 es_admin_master = st.query_params.get("admin") == "true"
 es_via_register = st.query_params.get("reg") == "true"
@@ -110,9 +99,9 @@ es_via_register = st.query_params.get("reg") == "true"
 # --- VISTA: REGISTRO ---
 if es_via_register:
     if st.session_state.registered:
-        st.markdown("<div class='welcome-card'><h1>BIENVENIDO SOCIO</h1><p>Solicitud procesada.</p></div>", unsafe_allow_html=True)
+        st.success("SOLICITUD ENVIADA")
     else:
-        st.markdown("<div class='form-spacing'>", unsafe_allow_html=True)
+        st.markdown("<div class='form-container'>", unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO LUXURY</h1>", unsafe_allow_html=True)
         with st.form("form_reg_clean"):
             r_nombre = st.text_input("Nombre de la Tienda")
@@ -122,44 +111,45 @@ if es_via_register:
             r_foto = st.file_uploader("Portada", type=['jpg', 'png'])
             r_ref = st.text_input("Referencia de Pago")
             
-            if st.form_submit_button("REGISTRAR"):
-                # Aquí va tu lógica de insert que ya funciona
+            if st.form_submit_button("REGISTRAR MI COMERCIO"):
+                # Tu lógica de registro original aquí
                 st.session_state.registered = True
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- VISTA: MALL (DISEÑO DIVIDIDO) ---
+# --- VISTA: MALL (DISEÑO ORIGINAL DE CUADRÍCULA) ---
 elif not es_admin_master:
     if st.session_state.view == 'mall':
-        datos_tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).limit(2).execute().data
+        st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
+        datos_tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
         tiendas = [t for t in datos_tiendas if verificar_expiracion(t)]
         
         if not tiendas:
-            st.markdown("<div class='welcome-card'>Próximamente más aperturas...</div>", unsafe_allow_html=True)
+            st.info("Próximamente más aperturas...")
         else:
-            for t in tiendas:
-                st.markdown(f"""
-                    <div class="split-container">
-                        <img src="{t.get('portada_url', '')}">
-                        <div style="position:absolute; top:40%; width:100%; text-align:center;">
-                            <h1 style="color:white; font-size:3rem; text-shadow:2px 2px 15px #000;">{t['nombre_comercio'].upper()}</h1>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-                if st.button("", key=f"btn_{t['id']}"):
-                    st.session_state.tienda_actual = t
-                    ir_a('tienda')
+            # Volvemos a las 2 columnas clásicas
+            for i in range(0, len(tiendas), 2):
+                cols = st.columns(2)
+                for j in range(2):
+                    if i + j < len(tiendas):
+                        t = tiendas[i + j]
+                        with cols[j]:
+                            st.markdown(f'<img src="{t.get("portada_url", "")}" class="img-mall-luxury">', unsafe_allow_html=True)
+                            # Botón con el nombre de la tienda como título de ingreso
+                            if st.button(f"INGRESAR A {t['nombre_comercio'].upper()}", key=f"btn_{t['id']}"):
+                                st.session_state.tienda_actual = t
+                                ir_a('tienda')
 
 # --- VISTA: PANEL SOCIO ---
 else:
-    st.markdown("<div class='form-spacing'>", unsafe_allow_html=True)
+    st.markdown("<div class='form-container'>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE SOCIO</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
         with st.form("login"):
             l_email = st.text_input("Email").strip().lower()
             l_code = st.text_input("Código", type="password")
-            if st.form_submit_button("INGRESAR"):
-                # Tu lógica de login que ya funciona
+            if st.form_submit_button("INGRESAR AL PANEL"):
+                # Tu lógica de login original aquí
                 st.session_state.logged_in = True
                 st.rerun()
     else:
