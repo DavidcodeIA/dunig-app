@@ -32,64 +32,58 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY PRO (CSS INTEGRADO)
+# 2. ESTÉTICA INMERSIVA TIKTOK (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
+    /* Fondo negro puro */
+    .main { background-color: #000000; color: #ffffff; padding: 0; }
     
-    /* Botones Premium con efecto dorado */
+    /* Contenedor del Mall (Portadas Cuadradas) */
+    .img-portada-full {
+        width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
+        border: 1px solid #D4AF37; border-radius: 0px;
+    }
+
+    /* Vitrina Full Screen (9:16) */
+    .video-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 500px; /* Centrado para móvil */
+        margin: 0 auto;
+        aspect-ratio: 9 / 16;
+        overflow: hidden;
+    }
+
+    /* Video sin bordes redondeados */
+    .stVideo { width: 100% !important; border-radius: 0px !important; }
+    .stVideo video { object-fit: cover !important; border-radius: 0px !important; }
+
+    /* Burbuja de Precio flotante */
+    .overlay-price {
+        position: absolute; top: 30px; right: 20px;
+        background: linear-gradient(135deg, #D4AF37, #F9F295);
+        color: #000; padding: 6px 15px; border-radius: 50px;
+        font-weight: 900; font-size: 1.5rem; z-index: 99;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+    }
+
+    /* Nombre del producto flotante */
+    .overlay-name {
+        position: absolute; bottom: 30px; left: 20px;
+        color: #ffffff; font-size: 1.8rem; font-weight: 800;
+        text-shadow: 3px 3px 10px rgba(0,0,0,1); z-index: 99;
+        text-transform: uppercase;
+    }
+
+    /* Botón de Compra Luxury */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
-        color: #000 !important; border-radius: 12px !important;
-        font-weight: 800 !important; text-transform: uppercase;
-        border: none !important; transition: 0.3s;
-        margin-top: 10px;
+        color: #000 !important; border-radius: 0px !important;
+        font-weight: 800 !important; border: none !important;
+        height: 55px; width: 100% !important;
     }
-    .stButton>button:hover { transform: scale(1.02); box-shadow: 0px 0px 20px #D4AF37; }
-
-    /* Portadas Cuadradas Full para el Mall */
-    .img-portada-full {
-        width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
-        border: 1px solid rgba(212, 175, 55, 0.4);
-        border-radius: 15px; margin-bottom: 10px;
-        box-shadow: 0px 10px 20px rgba(0,0,0,0.5);
-    }
-
-    /* Vitrina de Productos Vertical (Efecto TikTok) */
-    .product-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(212, 175, 55, 0.15);
-        border-radius: 25px;
-        padding: 20px;
-        margin-bottom: 30px;
-        backdrop-filter: blur(15px);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
-        text-align: center;
-    }
-
-    .price-badge {
-        background: linear-gradient(135deg, #D4AF37, #F9F295);
-        color: #000;
-        padding: 5px 15px;
-        border-radius: 10px;
-        font-weight: 900;
-        font-size: 1.3rem;
-        display: inline-block;
-        margin-bottom: 15px;
-    }
-
-    /* OPTIMIZACIÓN 9:16 PARA VIDEOS VERTICALES */
-    .stVideo { 
-        aspect-ratio: 9 / 16 !important; 
-        width: 100%; 
-        border-radius: 20px; 
-        overflow: hidden; 
-        border: 1px solid rgba(212, 175, 55, 0.3);
-    }
-    .stVideo video { object-fit: cover !important; }
-
     </style>
     """, unsafe_allow_html=True)
 
@@ -113,11 +107,12 @@ def ventana_pago(producto, tienda):
         else: st.error("Por favor, ingrese la referencia de pago")
 
 # ==========================================
-# 4. LÓGICA DE VISTAS
+# 4. LÓGICA DE VISTAS (COMPLETA)
 # ==========================================
 es_admin = st.query_params.get("admin") == "true"
 es_registro = st.query_params.get("reg") == "true"
 
+# --- MODO REGISTRO ---
 if es_registro:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE NUEVO SOCIO</h1>", unsafe_allow_html=True)
     with st.form("form_reg_externo", clear_on_submit=True):
@@ -125,9 +120,9 @@ if es_registro:
         rm = st.text_input("Email del Propietario")
         rt = st.text_input("WhatsApp (Ej: 58412...)")
         opciones_plan = {"GRATUITO": "🎁 GRATUITO ($0)", "BRONCE": "🥉 BRONCE ($5)", "PLATA": "🥈 PLATA ($15)", "ORO": "🥇 ORO ($30)"}
-        plan_label = st.selectbox("Plan", options=list(opciones_plan.values()))
+        plan_label = st.selectbox("Selecciona tu Plan", options=list(opciones_plan.values()))
         plan_sel = [k for k, v in opciones_plan.items() if v == plan_label][0]
-        ri = st.file_uploader("Foto de Portada (Cuadrada recomendada)", type=['jpg', 'png'])
+        ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
         ref_socio = st.text_input("Referencia de Pago")
 
         if st.form_submit_button("REGISTRAR COMERCIO"):
@@ -135,10 +130,14 @@ if es_registro:
                 path_i = f"portadas/reg_{random.randint(1000,9999)}.jpg"
                 supabase.storage.from_("fotos_productos").upload(path_i, ri.getvalue())
                 url_i = supabase.storage.from_("fotos_productos").get_public_url(path_i)
-                supabase.table("perfiles_comercio").insert({"nombre_comercio": rn, "email_propietario": rm.lower(), "whatsapp": rt, "portada_url": url_i, "plan": plan_sel, "codigo_acceso": "LUXURY7"}).execute()
+                supabase.table("perfiles_comercio").insert({
+                    "nombre_comercio": rn, "email_propietario": rm.lower(), "whatsapp": rt, 
+                    "portada_url": url_i, "plan": plan_sel, "codigo_acceso": "LUXURY7"
+                }).execute()
                 st.success("¡Registro Exitoso!")
-                st.link_button("📲 NOTIFICAR AL ADMIN", f"https://wa.me/584241234567?text=Nueva Tienda: {rn}")
+                st.link_button("📲 NOTIFICAR AL ADMIN", f"https://wa.me/584241234567?text=Nueva Tienda: {rn} - Ref: {ref_socio}")
 
+# --- MODO USUARIO (MALL Y TIENDA) ---
 elif not es_admin:
     if st.session_state.view == 'mall':
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
@@ -150,10 +149,8 @@ elif not es_admin:
                 if i + j < len(tiendas):
                     t = tiendas[i + j]
                     with cols[j]:
-                        url = t.get('portada_url') or "https://via.placeholder.com/400"
-                        st.markdown(f'<img src="{url}" class="img-portada-full">', unsafe_allow_html=True)
-                        st.markdown(f"<p style='text-align:center; color:#D4AF37; font-weight:bold;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
-                        if st.button("VISITAR", key=f"m_{t['id']}", use_container_width=True):
+                        st.markdown(f'<img src="{t["portada_url"]}" class="img-portada-full">', unsafe_allow_html=True)
+                        if st.button(t['nombre_comercio'].upper(), key=f"m_{t['id']}", use_container_width=True):
                             st.session_state.tienda_actual = t
                             ir_a('tienda')
 
@@ -162,27 +159,23 @@ elif not es_admin:
         if st.button("⬅️ VOLVER AL MALL"): ir_a('mall')
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         
-        prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
-        
-        # Columna central para enfoque móvil / vertical
-        _, center_col, _ = st.columns([0.1, 0.8, 0.1])
-        with center_col:
-            for p in prods.data:
-                st.markdown(f"""
-                <div class="product-card">
-                    <div class="price-badge">${p['precio']}</div>
-                    <h2 style='color:#F9F295; font-size:1.5rem;'>{p['nombre_producto']}</h2>
-                """, unsafe_allow_html=True)
-                
-                # Video optimizado a 9:16
-                st.video(p['video_url'], autoplay=True, loop=True, muted=True)
-                
-                if st.button(f"🛒 ADQUIRIR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
-                    ventana_pago(p, t)
-                st.markdown("</div>", unsafe_allow_html=True)
+        prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+        for p in prods:
+            # Layout TikTok Inmersivo
+            st.markdown(f"""
+                <div class="video-wrapper">
+                    <div class="overlay-price">${p['precio']}</div>
+                    <div class="overlay-name">{p['nombre_producto']}</div>
+            """, unsafe_allow_html=True)
+            st.video(p['video_url'], autoplay=True, loop=True, muted=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}"):
+                ventana_pago(p, t)
+            st.markdown("<br><br>", unsafe_allow_html=True)
 
+# --- MODO ADMIN (CONFIGURACIÓN) ---
 else:
-    # --- PANEL ADMIN ---
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
         with st.container(border=True):
@@ -194,6 +187,42 @@ else:
                     st.session_state.logged_in = True; st.session_state.user_email = m; st.rerun()
                 else: st.error("Acceso denegado")
     else:
-        # Lógica simplificada de gestión para el ejemplo completo
-        st.write(f"Sesión activa: **{st.session_state.user_email}**")
-        if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
+        res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
+        if res.data:
+            perf = res.data[0]
+            t1, t2, t3 = st.tabs(["➕ PRODUCTO", "🖼️ PORTADA", "💳 COBROS"])
+            
+            with t1:
+                c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
+                actual = c_res.count if c_res.count is not None else 0
+                limite = PLANES.get(perf.get('plan', 'GRATUITO'), 3)
+                st.write(f"Plan: {perf['plan']} ({actual}/{limite})")
+                if actual < limite:
+                    with st.form("add_p"):
+                        n_p = st.text_input("Nombre")
+                        p_p = st.number_input("Precio", min_value=0.0)
+                        v_p = st.file_uploader("Video (MP4)", type=['mp4'])
+                        if st.form_submit_button("PUBLICAR"):
+                            path = f"v/{random.randint(1000,9999)}.mp4"
+                            supabase.storage.from_("fotos_productos").upload(path, v_p.getvalue())
+                            url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
+                            supabase.table("productos").insert({"nombre_producto":n_p, "precio":p_p, "video_url":url_v, "comercio_relacionado":perf['nombre_comercio']}).execute()
+                            st.success("¡Listo!"); st.rerun()
+            
+            with t2:
+                st.image(perf['portada_url'], width=150)
+                nueva_f = st.file_uploader("Cambiar Logo", type=['jpg', 'png'])
+                if st.button("GUARDAR LOGO"):
+                    path = f"portadas/p_{perf['id']}.jpg"
+                    supabase.storage.from_("fotos_productos").upload(path, nueva_f.getvalue(), {"x-upsert": "true"})
+                    url_i = supabase.storage.from_("fotos_productos").get_public_url(path)
+                    supabase.table("perfiles_comercio").update({"portada_url": url_i}).eq("id", perf['id']).execute()
+                    st.success("Logo actualizado"); st.rerun()
+
+            with t3:
+                d_p = st.text_area("Datos de Pago", value=perf.get('datos_pago','') or "")
+                if st.button("ACTUALIZAR DATOS"):
+                    supabase.table("perfiles_comercio").update({"datos_pago": d_p}).eq("id", perf['id']).execute()
+                    st.success("Guardado")
+
+            if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
