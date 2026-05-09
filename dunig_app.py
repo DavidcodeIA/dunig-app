@@ -1,6 +1,9 @@
 import streamlit as st
 from supabase import create_client, Client
 import urllib.parse
+import random
+import time
+from datetime import datetime, date
 
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
@@ -23,109 +26,113 @@ def init_connection():
 
 supabase = init_connection()
 
+# Constantes y Estados
+PLANES_LIMITES = {"GRATUITO": 3, "BRONCE": 10, "PLATA": 25, "ORO": 9999}
+
 if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'user_email' not in st.session_state: st.session_state.user_email = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA INMERSIVA TOTAL (CSS)
+# 2. ESTÉTICA TIKTOK LUXURY (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo negro y eliminación de márgenes de Streamlit */
+    /* Fondo negro total y limpieza de espacios */
     .main { background-color: #000000 !important; }
-    header { visibility: hidden; }
-    .block-container { padding: 0rem !important; max-width: 100% !important; }
-    [data-testid="stVerticalBlock"] { gap: 0rem !important; }
-
-    /* Contenedor de Video: Cuadrado y Pantalla Completa */
-    .tiktok-container-full {
+    header {visibility: hidden;} 
+    
+    /* Contenedor principal de Video - ESQUINAS CUADRADAS */
+    .tiktok-container {
         position: relative;
-        width: 100vw;
-        height: 88vh; /* Ocupa la mayor parte del alto visual */
-        background: #000;
+        width: 100%;
+        height: 90vh; 
         overflow: hidden;
+        background: #000;
+        margin-bottom: 0px;
+        border-radius: 0px !important; /* Cuadrado total */
         border: none !important;
-        border-radius: 0px !important; /* Esquinas cuadradas */
     }
 
-    .tiktok-video-full {
+    .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Asegura que cubra todo el contenedor */
+        object-fit: cover;
     }
 
-    /* Burbuja Flotante para Volver */
+    /* Burbuja Flotante para Regresar */
     .back-bubble {
         position: absolute;
         top: 20px;
         left: 20px;
         z-index: 100;
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(10px);
+        background: rgba(0, 0, 0, 0.5);
         color: white;
-        width: 45px;
-        height: 45px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 20px;
-        border: 1px solid rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
         cursor: pointer;
         text-decoration: none;
     }
 
-    /* Overlay de Información Inferior */
+    /* Overlay de Información (Abajo Izquierda) */
     .info-overlay {
         position: absolute;
-        bottom: 40px;
+        bottom: 30px;
         left: 20px;
         z-index: 10;
+        color: white;
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
         pointer-events: none;
     }
 
-    .user-handle { 
-        font-weight: 800; 
-        font-size: 1.3rem; 
-        color: #D4AF37; 
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        margin-bottom: 10px;
-    }
-
-    .price-tag-luxury {
+    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 5px; }
+    .product-title { font-size: 1.1rem; opacity: 0.9; margin-bottom: 10px; }
+    
+    /* Burbuja de Precio */
+    .price-tag {
         background: rgba(0, 0, 0, 0.6);
         color: #39FF14;
-        padding: 6px 18px;
+        padding: 5px 15px;
         border-radius: 50px;
         font-weight: 900;
-        font-size: 1.4rem;
+        font-size: 1.3rem;
         border: 2px solid #39FF14;
         display: inline-block;
-        backdrop-filter: blur(5px);
     }
 
-    /* Botón de Compra Luxury Cuadrado */
+    /* Botón de compra - ESQUINAS CUADRADAS */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; 
-        border-radius: 0px !important;
+        border-radius: 0px !important; /* Cuadrado total */
         font-weight: 800 !important;
-        height: 65px !important;
+        height: 60px !important;
         border: none !important;
-        width: 100% !important;
         font-size: 1.2rem !important;
-        text-transform: uppercase;
+    }
+    
+    /* Imágenes del Mall */
+    .mall-card {
+        width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 0px;
+        border: 1px solid #D4AF37; margin-bottom: 5px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGO DE COMPRA
+# 3. DIÁLOGOS (CARRITO DE COMPRA)
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
@@ -134,65 +141,91 @@ def ventana_pago(producto, tienda):
     total = float(producto['precio']) * cantidad
     st.metric("TOTAL A PAGAR", f"${total:,.2f}")
     st.divider()
-    st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar con vendedor')}")
+    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
     ref = st.text_input("Referencia de Pago")
     
-    if st.button("🚀 CONFIRMAR PEDIDO"):
+    if st.button("🚀 ENVIAR PEDIDO"):
         if ref:
-            msj = f"💎 *PEDIDO D'UNIG*\n📦 {producto['nombre_producto']}\n💰 Total: ${total}\n🎫 Ref: {ref}"
+            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
             tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("ENVIAR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+        else:
+            st.error("Ingresa la referencia para validar.")
 
 # ==========================================
-# 4. SISTEMA DE VISTAS
+# 4. SISTEMA DE NAVEGACIÓN
 # ==========================================
+es_admin = st.query_params.get("admin") == "true"
 
 # --- VISTA: MALL ---
-if st.session_state.view == 'mall':
+if not es_admin and st.session_state.view == 'mall':
     st.markdown("<h1 style='text-align:center; color:#D4AF37; padding:20px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i + j]
-                with cols[j]:
-                    st.image(t.get("portada_url", ""), use_container_width=True)
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    if not tiendas: st.info("Próximamente más lujo...")
+    else:
+        for i in range(0, len(tiendas), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if i + j < len(tiendas):
+                    t = tiendas[i + j]
+                    with cols[j]:
+                        st.markdown(f'<img src="{t.get("portada_url", "")}" class="mall-card">', unsafe_allow_html=True)
+                        if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
+                            st.session_state.tienda_actual = t
+                            ir_a('tienda')
 
-# --- VISTA: TIENDA (PANTALLA COMPLETA) ---
+# --- VISTA: TIENDA (ESTILO INMERSIVO) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        # El botón de "Volver" ahora es una burbuja HTML que recarga para ir al Mall
+        # Contenedor de Video con Burbuja de Regreso y Overlay
         st.markdown(f"""
-            <div class="tiktok-container-full">
+            <div class="tiktok-container">
+                <!-- Burbuja Flotante para volver -->
                 <a href="javascript:window.location.reload();" class="back-bubble" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', value: 'back'}}, '*')">
                     ⬅
                 </a>
                 
-                <video class="tiktok-video-full" autoplay loop muted playsinline controls>
+                <video class="tiktok-video" autoplay loop muted playsinline controls>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-
+                
                 <div class="info-overlay">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="price-tag-luxury">${p['precio']}</div>
+                    <div class="product-title">{p['nombre_producto']}</div>
+                    <div class="price-tag">${p['precio']}</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón invisible/funcional de Streamlit para captar el regreso
+        # Botón de Compra Cuadrado
+        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+            ventana_pago(p, t)
+        
+        # Botón invisible/funcional para capturar el regreso
         if st.button("VOLVER AL MALL", key=f"back_logic_{idx}"):
             ir_a('mall')
-
-        # Botón de Compra
-        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}"):
-            ventana_pago(p, t)
             
-        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
+
+# --- PANEL DE CONTROL (ADMIN) ---
+else:
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL SOCIO</h1>", unsafe_allow_html=True)
+    if not st.session_state.logged_in:
+        with st.container(border=True):
+            em = st.text_input("Email").lower().strip()
+            cod = st.text_input("Código", type="password").upper().strip()
+            if st.button("INGRESAR"):
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", em).execute()
+                if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == cod:
+                    st.session_state.logged_in, st.session_state.user_email = True, em
+                    st.rerun()
+                else: st.error("Acceso denegado")
+    else:
+        st.success(f"Sesión activa: {st.session_state.user_email}")
+        if st.button("CERRAR SESIÓN"):
+            st.session_state.logged_in = False
+            st.rerun()
