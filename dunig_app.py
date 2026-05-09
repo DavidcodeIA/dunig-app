@@ -8,7 +8,11 @@ from datetime import datetime, date
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
-st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="D'UNIG LUXURY", 
+    layout="centered", 
+    initial_sidebar_state="collapsed"
+)
 
 @st.cache_resource 
 def init_connection():
@@ -22,7 +26,9 @@ def init_connection():
 
 supabase = init_connection()
 
-# Estado de la Sesión
+# Constantes y Estados
+PLANES_LIMITES = {"GRATUITO": 3, "BRONCE": 10, "PLATA": 25, "ORO": 9999}
+
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'user_email' not in st.session_state: st.session_state.user_email = None
@@ -32,125 +38,170 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS ESTILO TIKTOK)
+# 2. ESTÉTICA TIKTOK LUXURY (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    .main { background: #000000; color: #ffffff; }
-    
-    /* Contenedor estilo TikTok */
+    /* Fondo negro total y limpieza de espacios */
+    .main { background-color: #000000 !important; }
+    div[data-testid="stVerticalBlock"] > div:has(div.tiktok-container) {
+        padding: 0px;
+        margin-bottom: -1rem;
+    }
+
+    /* Contenedor principal de Video */
     .tiktok-container {
         position: relative;
         width: 100%;
-        height: 80vh; /* Altura inmersiva */
-        border-radius: 30px;
+        height: 85vh; /* Altura casi total de pantalla */
+        border-radius: 25px;
         overflow: hidden;
-        margin-bottom: 20px;
-        border: 2px solid #D4AF37;
+        background: #000;
+        margin-bottom: 10px;
+        border: 1px solid #333;
     }
 
     .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Hace que el video llene todo el espacio */
+        object-fit: cover; /* Clave para el estilo TikTok */
     }
 
-    .price-bubble {
+    /* Overlay de Información (Abajo Izquierda) */
+    .info-overlay {
         position: absolute;
-        top: 20px;
-        right: 20px;
-        background: rgba(0, 0, 0, 0.7);
+        bottom: 30px;
+        left: 20px;
+        z-index: 10;
+        color: white;
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
+        pointer-events: none;
+    }
+
+    .user-handle { font-weight: 800; font-size: 1.2rem; color: #D4AF37; margin-bottom: 5px; }
+    .product-title { font-size: 1rem; opacity: 0.9; margin-bottom: 10px; }
+    
+    /* Burbuja de Precio Neón dentro del video */
+    .price-tag {
+        background: rgba(0, 0, 0, 0.6);
         color: #39FF14;
-        padding: 8px 20px;
+        padding: 5px 15px;
         border-radius: 50px;
         font-weight: 900;
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         border: 2px solid #39FF14;
-        z-index: 10;
+        display: inline-block;
     }
 
+    /* Botón de compra estilizado */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; 
         border-radius: 50px !important;
         font-weight: 800 !important;
-        height: 60px !important;
-        font-size: 1.1rem !important;
+        height: 55px !important;
+        border: none !important;
+    }
+    
+    /* Imágenes del Mall */
+    .mall-card {
+        width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 20px;
+        border: 2px solid #D4AF37; margin-bottom: 5px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS (CARRITO)
+# 3. DIÁLOGOS (CARRITO DE COMPRA)
 # ==========================================
-@st.dialog("💎 CARRITO D'UNIG LUXURY")
+@st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
     st.markdown(f"### ✨ {producto['nombre_producto']}")
     cantidad = st.number_input("Cantidad", min_value=1, value=1)
     total = float(producto['precio']) * cantidad
     st.metric("TOTAL A PAGAR", f"${total:,.2f}")
     st.divider()
-    st.info(f"💳 **DATOS DE PAGO:**\n{tienda.get('datos_pago', 'Consultar al vendedor')}")
-    ref = st.text_input("Ingrese Ref. de Pago")
-    if st.button("🚀 CONFIRMAR PEDIDO"):
+    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
+    ref = st.text_input("Referencia de Pago")
+    
+    if st.button("🚀 ENVIAR PEDIDO"):
         if ref:
-            msj = f"✨ *PEDIDO LUXURY*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cant:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
+            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
             tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("ENVIAR POR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
         else:
-            st.error("Por favor, ingrese la referencia de pago")
+            st.error("Ingresa la referencia para validar.")
 
 # ==========================================
-# 4. VISTAS
+# 4. SISTEMA DE NAVEGACIÓN
 # ==========================================
-es_admin_master = st.query_params.get("admin") == "true"
+es_admin = st.query_params.get("admin") == "true"
 
 # --- VISTA: MALL ---
-if not es_admin_master and st.session_state.view == 'mall':
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
+if not es_admin and st.session_state.view == 'mall':
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i + j]
-                with cols[j]:
-                    url = t.get("portada_url", "")
-                    if url.lower().endswith(('.mp4', '.mov')):
-                        st.markdown(f'<video autoplay loop muted playsinline style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:20px; border:1px solid #D4AF37;"><source src="{url}"></video>', unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'<img src="{url}" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:20px; border:1px solid #D4AF37;">', unsafe_allow_html=True)
-                    
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"m_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    if not tiendas: st.info("Próximamente más lujo...")
+    else:
+        for i in range(0, len(tiendas), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if i + j < len(tiendas):
+                    t = tiendas[i + j]
+                    with cols[j]:
+                        st.markdown(f'<img src="{t.get("portada_url", "")}" class="mall-card">', unsafe_allow_html=True)
+                        if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
+                            st.session_state.tienda_actual = t
+                            ir_a('tienda')
 
-# --- VISTA: TIENDA (ESTILO TIKTOK) ---
+# --- VISTA: TIENDA (ESTILO TIKTOK SCREENSHOT) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    if st.button("⬅️ VOLVER AL MALL"): ir_a('mall')
-    
+    c1, c2 = st.columns([1, 5])
+    with c1: 
+        if st.button("⬅️"): ir_a('mall')
+    with c2:
+        st.markdown(f"<h3 style='color:#D4AF37; margin:0;'>{t['nombre_comercio']}</h3>", unsafe_allow_html=True)
+
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # El contenedor TikTok con precio flotante y video a pantalla completa
+        # Estructura visual idéntica a tu captura
         st.markdown(f"""
             <div class="tiktok-container">
-                <div class="price-bubble">${p['precio']}</div>
                 <video class="tiktok-video" autoplay loop muted playsinline controls>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
+                <div class="info-overlay">
+                    <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
+                    <div class="product-title">{p['nombre_producto']}</div>
+                    <div class="price-tag">${p['precio']}</div>
+                </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón de compra llamativo debajo de cada video
-        if st.button(f"🛒 PEDIR {p['nombre_producto'].upper()}", key=f"buy_{p['id']}", use_container_width=True):
+        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
             ventana_pago(p, t)
-        
-        st.markdown("<br><br>", unsafe_allow_html=True) # Espacio entre videos
+        st.markdown("<br><br>", unsafe_allow_html=True)
 
-# --- LOGIN / PANEL (Simplificado para el ejemplo) ---
+# --- PANEL DE CONTROL (ADMIN) ---
 else:
-    st.info("Panel de Control Activo")
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL SOCIO</h1>", unsafe_allow_html=True)
+    if not st.session_state.logged_in:
+        with st.container(border=True):
+            em = st.text_input("Email").lower().strip()
+            cod = st.text_input("Código", type="password").upper().strip()
+            if st.button("INGRESAR"):
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", em).execute()
+                if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == cod:
+                    st.session_state.logged_in, st.session_state.user_email = True, em
+                    st.rerun()
+                else: st.error("Acceso denegado")
+    else:
+        # Aquí iría el resto de tu lógica de carga de productos (t1, t2, t3)
+        st.success(f"Sesión activa: {st.session_state.user_email}")
+        if st.button("CERRAR SESIÓN"):
+            st.session_state.logged_in = False
+            st.rerun()
