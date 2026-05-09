@@ -1,9 +1,9 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client
 import urllib.parse
 
 # ==========================================
-# 1. CONFIGURACIÓN Y CONEXIÓN
+# 1. CONFIGURACIÓN E INICIALIZACIÓN
 # ==========================================
 st.set_page_config(
     page_title="D'UNIG LUXURY", 
@@ -11,179 +11,181 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+if 'view' not in st.session_state: st.session_state.view = 'mall'
+if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
+
 @st.cache_resource 
 def init_connection():
     try:
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_KEY"]
         return create_client(url, key)
-    except Exception as e:
-        return None
+    except Exception: return None
 
 supabase = init_connection()
-
-if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA "MAGNETIC" 9:16 (CSS)
+# 2. CSS "NEÓN & FLOAT" (UI DE LUJO)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo negro total y limpieza de interfaz */
-    .main { background-color: #000000 !important; }
-    header {visibility: hidden; height: 0px;} 
-    footer {visibility: hidden;}
+    /* Reset total de márgenes */
+    html, body, [data-testid="stAppViewBlockContainer"] {
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100vw !important;
+    }
+    .main { background-color: #000 !important; }
+    header, footer { visibility: hidden; display: none !important; }
     
     [data-testid="stAppViewBlockContainer"] {
-        padding: 0rem !important;
-        max-width: 100% !important;
+        margin-top: -100px !important; 
+        max-width: 100vw !important;
     }
 
-    /* EFECTO IMÁN (SCROLL SNAPPING) */
+    /* Contenedor con Iman (Snap) */
     [data-testid="stVerticalBlock"] {
         scroll-snap-type: y mandatory;
-        overflow-y: scroll;
+        overflow-y: scroll !important;
         height: 100vh;
         gap: 0rem !important;
+        scrollbar-width: none;
     }
+    [data-testid="stVerticalBlock"]::-webkit-scrollbar { display: none; }
 
-    .video-container-916 {
+    .snap-section {
         scroll-snap-align: start;
         scroll-snap-stop: always;
         position: relative;
         width: 100vw;
-        height: 100vh; 
-        overflow: hidden;
-        background: #000;
+        height: 100vh;
     }
 
     .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; 
+        object-fit: cover;
     }
 
-    /* Información sobre el video */
-    .info-overlay {
+    /* BURBUJA COMPRAR - NEÓN DORADO */
+    div.stButton > button[key^="buy_"] {
         position: absolute;
-        bottom: 120px;
+        bottom: 180px !important; /* Arriba del precio */
+        left: 20px !important;
+        z-index: 1000 !important;
+        background: rgba(0,0,0,0.8) !important;
+        color: #D4AF37 !important;
+        border: 2px solid #D4AF37 !important;
+        border-radius: 50px !important;
+        box-shadow: 0 0 15px #D4AF37, inset 0 0 5px #D4AF37 !important;
+        font-weight: 900 !important;
+        width: auto !important;
+        padding: 10px 30px !important;
+        font-size: 1.2rem !important;
+        text-transform: uppercase;
+    }
+
+    /* Info Overlay (Precio y Handle) */
+    .floating-info {
+        position: absolute;
+        bottom: 80px;
         left: 20px;
-        z-index: 10;
-        color: white;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+        z-index: 500;
         pointer-events: none;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.6rem; color: #D4AF37; margin-bottom: 5px; }
-    
-    .price-tag {
-        background: rgba(0, 0, 0, 0.6);
-        color: #39FF14;
-        padding: 8px 25px;
-        border-radius: 50px;
-        font-weight: 900;
-        font-size: 1.5rem;
-        border: 2px solid #39FF14;
-        display: inline-block;
-    }
+    .user-tag { font-size: 1.5rem; font-weight: 800; color: white; text-shadow: 2px 2px 5px #000; }
+    .price-neon { font-size: 2rem; font-weight: 900; color: #39FF14; text-shadow: 0 0 10px #39FF14; }
 
-    /* Botones Dorados Luxury (COMPRAR) */
-    div.stButton > button {
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        color: #000 !important; 
-        border-radius: 0px !important; 
-        font-weight: 900 !important;
-        height: 70px !important;
-        border: none !important;
-        width: 100% !important;
-        font-size: 1.3rem !important;
-        margin: 0px !important;
-    }
-
-    /* Botón ATRÁS (Burbuja Naranja Neón - Debajo) */
+    /* Botón ATRÁS */
     div.stButton > button[key^="back_"] {
-        background: rgba(0, 0, 0, 0.7) !important;
-        color: #FF5F1F !important; 
-        border: 2px solid #FF5F1F !important;
+        position: fixed;
+        top: 30px !important;
+        left: 20px !important;
+        z-index: 2000 !important;
+        background: rgba(0,0,0,0.5) !important;
+        color: #FF5F1F !important;
+        border: 1px solid #FF5F1F !important;
         border-radius: 50px !important;
-        height: 45px !important;
-        width: auto !important;
-        padding: 0px 30px !important;
-        font-size: 1rem !important;
-        margin-top: 10px !important;
-        margin-bottom: 20px !important;
-        margin-left: 20px !important;
     }
-
-    /* Eliminar scrollbars */
-    ::-webkit-scrollbar { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. CARRITO DE COMPRAS
+# 3. SCRIPT DE AUDIO FOCUS (ELIMINA EL MUTE)
+# ==========================================
+st.components.v1.html("""
+<script>
+    const activateAudio = () => {
+        const videos = window.parent.document.querySelectorAll('video');
+        const vh = window.parent.innerHeight;
+        videos.forEach(v => {
+            const rect = v.getBoundingClientRect();
+            if (rect.top >= -100 && rect.top <= 100) {
+                v.muted = false;
+                v.play().catch(() => {});
+            } else {
+                v.muted = true;
+            }
+        });
+    };
+    window.parent.document.addEventListener('touchstart', () => {
+        const videos = window.parent.document.querySelectorAll('video');
+        videos.forEach(v => { v.muted = false; v.play(); });
+        activateAudio();
+    }, { once: true });
+    window.parent.addEventListener('scroll', activateAudio);
+</script>
+""", height=0)
+
+# ==========================================
+# 4. CARRITO (DIÁLOGO)
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
-    st.markdown(f"### ✨ {producto['nombre_producto']}")
-    cantidad = st.number_input("Cantidad", min_value=1, value=1)
-    total = float(producto['precio']) * cantidad
-    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
-    st.divider()
-    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
-    ref = st.text_input("Referencia de Pago")
-    
-    if st.button("🚀 ENVIAR PEDIDO", key="final_confirm"):
-        if ref:
-            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
-            tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
-        else:
-            st.error("Por favor, ingresa la referencia de pago.")
+    st.write(f"### {producto['nombre_producto']}")
+    cantidad = st.number_input("Cantidad", 1, 100, 1)
+    st.metric("Total", f"${float(producto['precio']) * cantidad:,.2f}")
+    if st.button("CONFIRMAR WHATSAPP"):
+        tel = str(tienda['whatsapp']).strip().replace("+","")
+        msj = urllib.parse.quote(f"Hola! Quiero {cantidad} de {producto['nombre_producto']}")
+        st.link_button("Ir a WhatsApp", f"https://wa.me/{tel}?text={msj}")
 
 # ==========================================
-# 4. VISTAS
+# 5. RENDERIZADO
 # ==========================================
 if st.session_state.view == 'mall':
-    tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i + j]
-                with cols[j]:
-                    st.image(t.get("portada_url", ""), use_container_width=True)
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    tiendas = supabase.table("perfiles_comercio").select("*").execute().data
+    for t in tiendas:
+        st.image(t['portada_url'])
+        if st.button(f"Entrar a {t['nombre_comercio']}", key=f"t_{t['id']}"):
+            st.session_state.tienda_actual = t
+            ir_a('tienda')
 
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
-    for idx, p in enumerate(prods):
-        # 1. El Video (Ocupa toda la pantalla)
+    if st.button("⬅", key="back_master"): ir_a('mall')
+
+    for p in prods:
         st.markdown(f"""
-            <div class="video-container-916">
-                <video class="tiktok-video" autoplay loop muted playsinline>
+            <div class="snap-section">
+                <video class="tiktok-video" loop playsinline muted>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-                <div class="info-overlay">
-                    <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="price-tag">${p['precio']}</div>
+                <div class="floating-info">
+                    <div class="user-tag">@{t['nombre_comercio'].lower()}</div>
+                    <div class="price-neon">${p['precio']}</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # 2. Botón COMPRAR (Primero, pegado al video)
-        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+        # Botón Burbuja Neón Dorada (Flotando arriba del precio)
+        if st.button("🛒 COMPRAR", key=f"buy_{p['id']}"):
             ventana_pago(p, t)
-        
-        # 3. Botón ATRÁS (Segundo, estilo burbuja)
-        if st.button("⬅ ATRÁS", key=f"back_{idx}"):
-            ir_a('mall')
