@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client, Client
 import urllib.parse
 import random
+import time
 
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
@@ -158,7 +159,7 @@ if es_via_register:
 
         if st.form_submit_button("SOLICITAR REGISTRO"):
             if r_nombre_tienda and r_email and r_whatsapp and r_foto_portada and r_referencia_pago:
-                path_portada = f"portadas/reg_{random.randint(1000,9999)}_{r_foto_portada.name}"
+                path_portada = f"portadas/reg_{int(time.time())}_{r_foto_portada.name}"
                 supabase.storage.from_("fotos_productos").upload(path_portada, r_foto_portada.getvalue())
                 url_portada_final = supabase.storage.from_("fotos_productos").get_public_url(path_portada)
                 
@@ -228,7 +229,7 @@ else:
         if es_admin_general: tabs_list.append("🏙️ GESTIÓN MAESTRA")
         t1, t2, t3, *t4_opt = st.tabs(tabs_list)
         
-        with t1: # AGREGAR
+        with t1: # AGREGAR PRODUCTO
             if cant_actual < cant_limite:
                 with st.form("form_add_producto", clear_on_submit=True):
                     add_nombre = st.text_input("Nombre")
@@ -236,7 +237,7 @@ else:
                     add_video = st.file_uploader("Video (MP4)", type=['mp4'])
                     if st.form_submit_button("🚀 PUBLICAR"):
                         if add_nombre and add_precio > 0 and add_video:
-                            fname = f"videos/{perfil_socio['nombre_comercio']}_{random.randint(1000,9999)}.mp4"
+                            fname = f"videos/{perfil_socio['nombre_comercio']}_{int(time.time())}.mp4"
                             supabase.storage.from_("fotos_productos").upload(fname, add_video.getvalue(), {"content-type": "video/mp4"})
                             url_video = supabase.storage.from_("fotos_productos").get_public_url(fname)
                             supabase.table("productos").insert({"nombre_producto": add_nombre, "precio": add_precio, "video_url": url_video, "comercio_relacionado": perfil_socio['nombre_comercio']}).execute()
@@ -251,18 +252,14 @@ else:
                 if c2.button("🗑️", key=f"del_{it['id']}"):
                     supabase.table("productos").delete().eq("id", it['id']).execute(); st.rerun()
 
-        with t3: # CONFIGURACIÓN PERFIL
-            st.subheader("Editar Perfil Luxury")
-            nueva_p = st.file_uploader("Actualizar Portada", type=['jpg', 'png'])
-            if st.button("🖼️ GUARDAR PORTADA") and nueva_p:
-                path = f"portadas/upd_{perfil_socio['id']}.png"
-                supabase.storage.from_("fotos_productos").upload(path, nueva_p.getvalue(), {"x-upsert": "true"})
-                new_url = supabase.storage.from_("fotos_productos").get_public_url(path)
-                supabase.table("perfiles_comercio").update({"portada_url": new_url}).eq("id", perfil_socio['id']).execute()
-                st.success("Portada actualizada."); st.rerun()
-            inst = st.text_area("Datos de Pago (WhatsApp)", value=perfil_socio.get('datos_pago', ''), height=100)
-            if st.button("💾 GUARDAR PAGOS"):
-                supabase.table("perfiles_comercio").update({"datos_pago": inst}).eq("id", perfil_socio['id']).execute(); st.success("Guardado.")
+        with t3: # CONFIGURACIÓN PERFIL (SIN CAMBIO DE PORTADA)
+            st.subheader("Datos de la Tienda")
+            st.info("💡 Para cambiar la foto de portada, por favor realiza un nuevo registro de tu comercio.")
+            
+            inst = st.text_area("Datos de Pago (Se muestran al cliente en el carrito)", value=perfil_socio.get('datos_pago', ''), height=150)
+            if st.button("💾 GUARDAR DATOS DE PAGO"):
+                supabase.table("perfiles_comercio").update({"datos_pago": inst}).eq("id", perfil_socio['id']).execute()
+                st.success("¡Configuración de pagos guardada!")
 
         if es_admin_general and t4_opt:
             with t4_opt[0]:
