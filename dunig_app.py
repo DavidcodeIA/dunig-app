@@ -35,10 +35,12 @@ def ir_a(pagina):
 # ==========================================
 st.markdown("""
     <style>
+    /* Fondo negro y eliminación de márgenes de Streamlit */
     .main { background-color: #000000 !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; }
-    header {visibility: hidden;} 
+    header {visibility: hidden;} /* Oculta la barra superior de Streamlit */
     
+    /* Contenedor TikTok sin bordes y ancho total */
     .tiktok-full-container {
         position: relative;
         width: 100vw;
@@ -53,24 +55,7 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* BOTÓN DE VOLUMEN (FLOTANTE DENTRO DEL VIDEO) */
-    .volume-btn {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        color: white;
-        padding: 10px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
+    /* Info Superpuesta (Abajo Izquierda) */
     .info-overlay {
         position: absolute;
         bottom: 30px;
@@ -95,6 +80,7 @@ st.markdown("""
         display: inline-block;
     }
 
+    /* Estilo del Botón de Compra y Botón Atrás */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
@@ -106,9 +92,10 @@ st.markdown("""
         width: 100% !important;
     }
 
+    /* Botón Volver estilizado (Flecha abajo del precio) */
     .back-btn-container {
         margin-top: 15px;
-        pointer-events: auto !important; 
+        pointer-events: auto !important; /* Permite clics en el overlay */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -135,7 +122,9 @@ def ventana_pago(producto, tienda):
 # 4. LÓGICA DE VISTAS
 # ==========================================
 
+# --- VISTA: MALL (SIN TÍTULO) ---
 if st.session_state.view == 'mall':
+    # Eliminamos el título h1 y usamos un espaciado discreto
     st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
@@ -150,24 +139,18 @@ if st.session_state.view == 'mall':
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
+# --- VISTA: TIENDA (FULL SCREEN CON BOTÓN INTEGRADO) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        v_id = f"video_{idx}"
-        # Contenedor del Video con Botón de Volumen
+        # Contenedor del Video
         st.markdown(f"""
             <div class="tiktok-full-container">
-                <video id="{v_id}" class="tiktok-video-full" autoplay loop muted playsinline>
+                <video class="tiktok-video-full" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-                
-                <!-- Botón de Volumen -->
-                <div class="volume-btn" onclick="const v = document.getElementById('{v_id}'); v.muted = !v.muted; this.innerText = v.muted ? '🔇' : '🔊';">
-                    🔇
-                </div>
-
                 <div class="info-overlay">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
                     <div class="product-title">{p['nombre_producto']}</div>
@@ -176,6 +159,7 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
+        # Botón de Compra y Botón Volver (Estilo TikTok)
         col_buy, col_back = st.columns([4, 1])
         with col_buy:
             if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
