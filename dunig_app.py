@@ -10,10 +10,13 @@ st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sideba
 
 @st.cache_resource 
 def init_connection():
-    # Se asume que estos secrets están configurados en Streamlit Cloud o local
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
+        return None
 
 supabase = init_connection()
 
@@ -35,12 +38,9 @@ OPCIONES_PLAN_VISUAL = {
 }
 
 # Gestión de Vistas y Estado de Sesión
-if 'view' not in st.session_state: 
-    st.session_state.view = 'mall'
-if 'logged_in' not in st.session_state: 
-    st.session_state.logged_in = False
-if 'user_email' not in st.session_state: 
-    st.session_state.user_email = None
+if 'view' not in st.session_state: st.session_state.view = 'mall'
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'user_email' not in st.session_state: st.session_state.user_email = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
@@ -52,39 +52,25 @@ def ir_a(pagina):
 st.markdown("""
     <style>
     .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
-    
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; border-radius: 30px !important;
-        font-weight: 800 !important; text-transform: uppercase;
-        border: none !important;
+        font-weight: 800 !important; text-transform: uppercase; border: none !important;
     }
-
     .img-mall-luxury {
-        width: 100%;
-        aspect-ratio: 1 / 1; 
-        object-fit: cover; 
-        border-radius: 25px;
-        border: 2px solid #D4AF37;
-        box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.3);
-        margin-bottom: 10px;
+        width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 25px;
+        border: 2px solid #D4AF37; box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.3); margin-bottom: 10px;
     }
-
     .price-bubble {
         position: absolute; top: 15px; right: 15px;
         background: rgba(0, 0, 0, 0.85); color: #39FF14; 
         padding: 5px 15px; border-radius: 50px;
         font-weight: 900; border: 2px solid #39FF14; z-index: 10;
     }
-
     .benefit-card {
-        background: rgba(255,255,255,0.05);
-        padding: 10px;
-        border-radius: 15px;
-        border: 1px solid #D4AF37;
-        text-align: center;
-        font-size: 0.8rem;
+        background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px;
+        border: 1px solid #D4AF37; text-align: center; font-size: 0.8rem;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -112,46 +98,35 @@ def ventana_pago(producto, tienda):
 @st.dialog("📝 EDITAR COMERCIO")
 def editar_comercio_dialog(comercio):
     st.write(f"Editando: **{comercio['nombre_comercio']}**")
-    
     lista_planes_claves = list(PLANES_LIMITES.keys())
     plan_actual_db = comercio.get('plan')
     plan_para_selector = plan_actual_db if plan_actual_db in lista_planes_claves else lista_planes_claves[0]
     indice_defecto = lista_planes_claves.index(plan_para_selector)
 
     nuevo_whatsapp = st.text_input("WhatsApp", value=comercio.get('whatsapp', ''))
-    nuevo_plan = st.selectbox(
-        "Plan de Socio", 
-        options=lista_planes_claves, 
-        index=indice_defecto,
-        format_func=lambda x: OPCIONES_PLAN_VISUAL.get(x, x)
-    )
+    nuevo_plan = st.selectbox("Plan de Socio", options=lista_planes_claves, index=indice_defecto, format_func=lambda x: OPCIONES_PLAN_VISUAL.get(x, x))
+    nuevo_estado = st.toggle("Activo (Visible en Mall)", value=comercio.get('activo', False))
 
     if st.button("GUARDAR CAMBIOS EN SOCIO"):
-        if nuevo_whatsapp:
-            try:
-                supabase.table("perfiles_comercio").update({
-                    "whatsapp": nuevo_whatsapp, 
-                    "plan": nuevo_plan
-                }).eq("id", comercio['id']).execute()
-                st.success("¡Datos actualizados!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-        else:
-            st.error("WhatsApp es obligatorio.")
+        try:
+            supabase.table("perfiles_comercio").update({
+                "whatsapp": nuevo_whatsapp, "plan": nuevo_plan, "activo": nuevo_estado
+            }).eq("id", comercio['id']).execute()
+            st.success("¡Datos actualizados!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error: {e}")
 
 # ==========================================
-# 4. FUNCIONES DE LÓGICA (ADMIN)
+# 4. FUNCIONES DE LÓGICA
 # ==========================================
 def borrar_comercio_completo(comercio_id, nombre_comercio):
-    """Borrado en cascada manual de productos y perfil."""
     with st.spinner(f"Eliminando {nombre_comercio}..."):
         try:
             supabase.table("productos").delete().eq("comercio_relacionado", nombre_comercio).execute()
-            resultado = supabase.table("perfiles_comercio").delete().eq("id", comercio_id).execute()
-            if resultado.data:
-                st.toast(f"✅ Comercio {nombre_comercio} eliminado.", icon="🗑️")
-                st.rerun()
+            supabase.table("perfiles_comercio").delete().eq("id", comercio_id).execute()
+            st.toast(f"✅ Comercio {nombre_comercio} eliminado.", icon="🗑️")
+            st.rerun()
         except Exception as e:
             st.error(f"⚠️ Error al borrar: {e}")
 
@@ -159,12 +134,11 @@ def borrar_comercio_completo(comercio_id, nombre_comercio):
 # 5. LÓGICA DE VISTAS (NAVEGACIÓN)
 # ==========================================
 es_admin_master = st.query_params.get("admin") == "true"
-es_vía_register = st.query_params.get("reg") == "true"
+es_via_register = st.query_params.get("reg") == "true"
 
 # --- VISTA: REGISTRO DE SOCIO ---
-if es_vía_register:
+if es_via_register:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE SOCIO</h1>", unsafe_allow_html=True)
-    
     b1, b2, b3, b4 = st.columns(4)
     with b1: st.markdown("<div class='benefit-card'>⚪<br><b>GRATIS</b></div>", unsafe_allow_html=True)
     with b2: st.markdown("<div class='benefit-card'>🥉<br><b>BRONCE</b></div>", unsafe_allow_html=True)
@@ -189,13 +163,10 @@ if es_vía_register:
                 url_portada_final = supabase.storage.from_("fotos_productos").get_public_url(path_portada)
                 
                 supabase.table("perfiles_comercio").insert({
-                    "nombre_comercio": r_nombre_tienda, 
-                    "email_propietario": r_email, 
-                    "whatsapp": r_whatsapp, 
-                    "portada_url": url_portada_final, 
-                    "plan": plan_seleccionado, 
-                    "codigo_acceso": f"LUX{random.randint(10,99)}",
-                    "activo": False 
+                    "nombre_comercio": r_nombre_tienda, "email_propietario": r_email, 
+                    "whatsapp": r_whatsapp, "portada_url": url_portada_final, 
+                    "plan": plan_seleccionado, "referencia_pago": r_referencia_pago,
+                    "codigo_acceso": f"LUX{random.randint(10,99)}", "activo": False 
                 }).execute()
                 st.success("¡Registro Exitoso! Pendiente por activación.")
             else:
@@ -206,7 +177,7 @@ elif not es_admin_master:
     if st.session_state.view == 'mall':
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
         tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-
+        if not tiendas: st.info("Próximamente más tiendas de lujo...")
         for i in range(0, len(tiendas), 2):
             cols = st.columns(2)
             for j in range(2):
@@ -221,9 +192,8 @@ elif not es_admin_master:
 
     elif st.session_state.view == 'tienda':
         t = st.session_state.tienda_actual
-        if st.button("⬅️ VOLVER AL MALL"): ir_a('mall')
+        if st.button("⬅️ VOLVER"): ir_a('mall')
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
-        
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
         for p in prods:
             st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
@@ -234,7 +204,6 @@ elif not es_admin_master:
 # --- VISTA: PANEL DE CONTROL ---
 else:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
-    
     if not st.session_state.logged_in:
         with st.container(border=True):
             l_email = st.text_input("Email").strip().lower()
@@ -242,30 +211,27 @@ else:
             if st.button("🔓 ENTRAR AL PANEL"):
                 res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", l_email).execute()
                 if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == l_codigo:
-                    st.session_state.logged_in = True
-                    st.session_state.user_email = l_email
+                    st.session_state.logged_in, st.session_state.user_email = True, l_email
                     st.rerun()
+                else: st.error("Datos incorrectos.")
     else:
         perfil_socio = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute().data[0]
-        
-        # Capacidad de productos
         res_count = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perfil_socio['nombre_comercio']).execute()
         cant_actual = res_count.count or 0
         cant_limite = PLANES_LIMITES.get(perfil_socio.get('plan', 'GRATUITO'), 3)
         
         st.write(f"Socio: **{perfil_socio['nombre_comercio']}** | Plan: **{perfil_socio.get('plan', 'GRATUITO')}**")
-        st.progress(min(cant_actual / cant_limite, 1.0))
+        st.progress(min(cant_actual / cant_limite, 1.0), text=f"Capacidad: {cant_actual}/{cant_limite}")
 
-        tabs_list = ["➕ AGREGAR", "📦 CATÁLOGO", "💳 PAGOS"]
+        tabs_list = ["➕ PRODUCTO", "📦 CATÁLOGO", "⚙️ PERFIL"]
         es_admin_general = perfil_socio['nombre_comercio'].upper() == "D'UNIG LUXURY"
         if es_admin_general: tabs_list.append("🏙️ GESTIÓN MAESTRA")
-            
         t1, t2, t3, *t4_opt = st.tabs(tabs_list)
         
-        with t1:
+        with t1: # AGREGAR
             if cant_actual < cant_limite:
                 with st.form("form_add_producto", clear_on_submit=True):
-                    add_nombre = st.text_input("Nombre del Producto")
+                    add_nombre = st.text_input("Nombre")
                     add_precio = st.number_input("Precio ($)", min_value=0.0)
                     add_video = st.file_uploader("Video (MP4)", type=['mp4'])
                     if st.form_submit_button("🚀 PUBLICAR"):
@@ -274,39 +240,39 @@ else:
                             supabase.storage.from_("fotos_productos").upload(fname, add_video.getvalue(), {"content-type": "video/mp4"})
                             url_video = supabase.storage.from_("fotos_productos").get_public_url(fname)
                             supabase.table("productos").insert({"nombre_producto": add_nombre, "precio": add_precio, "video_url": url_video, "comercio_relacionado": perfil_socio['nombre_comercio']}).execute()
-                            st.success("Publicado correctamente.")
-                            st.rerun()
-            else:
-                st.warning("Límite de plan alcanzado.")
+                            st.success("¡Publicado!"); st.rerun()
+            else: st.warning("Límite alcanzado.")
 
-        with t2:
+        with t2: # CATÁLOGO
             prods_s = supabase.table("productos").select("*").eq("comercio_relacionado", perfil_socio['nombre_comercio']).execute().data
             for it in prods_s:
                 c1, c2 = st.columns([3, 1])
                 c1.write(f"**{it['nombre_producto']}** (${it['precio']})")
                 if c2.button("🗑️", key=f"del_{it['id']}"):
-                    supabase.table("productos").delete().eq("id", it['id']).execute()
-                    st.rerun()
+                    supabase.table("productos").delete().eq("id", it['id']).execute(); st.rerun()
 
-        with t3:
-            inst = st.text_area("Instrucciones de pago", value=perfil_socio.get('datos_pago', ''), height=150)
+        with t3: # CONFIGURACIÓN PERFIL
+            st.subheader("Editar Perfil Luxury")
+            nueva_p = st.file_uploader("Actualizar Portada", type=['jpg', 'png'])
+            if st.button("🖼️ GUARDAR PORTADA") and nueva_p:
+                path = f"portadas/upd_{perfil_socio['id']}.png"
+                supabase.storage.from_("fotos_productos").upload(path, nueva_p.getvalue(), {"x-upsert": "true"})
+                new_url = supabase.storage.from_("fotos_productos").get_public_url(path)
+                supabase.table("perfiles_comercio").update({"portada_url": new_url}).eq("id", perfil_socio['id']).execute()
+                st.success("Portada actualizada."); st.rerun()
+            inst = st.text_area("Datos de Pago (WhatsApp)", value=perfil_socio.get('datos_pago', ''), height=100)
             if st.button("💾 GUARDAR PAGOS"):
-                supabase.table("perfiles_comercio").update({"datos_pago": inst}).eq("id", perfil_socio['id']).execute()
-                st.success("Guardado.")
+                supabase.table("perfiles_comercio").update({"datos_pago": inst}).eq("id", perfil_socio['id']).execute(); st.success("Guardado.")
 
         if es_admin_general and t4_opt:
             with t4_opt[0]:
-                st.subheader("Control de Socios")
+                st.subheader("Control Maestro")
                 todos = supabase.table("perfiles_comercio").select("*").execute().data
-                busq = st.text_input("🔍 Buscar comercio").lower()
                 for c in todos:
-                    if busq and busq not in c['nombre_comercio'].lower(): continue
                     with st.container(border=True):
                         cc1, cc2, cc3 = st.columns([2, 1, 1])
-                        cc1.write(f"**{c['nombre_comercio']}** ({'✅' if c.get('activo') else '🔴'})")
-                        if cc2.button("📝 Editar", key=f"m_ed_{c['id']}"): editar_comercio_dialog(c)
-                        if cc3.button("🗑️ Borrar", key=f"m_del_{c['id']}"): borrar_comercio_completo(c['id'], c['nombre_comercio'])
+                        cc1.write(f"**{c['nombre_comercio']}** | Ref: {c.get('referencia_pago','N/A')}")
+                        if cc2.button("📝", key=f"m_ed_{c['id']}"): editar_comercio_dialog(c)
+                        if cc3.button("🗑️", key=f"m_del_{c['id']}"): borrar_comercio_completo(c['id'], c['nombre_comercio'])
 
-        if st.button("🚪 CERRAR SESIÓN"):
-            st.session_state.logged_in = False
-            st.rerun()
+        if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
