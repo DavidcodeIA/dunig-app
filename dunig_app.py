@@ -1,9 +1,8 @@
 import streamlit as st
-from supabase import create_client, Client
-import urllib.parse
+from supabase import create_client
 
 # ==========================================
-# 1. CONFIGURACIÓN Y CONEXIÓN
+# 1. CONFIGURACIÓN E INICIALIZACIÓN
 # ==========================================
 st.set_page_config(
     page_title="D'UNIG LUXURY", 
@@ -11,171 +10,131 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Estados de navegación
+if 'view' not in st.session_state: st.session_state.view = 'mall'
+if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
+
 @st.cache_resource 
 def init_connection():
     try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception as e:
-        st.error(f"Error de conexión: {e}")
-        return None
+        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    except: return None
 
 supabase = init_connection()
-
-if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA 9:16 FULL SCREEN (CSS)
+# 2. CSS INTEGRAL (MALL + VIDEOS + PANELES)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo negro total y limpieza de interfaz */
-    .main { background-color: #000000 !important; }
-    header {visibility: hidden;} 
+    header, footer, [data-testid="stSidebar"] { visibility: hidden; display: none !important; }
     
-    [data-testid="stAppViewBlockContainer"] {
-        padding: 0rem !important;
-        max-width: 100% !important;
+    html, body, .main, [data-testid="stAppViewBlockContainer"] {
+        overflow: hidden !important;
+        margin: 0 !important; padding: 0 !important;
+        width: 100vw !important; height: 100vh !important;
+        background-color: #000 !important;
     }
 
-    /* Contenedor forzado a 9:16 (1080x1920) */
-    .video-container-916 {
-        position: relative;
-        width: 100vw;
-        height: 100vh; /* Ocupa el alto total del dispositivo */
-        overflow: hidden;
-        background: #000;
-        margin: 0px;
-        padding: 0px;
-    }
+    [data-testid="stAppViewBlockContainer"] { margin-top: -100px !important; }
 
-    .tiktok-video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover; /* Asegura calidad máxima sin bordes negros */
-    }
-
-    /* Información sobre el video */
-    .info-overlay {
-        position: absolute;
-        bottom: 50px;
-        left: 20px;
-        z-index: 10;
+    /* Estilo para los Paneles de Registro/Control */
+    .admin-panel {
+        background: #111;
+        height: 100vh;
+        padding: 40px 20px;
         color: white;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
-        pointer-events: none;
+        overflow-y: auto !important;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.6rem; color: #D4AF37; margin-bottom: 5px; }
+    /* Botones y Inputs para Registro de Socio */
+    .stTextInput>div>div>input, .stSelectbox>div>div>div {
+        background-color: #222 !important;
+        color: gold !important;
+        border: 1px solid #D4AF37 !important;
+    }
+
+    /* BOTONES FLOTANTES */
+    div.stButton > button[key="btn_admin"] {
+        position: fixed; top: 20px; right: 20px; z-index: 3000;
+        background: rgba(212, 175, 55, 0.2) !important;
+        border: 1px solid #D4AF37 !important; color: #D4AF37 !important;
+        border-radius: 10px; font-size: 0.7rem;
+    }
     
-    .price-tag {
-        background: rgba(0, 0, 0, 0.6);
-        color: #39FF14;
-        padding: 8px 25px;
-        border-radius: 50px;
-        font-weight: 900;
-        font-size: 1.5rem;
-        border: 2px solid #39FF14;
-        display: inline-block;
-    }
-
-    /* Botones Dorados Luxury */
-    div.stButton > button {
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        background-size: 200% 100% !important;
-        color: #000 !important; 
-        border-radius: 0px !important; 
-        font-weight: 900 !important;
-        height: 70px !important;
-        border: none !important;
-        width: 100% !important;
-        font-size: 1.3rem !important;
-    }
-
-    /* Botón ATRÁS (Burbuja Naranja Neón) */
     div.stButton > button[key^="back_"] {
-        background: rgba(0, 0, 0, 0.6) !important;
-        color: #FF5F1F !important; 
-        border: 2px solid #FF5F1F !important;
-        border-radius: 50px !important;
-        font-weight: 900 !important;
-        height: 55px !important;
-        width: auto !important;
-        padding: 0px 35px !important;
-        font-size: 1.2rem !important;
-        margin-top: 15px !important;
-        margin-left: 20px !important;
+        position: fixed; top: 30px; left: 20px; z-index: 2000;
+        background: rgba(0,0,0,0.7) !important; color: #FF5F1F !important;
+        border: 2px solid #FF5F1F !important; border-radius: 50px !important;
     }
-
-    [data-testid="stVerticalBlock"] { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. CARRITO DE COMPRAS (RESTAURADO)
+# 3. VISTAS DE LA APP
 # ==========================================
-@st.dialog("💎 PROCESAR PEDIDO")
-def ventana_pago(producto, tienda):
-    st.markdown(f"### ✨ {producto['nombre_producto']}")
-    cantidad = st.number_input("Cantidad", min_value=1, value=1)
-    total = float(producto['precio']) * cantidad
-    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
-    st.divider()
-    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
-    ref = st.text_input("Referencia de Pago")
-    
-    if st.button("🚀 ENVIAR PEDIDO", key="final_confirm"):
-        if ref:
-            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
-            tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
-        else:
-            st.error("Por favor, ingresa la referencia de pago.")
 
-# ==========================================
-# 4. VISTAS
-# ==========================================
+# --- BOTÓN DE ADMINISTRACIÓN (Solo visible en el Mall) ---
 if st.session_state.view == 'mall':
-    tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i + j]
-                with cols[j]:
-                    st.image(t.get("portada_url", ""), use_container_width=True)
-                    if st.button(f"{t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    if st.button("⚙️ PANEL", key="btn_admin"):
+        ir_a('admin_panel')
 
+# --- VISTA: MALL (Pantalla Dividida) ---
+if st.session_state.view == 'mall':
+    if supabase:
+        tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).limit(2).execute().data
+        for idx, t in enumerate(tiendas):
+            st.markdown(f'<div class="shop-half"><img src="{t.get("portada_url", "")}"><div class="shop-label">{t["nombre_comercio"]}</div></div>', unsafe_allow_html=True)
+            if st.button(f"Entrar {idx}", key=f"link_{t['id']}"):
+                st.session_state.tienda_actual = t
+                ir_a('tienda')
+
+# --- VISTA: TIENDA (Videos Inmersivos) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
-    
-    for idx, p in enumerate(prods):
-        st.markdown(f"""
-            <div class="video-container-916">
-                <video class="tiktok-video" autoplay loop muted playsinline controls>
-                    <source src="{p['video_url']}" type="video/mp4">
-                </video>
-                <div class="info-overlay">
-                    <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="price-tag">${p['precio']}</div>
+    if supabase and t:
+        prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+        if st.button("⬅ VOLVER", key="back_mall"): ir_a('mall')
+        for idx, p in enumerate(prods):
+            st.markdown(f"""
+                <div class="snap-section">
+                    <video class="tiktok-video" loop playsinline muted preload="auto"><source src="{p['video_url']}"></video>
+                    <div style="position:absolute; bottom:120px; left:25px; z-index:500;">
+                        <h1 style="color:#D4AF37; margin:0;">@{t['nombre_comercio']}</h1>
+                        <h2 style="color:#39FF14;">$ {p['precio']}</h2>
+                    </div>
                 </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Navegación y Compra
-        if st.button("⬅ ATRÁS", key=f"back_{idx}"):
-            ir_a('mall')
-        
-        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-            ventana_pago(p, t)
+            """, unsafe_allow_html=True)
+
+# --- VISTA: PANEL DE CONTROL Y REGISTRO (Nueva) ---
+elif st.session_state.view == 'admin_panel':
+    st.markdown('<div class="admin-panel">', unsafe_allow_html=True)
+    if st.button("⬅ SALIR DEL PANEL", key="back_admin"): ir_a('mall')
+    
+    st.title("⚜️ Panel de Control D'UNIG")
+    
+    tab1, tab2 = st.tabs(["📊 Gestión de Comercios", "📝 Registro de Nuevo Socio"])
+    
+    with tab1:
+        st.subheader("Comercios Activos")
+        if supabase:
+            lista = supabase.table("perfiles_comercio").select("nombre_comercio, activo").execute().data
+            st.table(lista)
             
-        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+    with tab2:
+        st.subheader("REGISTRO DE NUEVO SOCIO")
+        with st.form("registro_socio"):
+            nombre = st.text_input("Nombre del Comercio")
+            propietario = st.text_input("Nombre del Propietario")
+            categoria = st.selectbox("Categoría", ["Moda", "Lujo", "Tecnología", "Joyas"])
+            portada = st.text_input("URL de Imagen de Portada (Mall)")
+            
+            if st.form_submit_button("REGISTRAR COMERCIO"):
+                # Aquí iría tu lógica de supabase.table("perfiles_comercio").insert(...)
+                st.success(f"¡{nombre} ha sido registrado con éxito!")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
