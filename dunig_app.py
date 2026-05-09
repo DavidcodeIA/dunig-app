@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Inicialización segura del estado (Evita el AttributeError)
+# Inicialización de estado para evitar el AttributeError
 if 'view' not in st.session_state:
     st.session_state.view = 'mall'
 if 'tienda_actual' not in st.session_state:
@@ -33,30 +33,39 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. AUDIO FOCUS & UI FULL-SCREEN (CSS)
+# 2. CSS DE ALTA PRECISIÓN (SIN BARRA LATERAL)
 # ==========================================
 st.markdown("""
     <style>
-    /* ELIMINAR ESPACIO SUPERIOR DE RAÍZ */
+    /* ELIMINAR BARRA DE DESPLAZAMIENTO Y MÁRGENES */
+    html, body, [data-testid="stAppViewBlockContainer"] {
+        overflow: hidden !important; /* Adiós barra lateral */
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
     .main { background-color: #000000 !important; }
     header { visibility: hidden; display: none !important; }
     footer { visibility: hidden; }
     
     [data-testid="stAppViewBlockContainer"] {
-        padding-top: 0rem !important;
-        margin-top: -85px !important; /* Succiona el espacio del título */
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
+        margin-top: -100px !important; /* Elimina espacio superior de Screenshot_20260509-142706.jpg */
         max-width: 100% !important;
     }
 
-    /* MECÁNICA DE PEGADO (SCROLL SNAPPING) */
+    /* CONTENEDOR DE DESPLAZAMIENTO TÁCTIL (SNAP) */
     [data-testid="stVerticalBlock"] {
         scroll-snap-type: y mandatory;
-        overflow-y: scroll;
-        height: 100vh;
+        overflow-y: scroll !important;
+        height: 110vh; /* Un poco más alto para asegurar el flujo */
         gap: 0rem !important;
+        -ms-overflow-style: none;  /* Ocultar barra en IE/Edge */
+        scrollbar-width: none;  /* Ocultar barra en Firefox */
+    }
+
+    /* Ocultar barra en Chrome/Brave/Safari */
+    [data-testid="stVerticalBlock"]::-webkit-scrollbar {
+        display: none !important;
     }
 
     .snap-section {
@@ -71,21 +80,21 @@ st.markdown("""
     .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Formato 9:16 sin bordes negros */
+        object-fit: cover; /* 1080x1920 Full Screen */
     }
 
-    /* BOTONES FLOTANTES */
+    /* BOTONES FLOTANTES MEJORADOS */
     div.stButton > button[key^="back_"] {
         position: fixed;
-        top: 25px !important; 
-        left: 15px !important;
+        top: 30px !important; 
+        left: 20px !important;
         z-index: 2000 !important;
         background: rgba(0, 0, 0, 0.7) !important;
         color: #FF5F1F !important; 
         border: 2px solid #FF5F1F !important;
         border-radius: 50px !important;
         font-weight: 900 !important;
-        padding: 5px 20px !important;
+        padding: 8px 25px !important;
     }
 
     div.stButton > button[key^="buy_"] {
@@ -97,47 +106,48 @@ st.markdown("""
         color: #000 !important; 
         border: none !important;
         font-weight: 900 !important;
-        height: 75px !important;
+        height: 80px !important;
         width: 100% !important;
-        font-size: 1.5rem !important;
+        font-size: 1.6rem !important;
     }
 
     .floating-info {
         position: absolute;
-        bottom: 100px;
-        left: 20px;
+        bottom: 120px;
+        left: 25px;
         z-index: 500;
         pointer-events: none;
     }
-
-    ::-webkit-scrollbar { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. GESTOR DE AUDIO (JAVASCRIPT)
+# 3. GESTOR DE AUDIO FOCUS (JAVASCRIPT)
 # ==========================================
 st.components.v1.html("""
 <script>
-    function manageAudio() {
+    const manageAudio = () => {
         const videos = window.parent.document.querySelectorAll('video');
         const vh = window.parent.innerHeight;
         videos.forEach(v => {
             const rect = v.getBoundingClientRect();
-            // Solo suena el video en el centro de la pantalla (Audio Focus)
-            if (rect.top >= 0 && rect.bottom <= vh) {
+            // Foco de audio: solo el video visible suena
+            if (rect.top >= -50 && rect.top <= 50) { 
                 v.muted = false;
-                v.play();
+                v.play().catch(() => {}); 
             } else {
                 v.muted = true;
             }
         });
-    }
-    window.parent.document.addEventListener('click', () => {
+    };
+    
+    // Activar al primer toque
+    window.parent.document.addEventListener('touchstart', () => {
         const videos = window.parent.document.querySelectorAll('video');
-        videos.forEach(v => { v.muted = false; v.play(); });
+        videos.forEach(v => { v.play().catch(() => {}); });
         manageAudio();
     }, { once: true });
+
     window.parent.addEventListener('scroll', manageAudio);
 </script>
 """, height=0)
@@ -159,7 +169,7 @@ elif st.session_state.view == 'tienda':
     if supabase and t:
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
         
-        # Botón único de Atrás
+        # Botón único de Atrás (Arriba a la izquierda)
         if st.button("⬅ ATRÁS", key="back_master"):
             ir_a('mall')
 
@@ -170,11 +180,11 @@ elif st.session_state.view == 'tienda':
                         <source src="{p['video_url']}" type="video/mp4">
                     </video>
                     <div class="floating-info">
-                        <div style="font-size: 2rem; font-weight: 800; color: #D4AF37;">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                        <div style="color: #39FF14; font-size: 1.6rem; font-weight: 900; border: 2px solid #39FF14; padding: 8px 20px; border-radius: 50px; background: rgba(0,0,0,0.7); display: inline-block;">$ {p['precio']}</div>
+                        <div style="font-size: 2.2rem; font-weight: 800; color: #D4AF37; text-shadow: 2px 2px 10px #000;">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
+                        <div style="color: #39FF14; font-size: 1.8rem; font-weight: 900; border: 2px solid #39FF14; padding: 10px 25px; border-radius: 50px; background: rgba(0,0,0,0.8); display: inline-block;">$ {p['precio']}</div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
             if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}"):
-                st.toast(f"Procesando: {p['nombre_producto']}")
+                st.toast(f"Procesando pedido para {p['nombre_producto']}...")
