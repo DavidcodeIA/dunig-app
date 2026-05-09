@@ -18,7 +18,6 @@ def init_connection():
         key = st.secrets["SUPABASE_KEY"]
         return create_client(url, key)
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
         return None
 
 supabase = init_connection()
@@ -31,40 +30,48 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA 9:16 FULL SCREEN (CSS)
+# 2. ESTÉTICA "MAGNETIC" 9:16 (CSS)
 # ==========================================
 st.markdown("""
     <style>
     /* Fondo negro total y limpieza de interfaz */
     .main { background-color: #000000 !important; }
-    header {visibility: hidden;} 
+    header {visibility: hidden; height: 0px;} 
+    footer {visibility: hidden;}
     
     [data-testid="stAppViewBlockContainer"] {
         padding: 0rem !important;
         max-width: 100% !important;
     }
 
-    /* Contenedor forzado a 9:16 (1080x1920) */
+    /* EFECTO IMÁN (SCROLL SNAPPING) */
+    [data-testid="stVerticalBlock"] {
+        scroll-snap-type: y mandatory;
+        overflow-y: scroll;
+        height: 100vh;
+        gap: 0rem !important;
+    }
+
     .video-container-916 {
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
         position: relative;
         width: 100vw;
-        height: 100vh; /* Ocupa el alto total del dispositivo */
+        height: 100vh; 
         overflow: hidden;
         background: #000;
-        margin: 0px;
-        padding: 0px;
     }
 
     .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Asegura calidad máxima sin bordes negros */
+        object-fit: cover; 
     }
 
     /* Información sobre el video */
     .info-overlay {
         position: absolute;
-        bottom: 50px;
+        bottom: 120px;
         left: 20px;
         z-index: 10;
         color: white;
@@ -85,10 +92,9 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* Botones Dorados Luxury */
+    /* Botones Dorados Luxury (COMPRAR) */
     div.stButton > button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        background-size: 200% 100% !important;
         color: #000 !important; 
         border-radius: 0px !important; 
         font-weight: 900 !important;
@@ -96,29 +102,31 @@ st.markdown("""
         border: none !important;
         width: 100% !important;
         font-size: 1.3rem !important;
+        margin: 0px !important;
     }
 
-    /* Botón ATRÁS (Burbuja Naranja Neón) */
+    /* Botón ATRÁS (Burbuja Naranja Neón - Debajo) */
     div.stButton > button[key^="back_"] {
-        background: rgba(0, 0, 0, 0.6) !important;
+        background: rgba(0, 0, 0, 0.7) !important;
         color: #FF5F1F !important; 
         border: 2px solid #FF5F1F !important;
         border-radius: 50px !important;
-        font-weight: 900 !important;
-        height: 55px !important;
+        height: 45px !important;
         width: auto !important;
-        padding: 0px 35px !important;
-        font-size: 1.2rem !important;
-        margin-top: 15px !important;
+        padding: 0px 30px !important;
+        font-size: 1rem !important;
+        margin-top: 10px !important;
+        margin-bottom: 20px !important;
         margin-left: 20px !important;
     }
 
-    [data-testid="stVerticalBlock"] { gap: 0rem !important; }
+    /* Eliminar scrollbars */
+    ::-webkit-scrollbar { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. CARRITO DE COMPRAS (RESTAURADO)
+# 3. CARRITO DE COMPRAS
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
@@ -159,9 +167,10 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
+        # 1. El Video (Ocupa toda la pantalla)
         st.markdown(f"""
             <div class="video-container-916">
-                <video class="tiktok-video" autoplay loop muted playsinline controls>
+                <video class="tiktok-video" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
                 <div class="info-overlay">
@@ -171,11 +180,10 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Navegación y Compra
-        if st.button("⬅ ATRÁS", key=f"back_{idx}"):
-            ir_a('mall')
-        
+        # 2. Botón COMPRAR (Primero, pegado al video)
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
             ventana_pago(p, t)
-            
-        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+        
+        # 3. Botón ATRÁS (Segundo, estilo burbuja)
+        if st.button("⬅ ATRÁS", key=f"back_{idx}"):
+            ir_a('mall')
