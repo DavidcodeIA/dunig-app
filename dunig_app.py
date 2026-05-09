@@ -1,5 +1,5 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client
 import urllib.parse
 
 # ==========================================
@@ -31,11 +31,11 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA 9:16 FULL SCREEN (CSS)
+# 2. ESTÉTICA "SNAP SCROLL" LUXURY (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo negro total y limpieza de interfaz */
+    /* Reset de espacios y scroll magnético */
     .main { background-color: #000000 !important; }
     header {visibility: hidden;} 
     
@@ -44,49 +44,82 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* Contenedor forzado a 9:16 (1080x1920) */
-    .video-container-916 {
+    /* Contenedor Maestro con imán vertical */
+    [data-testid="stVerticalBlock"] {
+        scroll-snap-type: y mandatory;
+        overflow-y: scroll;
+        height: 100vh;
+        gap: 0rem !important;
+    }
+
+    /* Cada bloque de video es una página completa */
+    .snap-section {
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
         position: relative;
         width: 100vw;
-        height: 100vh; /* Ocupa el alto total del dispositivo */
+        height: 100vh;
         overflow: hidden;
         background: #000;
-        margin: 0px;
-        padding: 0px;
     }
 
     .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Asegura calidad máxima sin bordes negros */
+        object-fit: cover;
     }
 
-    /* Información sobre el video */
-    .info-overlay {
+    /* Interfaz Flotante sobre el video */
+    .floating-ui {
         position: absolute;
-        bottom: 50px;
+        bottom: 80px;
         left: 20px;
-        z-index: 10;
-        color: white;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+        z-index: 100;
         pointer-events: none;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.6rem; color: #D4AF37; margin-bottom: 5px; }
-    
-    .price-tag {
-        background: rgba(0, 0, 0, 0.6);
-        color: #39FF14;
-        padding: 8px 25px;
-        border-radius: 50px;
-        font-weight: 900;
-        font-size: 1.5rem;
-        border: 2px solid #39FF14;
-        display: inline-block;
+    .user-handle { 
+        font-weight: 800; 
+        font-size: 1.8rem; 
+        color: #D4AF37; 
+        text-shadow: 2px 2px 10px rgba(0,0,0,1);
     }
 
-    /* Botones Dorados Luxury */
-    div.stButton > button {
+    .price-burbuja {
+        background: rgba(0, 0, 0, 0.7);
+        color: #39FF14;
+        padding: 10px 25px;
+        border-radius: 50px;
+        font-weight: 900;
+        font-size: 1.6rem;
+        border: 2px solid #39FF14;
+        display: inline-block;
+        box-shadow: 0 0 15px rgba(57, 255, 20, 0.4);
+        margin-top: 10px;
+    }
+
+    /* Estilo del Botón ATRÁS (Burbuja Naranja Flotante) */
+    div.stButton > button[key^="back_"] {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.6) !important;
+        color: #FF5F1F !important; 
+        border: 2px solid #FF5F1F !important;
+        border-radius: 50px !important;
+        font-weight: 900 !important;
+        height: 45px !important;
+        padding: 0px 20px !important;
+        box-shadow: 0 0 10px rgba(255, 95, 31, 0.5);
+    }
+
+    /* Estilo del Botón de COMPRA (Dorado Flotante en la Base) */
+    div.stButton > button[key^="buy_"] {
+        position: fixed;
+        bottom: 0px;
+        left: 0px;
+        z-index: 500;
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; 
@@ -94,31 +127,17 @@ st.markdown("""
         font-weight: 900 !important;
         height: 70px !important;
         border: none !important;
+        font-size: 1.4rem !important;
         width: 100% !important;
-        font-size: 1.3rem !important;
     }
 
-    /* Botón ATRÁS (Burbuja Naranja Neón) */
-    div.stButton > button[key^="back_"] {
-        background: rgba(0, 0, 0, 0.6) !important;
-        color: #FF5F1F !important; 
-        border: 2px solid #FF5F1F !important;
-        border-radius: 50px !important;
-        font-weight: 900 !important;
-        height: 55px !important;
-        width: auto !important;
-        padding: 0px 35px !important;
-        font-size: 1.2rem !important;
-        margin-top: 15px !important;
-        margin-left: 20px !important;
-    }
-
-    [data-testid="stVerticalBlock"] { gap: 0rem !important; }
+    /* Esconder scrollbars */
+    ::-webkit-scrollbar { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. CARRITO DE COMPRAS (RESTAURADO)
+# 3. CARRITO DE COMPRAS (LÓGICA ANTERIOR)
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
@@ -141,6 +160,8 @@ def ventana_pago(producto, tienda):
 # ==========================================
 # 4. VISTAS
 # ==========================================
+
+# VISTA MALL (PORTADAS)
 if st.session_state.view == 'mall':
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     for i in range(0, len(tiendas), 2):
@@ -154,28 +175,29 @@ if st.session_state.view == 'mall':
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
+# VISTA TIENDA (INFINITE SCROLL 9:16)
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
+    # Botón Atrás Fijo (Arriba a la izquierda)
+    if st.button("⬅ ATRÁS", key="back_button_fixed"):
+        ir_a('mall')
+
     for idx, p in enumerate(prods):
+        # Cada video es una sección 'snap'
         st.markdown(f"""
-            <div class="video-container-916">
-                <video class="tiktok-video" autoplay loop muted playsinline controls>
+            <div class="snap-section">
+                <video class="tiktok-video" autoplay loop muted playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-                <div class="info-overlay">
+                <div class="floating-ui">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="price-tag">${p['precio']}</div>
+                    <div class="price-burbuja">${p['precio']}</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
-        # Navegación y Compra
-        if st.button("⬅ ATRÁS", key=f"back_{idx}"):
-            ir_a('mall')
-        
-        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+        # Botón de Compra Fijo por video
+        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}"):
             ventana_pago(p, t)
-            
-        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
