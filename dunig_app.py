@@ -7,7 +7,7 @@ import urllib.parse
 # ==========================================
 st.set_page_config(
     page_title="D'UNIG LUXURY", 
-    layout="wide", # Cambiado a wide para mejorar los laterales
+    layout="wide", 
     initial_sidebar_state="collapsed"
 )
 
@@ -31,16 +31,19 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA INMERSIVA SIN BORDES (CSS)
+# 2. ESTÉTICA TOTALMENTE EXPANDIDA (CSS)
 # ==========================================
 st.markdown("""
     <style>
     .main { background-color: #000000 !important; }
     header {visibility: hidden;} 
     
-    /* Eliminar espacios de Streamlit para pantalla completa */
+    /* Expansión total: elimina márgenes superiores y laterales */
     [data-testid="stAppViewBlockContainer"] {
-        padding: 0rem !important;
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
         max-width: 100% !important;
     }
 
@@ -59,7 +62,7 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Overlay de Info Inferior */
+    /* Info Overlay Inferior */
     .info-overlay {
         position: absolute;
         bottom: 30px;
@@ -83,7 +86,7 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* Botón de compra Luxury */
+    /* Botón de compra y atrás Luxury */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
@@ -96,15 +99,45 @@ st.markdown("""
         font-size: 1.3rem !important;
     }
 
+    /* Botón Atrás específico (más sobrio) */
+    div.stButton > button[key^="back_"] {
+        background: #1A1A1A !important;
+        color: #D4AF37 !important;
+        border: 1px solid #D4AF37 !important;
+    }
+
     [data-testid="stVerticalBlock"] { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. VISTAS
+# 3. LÓGICA DEL CARRITO (DIÁLOGO)
+# ==========================================
+@st.dialog("🛒 TU PEDIDO LUXURY")
+def ventana_pago(producto, tienda):
+    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    cantidad = st.number_input("¿Cuántas unidades deseas?", min_value=1, value=1)
+    
+    # Cálculo dinámico
+    precio_unidad = float(producto['precio'])
+    total = precio_unidad * cantidad
+    
+    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
+    st.divider()
+    st.markdown(f"**Comercio:** {tienda['nombre_comercio']}")
+    st.info(f"💳 **Método de Pago:** {tienda.get('datos_pago', 'Acordar con el vendedor')}")
+    
+    if st.button("🚀 FINALIZAR PEDIDO (WHATSAPP)", use_container_width=True):
+        msj = f"✨ *NUEVO PEDIDO D'UNIG*\n\n🛍️ *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total:,.2f}\n\n📍 *Tienda:* {tienda['nombre_comercio']}"
+        tel = str(tienda['whatsapp']).replace("+", "").strip()
+        link_wa = f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}"
+        st.link_button("ABRIR WHATSAPP", link_wa, use_container_width=True)
+
+# ==========================================
+# 4. VISTAS
 # ==========================================
 if st.session_state.view == 'mall':
-    st.markdown("<h1 style='text-align:center; color:#D4AF37; padding:20px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
+    # Títulos eliminados para expansión máxima
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
     for i in range(0, len(tiendas), 2):
@@ -123,7 +156,7 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        # VIDEO PANTALLA COMPLETA - BURBUJA ELIMINADA
+        # Video sin títulos estorbando arriba
         st.markdown(f"""
             <div class="tiktok-container">
                 <video class="tiktok-video" autoplay loop muted playsinline controls>
@@ -136,7 +169,7 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botones de acción debajo del video
+        # Botones integrados debajo del video
         col_back, col_buy = st.columns([1, 2])
         
         with col_back:
@@ -144,8 +177,7 @@ elif st.session_state.view == 'tienda':
                 ir_a('mall')
         
         with col_buy:
-            if st.button(f"🛒 COMPRAR", key=f"buy_{p['id']}", use_container_width=True):
-                # Aquí puedes llamar a la ventana de pago
-                pass
+            if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+                ventana_pago(p, t)
             
         st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
