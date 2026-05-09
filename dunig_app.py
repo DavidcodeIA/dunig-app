@@ -31,84 +31,70 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA Y LÓGICA (CSS + JS)
+# 2. ESTÉTICA TIKTOK INMERSIVA (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo y reseteo total */
     .main { background-color: #000000 !important; }
-    .block-container { padding: 0 !important; max-width: 100% !important; }
-    header {visibility: hidden;} 
     
-    /* Contenedor Full Screen Cuadrado */
-    .tiktok-full-container {
+    /* Contenedor Cuadrado y Full */
+    .tiktok-container {
         position: relative;
-        width: 100vw;
-        height: 90vh;
+        width: 100%;
+        height: 88vh; 
         background: #000;
+        margin-bottom: 0px;
         overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        /* Esquinas cuadradas */
+        border-radius: 0px !important;
+        border: none !important;
     }
 
-    .tiktok-video-full {
+    .tiktok-video {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Abarca toda la pantalla */
-        cursor: pointer;
+        object-fit: cover;
     }
 
-    /* Botón Play Central */
-    .play-overlay {
-        position: absolute;
-        z-index: 20;
-        background: rgba(0, 0, 0, 0.4);
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid white;
-        cursor: pointer;
-        transition: opacity 0.3s ease;
-    }
-
-    /* Capa de Información Inferior */
+    /* Overlay Minimalista */
     .info-overlay {
         position: absolute;
-        bottom: 30px;
+        bottom: 40px;
         left: 20px;
-        right: 20px;
         z-index: 10;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+        pointer-events: none;
     }
 
-    /* Fila de Burbujas Flotantes */
-    .floating-controls {
+    .user-handle { 
+        font-weight: 800; 
+        font-size: 1.4rem; 
+        color: #D4AF37; 
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        margin-bottom: 15px;
+    }
+
+    /* Contenedor de Burbujas Inferiores */
+    .burbujas-container {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
+        pointer-events: auto; /* Para que el botón de atrás funcione */
     }
 
-    /* Burbuja de Precio */
     .price-tag {
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.6);
         color: #39FF14;
         padding: 8px 20px;
         border-radius: 50px;
         font-weight: 900;
-        font-size: 1.3rem;
+        font-size: 1.4rem;
         border: 2px solid #39FF14;
+        backdrop-filter: blur(5px);
     }
 
-    /* Burbuja de Ir Atrás (Flotante) */
-    .back-bubble {
+    /* Botón Atrás Flotante Estilo Burbuja */
+    .back-float {
         background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(10px);
         color: white;
         width: 50px;
         height: 50px;
@@ -116,70 +102,59 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 22px;
         border: 1px solid rgba(255,255,255,0.4);
+        backdrop-filter: blur(10px);
         cursor: pointer;
         text-decoration: none;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; text-shadow: 2px 2px 4px black; }
-
-    /* Botón de Compra Luxury */
+    /* Botón Compra Luxury */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; 
-        border-radius: 0px !important;
+        border-radius: 0px !important; /* Cuadrado también */
         font-weight: 800 !important;
         height: 60px !important;
         border: none !important;
         width: 100% !important;
-        font-size: 1.2rem !important;
+        font-size: 1.1rem !important;
     }
-    </style>
 
-    <script>
-    function playVideo(id) {
-        const vid = document.getElementById(id);
-        const overlay = document.getElementById('overlay-' + id);
-        if (vid.paused) {
-            vid.play();
-            vid.muted = false;
-            overlay.style.opacity = '0';
-            overlay.style.pointerEvents = 'none';
-        } else {
-            vid.pause();
-            overlay.style.opacity = '1';
-            overlay.style.pointerEvents = 'auto';
-        }
-    }
-    </script>
+    /* Eliminar espacios de Streamlit */
+    header {visibility: hidden;}
+    [data-testid="stVerticalBlock"] { gap: 0rem !important; }
+    </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS
+# 3. DIÁLOGO DE COMPRA
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
-    st.markdown(f"### ✨ {producto['nombre_producto']}")
+    st.markdown(f"### ✨ Confirmar Pedido")
+    st.write(f"Producto: **{producto['nombre_producto']}**")
     cantidad = st.number_input("Cantidad", min_value=1, value=1)
     total = float(producto['precio']) * cantidad
     st.metric("TOTAL A PAGAR", f"${total:,.2f}")
     st.divider()
-    st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar')}")
+    st.info(f"💳 **MÉTODO:** {tienda.get('datos_pago', 'Consultar')}")
     ref = st.text_input("Referencia de Pago")
-    if st.button("🚀 CONFIRMAR PEDIDO"):
+    
+    if st.button("🚀 FINALIZAR POR WHATSAPP"):
         if ref:
-            msj = f"💎 *PEDIDO*\n📦 {producto['nombre_producto']}\n🔢 Cant: {cantidad}\n💰 Total: ${total}\n🎫 Ref: {ref}"
+            msj = f"💎 *NUEVO PEDIDO*\n📦 {producto['nombre_producto']}\n💰 Total: ${total}\n🎫 Ref: {ref}"
             tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("ENVIAR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+            st.link_button("ABRIR WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
 
 # ==========================================
-# 4. LÓGICA DE VISTAS
+# 4. NAVEGACIÓN
 # ==========================================
 
+# --- VISTA: MALL ---
 if st.session_state.view == 'mall':
-    st.markdown("<h1 style='text-align:center; color:#D4AF37; padding:20px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37; padding:15px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
     for i in range(0, len(tiendas), 2):
@@ -193,34 +168,24 @@ if st.session_state.view == 'mall':
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
+# --- VISTA: TIENDA INMERSIVA ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        v_id = f"vid_{idx}"
-        
-        # HTML del Video Full con Botones Flotantes
+        # VIDEO CUADRADO SIN TÍTULOS CON BOTÓN ATRÁS INTEGRADO
         st.markdown(f"""
-            <div class="tiktok-full-container">
-                <!-- Botón Play -->
-                <div id="overlay-{v_id}" class="play-overlay" onclick="playVideo('{v_id}')">
-                    <span style="color:white; font-size:40px; margin-left:5px;">▶</span>
-                </div>
-                
-                <video id="{v_id}" class="tiktok-video-full" loop playsinline onclick="playVideo('{v_id}')">
+            <div class="tiktok-container">
+                <video class="tiktok-video" autoplay loop muted playsinline controls>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-
-                <!-- Overlay de Info y Burbujas -->
                 <div class="info-overlay">
                     <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div style="color:white; font-size:1.1rem; text-shadow:1px 1px 2px black;">{p['nombre_producto']}</div>
-                    
-                    <div class="floating-controls">
+                    <div class="burbujas-container">
                         <div class="price-tag">${p['precio']}</div>
-                        <!-- Botón Atrás como Burbuja -->
-                        <a href="javascript:window.location.reload();" class="back-bubble" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', value: 'back'}}, '*')">
+                        <!-- Botón atrás dentro del video -->
+                        <a href="javascript:window.location.reload();" class="back-float" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', value: 'back'}}, '*')">
                             ⬅
                         </a>
                     </div>
@@ -228,12 +193,12 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón Streamlit (Compra)
-        if st.button(f"🛒 COMPRAR AHORA - {p['nombre_producto']}", key=f"buy_{p['id']}"):
-            ventana_pago(p, t)
-        
-        # Lógica oculta para captar el clic del botón "Atrás" de HTML
-        if st.button("VOLVER AL MALL", key=f"back_btn_{idx}", icon="🏙️"):
+        # El botón de atrás oculto de Streamlit para que la lógica funcione
+        if st.button("VOLVER", key=f"back_{idx}", icon="🔙"):
             ir_a('mall')
-        
-        st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
+
+        # Botón de Compra
+        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+            ventana_pago(p, t)
+            
+        st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
