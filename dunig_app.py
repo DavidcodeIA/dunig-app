@@ -6,7 +6,8 @@ import random
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
-st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
+# Cambiado a layout="wide" para que las imágenes abarquen más espacio lateral
+st.set_page_config(page_title="D'UNIG LUXURY", layout="wide", initial_sidebar_state="collapsed")
 
 @st.cache_resource
 def init_connection():
@@ -32,7 +33,7 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS)
+# 2. ESTÉTICA LUXURY (CSS ACTUALIZADO)
 # ==========================================
 st.markdown("""
     <style>
@@ -43,10 +44,14 @@ st.markdown("""
         color: #000 !important; border-radius: 30px !important;
         font-weight: 800 !important; text-transform: uppercase;
     }
-    .img-redonda {
-        width: 140px; height: 140px; border-radius: 50%;
-        object-fit: cover; border: 3px solid #D4AF37;
-        margin: 0 auto 10px auto; display: block;
+    /* Clase actualizada: Cuadrada y Full Width */
+    .img-portada-full {
+        width: 100%; 
+        aspect-ratio: 1 / 1; /* Mantiene el cuadrado perfecto */
+        object-fit: cover; 
+        border: 2px solid #D4AF37;
+        margin: 0 auto 10px auto; 
+        display: block;
         box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.4);
     }
     .price-bubble {
@@ -100,7 +105,6 @@ if es_registro:
         rm = st.text_input("Email del Propietario")
         rt = st.text_input("WhatsApp (Ej: 58412...)")
         
-        # --- PLANES CON BENEFICIOS ---
         opciones_plan = {
             "GRATUITO": "🎁 GRATUITO - 3 Productos ($0)",
             "BRONCE": "🥉 BRONCE - 10 Productos ($5)",
@@ -108,7 +112,6 @@ if es_registro:
             "ORO": "🥇 ORO - Productos Ilimitados ($30)"
         }
         plan_label = st.selectbox("Selecciona tu Plan y Beneficios", options=list(opciones_plan.values()))
-        # Extraemos la clave (ej: "ORO") del texto seleccionado
         plan_sel = [k for k, v in opciones_plan.items() if v == plan_label][0]
         
         ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
@@ -129,8 +132,7 @@ if es_registro:
                     "codigo_acceso": "LUXURY7"
                 }).execute()
                 
-                # --- NOTIFICACIÓN AL ADMIN ---
-                tu_telf = "584241234567" # REEMPLAZA CON TU NÚMERO
+                tu_telf = "584241234567" 
                 msj_pago = f"🚀 *NUEVO SOCIO LUXURY*\n\n🏪 Tienda: {rn}\n💎 Plan: {plan_sel}\n🎫 Ref: {ref_socio}"
                 
                 st.success("¡Registro Exitoso! Notifica tu pago ahora.")
@@ -144,14 +146,18 @@ elif not es_admin:
         st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
         res = supabase.table("perfiles_comercio").select("*").execute()
         tiendas = res.data
+        
+        # Iteración de tiendas en 2 columnas
         for i in range(0, len(tiendas), 2):
-            cols = st.columns(2)
+            # gap="small" para que las imágenes estén más cerca de los bordes
+            cols = st.columns(2, gap="small")
             for j in range(2):
                 if i + j < len(tiendas):
                     t = tiendas[i + j]
                     with cols[j]:
-                        url = t.get('portada_url') or "https://via.placeholder.com/150"
-                        st.markdown(f'<img src="{url}" class="img-redonda">', unsafe_allow_html=True)
+                        url = t.get('portada_url') or "https://via.placeholder.com/400"
+                        # Aplicamos la nueva clase de imagen cuadrada full
+                        st.markdown(f'<img src="{url}" class="img-portada-full">', unsafe_allow_html=True)
                         st.markdown(f"<p style='text-align:center; color:#D4AF37; font-weight:bold;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
                         if st.button("VISITAR", key=f"m_{t['id']}", use_container_width=True):
                             st.session_state.tienda_actual = t
@@ -166,10 +172,7 @@ elif not es_admin:
         for p in prods.data:
             with st.container():
                 st.markdown(f"<div style='position: relative;'><div class='price-bubble'>${p['precio']}</div></div>", unsafe_allow_html=True)
-                
-                # --- EFECTO TIKTOK (AUTOPLAY + LOOP + MUTED) ---
                 st.video(p['video_url'], autoplay=True, loop=True, muted=True)
-                
                 st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
                 if st.button(f"🛒 COMPRAR {p['nombre_producto']}", key=f"btn_{p['id']}", use_container_width=True):
                     ventana_pago(p, t)
