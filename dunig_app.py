@@ -1,9 +1,6 @@
 import streamlit as st
 from supabase import create_client, Client
 import urllib.parse
-import random
-import time
-from datetime import datetime, date
 
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
@@ -27,30 +24,29 @@ def init_connection():
 supabase = init_connection()
 
 if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'user_email' not in st.session_state: st.session_state.user_email = None
+if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA TIKTOK CUADRADA (CSS)
+# 2. ESTÉTICA INMERSIVA FULL SCREEN (CSS)
 # ==========================================
 st.markdown("""
     <style>
     .main { background-color: #000000 !important; }
     header {visibility: hidden;} 
     
-    /* Contenedor Cuadrado Inmersivo */
+    /* Contenedor Full Screen Cuadrado */
     .tiktok-container {
         position: relative;
         width: 100%;
-        aspect-ratio: 1 / 1; /* Proporción cuadrada perfecta */
+        height: 90vh; /* Máximo alto de pantalla */
         overflow: hidden;
         background: #000;
         margin-bottom: 0px;
-        border-radius: 0px !important; /* Esquinas cuadradas */
+        border-radius: 0px !important; 
         border: none !important;
     }
 
@@ -60,70 +56,72 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Burbuja de Volver Flotante */
+    /* Burbuja Flotante de Regreso Única */
     .back-bubble {
         position: absolute;
-        top: 15px;
-        left: 15px;
+        top: 20px;
+        left: 20px;
         z-index: 100;
-        background: rgba(0, 0, 0, 0.4);
+        background: rgba(0, 0, 0, 0.5);
         color: white;
-        width: 40px;
-        height: 40px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 18px;
-        border: 1px solid rgba(255,255,255,0.2);
-        backdrop-filter: blur(8px);
+        font-size: 22px;
+        border: 1px solid rgba(255,255,255,0.3);
+        backdrop-filter: blur(10px);
         cursor: pointer;
         text-decoration: none;
     }
 
-    /* Overlay de Info */
+    /* Overlay de Info Inferior */
     .info-overlay {
         position: absolute;
-        bottom: 20px;
-        left: 15px;
+        bottom: 30px;
+        left: 20px;
         z-index: 10;
         color: white;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
         pointer-events: none;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.2rem; color: #D4AF37; margin-bottom: 2px; }
+    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 10px; }
     
     .price-tag {
         background: rgba(0, 0, 0, 0.6);
         color: #39FF14;
-        padding: 4px 12px;
+        padding: 8px 20px;
         border-radius: 50px;
         font-weight: 900;
-        font-size: 1.2rem;
+        font-size: 1.4rem;
         border: 2px solid #39FF14;
         display: inline-block;
     }
 
-    /* Botón de compra cuadrado */
+    /* Botón de compra Cuadrado Full Width */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; 
         border-radius: 0px !important; 
-        font-weight: 800 !important;
-        height: 55px !important;
+        font-weight: 900 !important;
+        height: 70px !important;
         border: none !important;
         width: 100% !important;
+        font-size: 1.3rem !important;
+        margin-top: -5px;
     }
 
-    /* Ajuste para eliminar padding de Streamlit */
-    div[data-testid="stVerticalBlock"] > div { padding: 0px !important; }
+    /* Eliminar paddings extra de Streamlit */
+    [data-testid="stVerticalBlock"] > div { padding: 0px !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS
+# 3. DIÁLOGO DE COMPRA
 # ==========================================
 @st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
@@ -132,24 +130,18 @@ def ventana_pago(producto, tienda):
     total = float(producto['precio']) * cantidad
     st.metric("TOTAL A PAGAR", f"${total:,.2f}")
     st.divider()
-    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
-    ref = st.text_input("Referencia de Pago")
+    st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar')}")
     
-    if st.button("🚀 ENVIAR PEDIDO"):
-        if ref:
-            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
-            tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
-        else:
-            st.error("Ingresa la referencia.")
+    if st.button("🚀 CONFIRMAR POR WHATSAPP"):
+        msj = f"💎 *PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n💰 *Total:* ${total}"
+        tel = str(tienda['whatsapp']).replace("+", "").strip()
+        st.link_button("IR A WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
 
 # ==========================================
 # 4. VISTAS
 # ==========================================
-es_admin = st.query_params.get("admin") == "true"
-
-if not es_admin and st.session_state.view == 'mall':
-    st.markdown("<h1 style='text-align:center; color:#D4AF37; padding:10px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
+if st.session_state.view == 'mall':
+    st.markdown("<h1 style='text-align:center; color:#D4AF37; padding:20px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     
     for i in range(0, len(tiendas), 2):
@@ -168,6 +160,7 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
+        # VIDEO PANTALLA COMPLETA CON BURBUJA DE VOLVER
         st.markdown(f"""
             <div class="tiktok-container">
                 <a href="javascript:window.location.reload();" class="back-bubble" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', value: 'back'}}, '*')">
@@ -183,18 +176,11 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón invisible para capturar la lógica del click de la burbuja (opcional)
-        if st.button("VOLVER", key=f"back_btn_{idx}", icon="🔙"):
+        # Botón invisible funcional para el cambio de estado
+        if st.button("ATRÁS", key=f"logic_back_{idx}", icon="🔙"):
             ir_a('mall')
 
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
             ventana_pago(p, t)
             
-        st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
-
-else:
-    # Lógica de Admin simplificada para el ejemplo
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL SOCIO</h1>", unsafe_allow_html=True)
-    if st.button("CERRAR SESIÓN"):
-        st.session_state.logged_in = False
-        st.rerun()
+        st.markdown("<div style='height:50px;'></div>", unsafe_allow_html=True)
