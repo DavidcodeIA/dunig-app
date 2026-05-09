@@ -7,7 +7,7 @@ import urllib.parse
 # ==========================================
 st.set_page_config(
     page_title="D'UNIG LUXURY", 
-    layout="centered", 
+    layout="wide", # Cambiado a wide para mejorar los laterales
     initial_sidebar_state="collapsed"
 )
 
@@ -31,50 +31,32 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA INMERSIVA FULL SCREEN (CSS)
+# 2. ESTÉTICA INMERSIVA SIN BORDES (CSS)
 # ==========================================
 st.markdown("""
     <style>
     .main { background-color: #000000 !important; }
     header {visibility: hidden;} 
     
-    /* Contenedor Full Screen Cuadrado */
+    /* Eliminar espacios de Streamlit para pantalla completa */
+    [data-testid="stAppViewBlockContainer"] {
+        padding: 0rem !important;
+        max-width: 100% !important;
+    }
+
     .tiktok-container {
         position: relative;
         width: 100%;
-        height: 90vh; /* Máximo alto de pantalla */
+        height: 85vh; 
         overflow: hidden;
         background: #000;
-        margin-bottom: 0px;
-        border-radius: 0px !important; 
-        border: none !important;
+        margin: 0px;
     }
 
     .tiktok-video {
         width: 100%;
         height: 100%;
         object-fit: cover;
-    }
-
-    /* Burbuja Flotante de Regreso Única */
-    .back-bubble {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.5);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        border: 1px solid rgba(255,255,255,0.3);
-        backdrop-filter: blur(10px);
-        cursor: pointer;
-        text-decoration: none;
     }
 
     /* Overlay de Info Inferior */
@@ -88,7 +70,7 @@ st.markdown("""
         pointer-events: none;
     }
 
-    .user-handle { font-weight: 800; font-size: 1.4rem; color: #D4AF37; margin-bottom: 10px; }
+    .user-handle { font-weight: 800; font-size: 1.5rem; color: #D4AF37; margin-bottom: 5px; }
     
     .price-tag {
         background: rgba(0, 0, 0, 0.6);
@@ -101,7 +83,7 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* Botón de compra Cuadrado Full Width */
+    /* Botón de compra Luxury */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
@@ -112,33 +94,14 @@ st.markdown("""
         border: none !important;
         width: 100% !important;
         font-size: 1.3rem !important;
-        margin-top: -5px;
     }
 
-    /* Eliminar paddings extra de Streamlit */
-    [data-testid="stVerticalBlock"] > div { padding: 0px !important; }
+    [data-testid="stVerticalBlock"] { gap: 0rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGO DE COMPRA
-# ==========================================
-@st.dialog("💎 PROCESAR PEDIDO")
-def ventana_pago(producto, tienda):
-    st.markdown(f"### ✨ {producto['nombre_producto']}")
-    cantidad = st.number_input("Cantidad", min_value=1, value=1)
-    total = float(producto['precio']) * cantidad
-    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
-    st.divider()
-    st.info(f"💳 **PAGO:** {tienda.get('datos_pago', 'Consultar')}")
-    
-    if st.button("🚀 CONFIRMAR POR WHATSAPP"):
-        msj = f"💎 *PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n💰 *Total:* ${total}"
-        tel = str(tienda['whatsapp']).replace("+", "").strip()
-        st.link_button("IR A WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
-
-# ==========================================
-# 4. VISTAS
+# 3. VISTAS
 # ==========================================
 if st.session_state.view == 'mall':
     st.markdown("<h1 style='text-align:center; color:#D4AF37; padding:20px;'>🏙️ D'UNIG MALL</h1>", unsafe_allow_html=True)
@@ -160,12 +123,9 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        # VIDEO PANTALLA COMPLETA CON BURBUJA DE VOLVER
+        # VIDEO PANTALLA COMPLETA - BURBUJA ELIMINADA
         st.markdown(f"""
             <div class="tiktok-container">
-                <a href="javascript:window.location.reload();" class="back-bubble" onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', value: 'back'}}, '*')">
-                    ⬅
-                </a>
                 <video class="tiktok-video" autoplay loop muted playsinline controls>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
@@ -176,11 +136,16 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón invisible funcional para el cambio de estado
-        if st.button("ATRÁS", key=f"logic_back_{idx}", icon="🔙"):
-            ir_a('mall')
-
-        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-            ventana_pago(p, t)
+        # Botones de acción debajo del video
+        col_back, col_buy = st.columns([1, 2])
+        
+        with col_back:
+            if st.button("ATRÁS", key=f"back_{idx}", use_container_width=True):
+                ir_a('mall')
+        
+        with col_buy:
+            if st.button(f"🛒 COMPRAR", key=f"buy_{p['id']}", use_container_width=True):
+                # Aquí puedes llamar a la ventana de pago
+                pass
             
-        st.markdown("<div style='height:50px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:30px;'></div>", unsafe_allow_html=True)
