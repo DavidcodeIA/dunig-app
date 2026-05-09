@@ -42,6 +42,7 @@ OPCIONES_PLAN_VISUAL = {
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'user_email' not in st.session_state: st.session_state.user_email = None
+if 'registered' not in st.session_state: st.session_state.registered = False
 
 def ir_a(pagina):
     st.session_state.view = pagina
@@ -73,11 +74,15 @@ st.markdown("""
         background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px;
         border: 1px solid #D4AF37; text-align: center; font-size: 0.8rem;
     }
+    .welcome-card {
+        background: rgba(0,0,0,0.7); padding: 30px; border-radius: 20px;
+        border: 2px solid #D4AF37; text-align: center; margin-top: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGOS DE INTERFAZ (DIALOGS)
+# 3. DIÁLOGOS Y LÓGICA DE BORRADO
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -118,9 +123,6 @@ def editar_comercio_dialog(comercio):
         except Exception as e:
             st.error(f"Error: {e}")
 
-# ==========================================
-# 4. FUNCIONES DE LÓGICA
-# ==========================================
 def borrar_comercio_completo(comercio_id, nombre_comercio):
     with st.spinner(f"Eliminando {nombre_comercio}..."):
         try:
@@ -132,46 +134,67 @@ def borrar_comercio_completo(comercio_id, nombre_comercio):
             st.error(f"⚠️ Error al borrar: {e}")
 
 # ==========================================
-# 5. LÓGICA DE VISTAS (NAVEGACIÓN)
+# 4. LÓGICA DE VISTAS (NAVEGACIÓN)
 # ==========================================
 es_admin_master = st.query_params.get("admin") == "true"
 es_via_register = st.query_params.get("reg") == "true"
 
 # --- VISTA: REGISTRO DE SOCIO ---
 if es_via_register:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE SOCIO</h1>", unsafe_allow_html=True)
-    b1, b2, b3, b4 = st.columns(4)
-    with b1: st.markdown("<div class='benefit-card'>⚪<br><b>GRATIS</b></div>", unsafe_allow_html=True)
-    with b2: st.markdown("<div class='benefit-card'>🥉<br><b>BRONCE</b></div>", unsafe_allow_html=True)
-    with b3: st.markdown("<div class='benefit-card'>🥈<br><b>PLATA</b></div>", unsafe_allow_html=True)
-    with b4: st.markdown("<div class='benefit-card'>👑<br><b>ORO</b></div>", unsafe_allow_html=True)
+    if st.session_state.registered:
+        # Pantalla de Bienvenida Post-Registro
+        st.balloons()
+        st.markdown(f"""
+            <div class='welcome-card'>
+                <h1 style='color: #D4AF37;'>💎 ¡BIENVENIDO A LA ÉLITE!</h1>
+                <p style='font-size: 1.2rem;'>Tu solicitud ha sido recibida con éxito.</p>
+                <hr style='border: 0.5px solid #D4AF37;'>
+                <p>En el transcurso del día, nuestro equipo <b>activará tu plan</b> y se te entregará 
+                tu <b>código de ingreso personal</b> a través del número de WhatsApp que ingresaste.</p>
+                <p>¡Prepárate para llevar tu negocio al siguiente nivel!</p>
+            </div>
+            """, unsafe_allow_html=True)
+        st.write("")
+        st.link_button("🚀 IR AL PANEL DE CONTROL", "https://dunig-app-luxury-v2.streamlit.app/?admin=true", use_container_width=True)
+        if st.button("⬅️ VOLVER AL MALL"): 
+            st.session_state.registered = False
+            st.query_params.clear()
+            st.rerun()
+    else:
+        st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE SOCIO</h1>", unsafe_allow_html=True)
+        b1, b2, b3, b4 = st.columns(4)
+        with b1: st.markdown("<div class='benefit-card'>⚪<br><b>GRATIS</b></div>", unsafe_allow_html=True)
+        with b2: st.markdown("<div class='benefit-card'>🥉<br><b>BRONCE</b></div>", unsafe_allow_html=True)
+        with b3: st.markdown("<div class='benefit-card'>🥈<br><b>PLATA</b></div>", unsafe_allow_html=True)
+        with b4: st.markdown("<div class='benefit-card'>👑<br><b>ORO</b></div>", unsafe_allow_html=True)
 
-    with st.expander("💳 CUENTAS PARA ACTIVACIÓN", expanded=False):
-        st.markdown(obtener_cuentas_admin())
+        with st.expander("💳 CUENTAS PARA ACTIVACIÓN", expanded=False):
+            st.markdown(obtener_cuentas_admin())
 
-    with st.form("form_reg_externo"):
-        r_nombre_tienda = st.text_input("Nombre de la Tienda")
-        r_email = st.text_input("Email del Propietario").lower().strip()
-        r_whatsapp = st.text_input("WhatsApp (Ej: 58412...)")
-        plan_seleccionado = st.selectbox("Selecciona tu Plan", options=list(PLANES_LIMITES.keys()), format_func=lambda x: OPCIONES_PLAN_VISUAL[x])
-        r_foto_portada = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
-        r_referencia_pago = st.text_input("Referencia de Pago")
+        with st.form("form_reg_externo"):
+            r_nombre_tienda = st.text_input("Nombre de la Tienda")
+            r_email = st.text_input("Email del Propietario").lower().strip()
+            r_whatsapp = st.text_input("WhatsApp (Ej: 58412...)")
+            plan_seleccionado = st.selectbox("Selecciona tu Plan", options=list(PLANES_LIMITES.keys()), format_func=lambda x: OPCIONES_PLAN_VISUAL[x])
+            r_foto_portada = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
+            r_referencia_pago = st.text_input("Referencia de Pago")
 
-        if st.form_submit_button("SOLICITAR REGISTRO"):
-            if r_nombre_tienda and r_email and r_whatsapp and r_foto_portada and r_referencia_pago:
-                path_portada = f"portadas/reg_{int(time.time())}_{r_foto_portada.name}"
-                supabase.storage.from_("fotos_productos").upload(path_portada, r_foto_portada.getvalue())
-                url_portada_final = supabase.storage.from_("fotos_productos").get_public_url(path_portada)
-                
-                supabase.table("perfiles_comercio").insert({
-                    "nombre_comercio": r_nombre_tienda, "email_propietario": r_email, 
-                    "whatsapp": r_whatsapp, "portada_url": url_portada_final, 
-                    "plan": plan_seleccionado, "referencia_pago": r_referencia_pago,
-                    "codigo_acceso": f"LUX{random.randint(10,99)}", "activo": False 
-                }).execute()
-                st.success("¡Registro Exitoso! Pendiente por activación.")
-            else:
-                st.error("Completa todos los campos.")
+            if st.form_submit_button("SOLICITAR REGISTRO"):
+                if r_nombre_tienda and r_email and r_whatsapp and r_foto_portada and r_referencia_pago:
+                    path_portada = f"portadas/reg_{int(time.time())}_{r_foto_portada.name}"
+                    supabase.storage.from_("fotos_productos").upload(path_portada, r_foto_portada.getvalue())
+                    url_portada_final = supabase.storage.from_("fotos_productos").get_public_url(path_portada)
+                    
+                    supabase.table("perfiles_comercio").insert({
+                        "nombre_comercio": r_nombre_tienda, "email_propietario": r_email, 
+                        "whatsapp": r_whatsapp, "portada_url": url_portada_final, 
+                        "plan": plan_seleccionado, "referencia_pago": r_referencia_pago,
+                        "codigo_acceso": f"LUX{random.randint(10,99)}", "activo": False 
+                    }).execute()
+                    st.session_state.registered = True
+                    st.rerun()
+                else:
+                    st.error("Completa todos los campos.")
 
 # --- VISTA: MALL / TIENDA ---
 elif not es_admin_master:
@@ -229,7 +252,7 @@ else:
         if es_admin_general: tabs_list.append("🏙️ GESTIÓN MAESTRA")
         t1, t2, t3, *t4_opt = st.tabs(tabs_list)
         
-        with t1: # AGREGAR PRODUCTO
+        with t1: # AGREGAR
             if cant_actual < cant_limite:
                 with st.form("form_add_producto", clear_on_submit=True):
                     add_nombre = st.text_input("Nombre")
@@ -252,14 +275,12 @@ else:
                 if c2.button("🗑️", key=f"del_{it['id']}"):
                     supabase.table("productos").delete().eq("id", it['id']).execute(); st.rerun()
 
-        with t3: # CONFIGURACIÓN PERFIL (SIN CAMBIO DE PORTADA)
+        with t3: # CONFIGURACIÓN PERFIL
             st.subheader("Datos de la Tienda")
             st.info("💡 Para cambiar la foto de portada, por favor realiza un nuevo registro de tu comercio.")
-            
-            inst = st.text_area("Datos de Pago (Se muestran al cliente en el carrito)", value=perfil_socio.get('datos_pago', ''), height=150)
-            if st.button("💾 GUARDAR DATOS DE PAGO"):
-                supabase.table("perfiles_comercio").update({"datos_pago": inst}).eq("id", perfil_socio['id']).execute()
-                st.success("¡Configuración de pagos guardada!")
+            inst = st.text_area("Datos de Pago (WhatsApp)", value=perfil_socio.get('datos_pago', ''), height=150)
+            if st.button("💾 GUARDAR PAGOS"):
+                supabase.table("perfiles_comercio").update({"datos_pago": inst}).eq("id", perfil_socio['id']).execute(); st.success("Guardado.")
 
         if es_admin_general and t4_opt:
             with t4_opt[0]:
