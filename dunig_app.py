@@ -38,7 +38,6 @@ st.markdown("""
     .main { background-color: #000000 !important; }
     header {visibility: hidden;} 
     
-    /* Expansión total */
     [data-testid="stAppViewBlockContainer"] {
         padding: 0rem !important;
         max-width: 100% !important;
@@ -59,7 +58,6 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Info Overlay Inferior */
     .info-overlay {
         position: absolute;
         bottom: 30px;
@@ -84,8 +82,6 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* ESTILO DE BOTONES STREAMLIT */
-    
     /* 1. Botón de Compra (Dorado Luxury) */
     div.stButton > button[key^="buy_"] {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
@@ -102,7 +98,7 @@ st.markdown("""
     /* 2. Botón ATRÁS (Burbuja Naranja Neón) */
     div.stButton > button[key^="back_"] {
         background: rgba(0, 0, 0, 0.6) !important;
-        color: #FF5F1F !important; /* Naranja Neón */
+        color: #FF5F1F !important; 
         border: 2px solid #FF5F1F !important;
         border-radius: 50px !important;
         font-weight: 900 !important;
@@ -110,14 +106,8 @@ st.markdown("""
         width: auto !important;
         padding: 0px 30px !important;
         font-size: 1.1rem !important;
-        margin-top: 10px !important;
+        margin-top: 15px !important;
         margin-left: 20px !important;
-    }
-    
-    div.stButton > button[key^="back_"]:hover {
-        border-color: #FF5F1F !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 0 15px #FF5F1F;
     }
 
     [data-testid="stVerticalBlock"] { gap: 0rem !important; }
@@ -125,19 +115,25 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. LÓGICA DEL CARRITO
+# 3. CARRITO DE COMPRAS ANTERIOR (RESTAURADO)
 # ==========================================
-@st.dialog("🛒 TU PEDIDO LUXURY")
+@st.dialog("💎 PROCESAR PEDIDO")
 def ventana_pago(producto, tienda):
     st.markdown(f"### ✨ {producto['nombre_producto']}")
     cantidad = st.number_input("Cantidad", min_value=1, value=1)
     total = float(producto['precio']) * cantidad
-    st.metric("TOTAL", f"${total:,.2f}")
+    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
     st.divider()
-    if st.button("🚀 CONFIRMAR WHATSAPP", use_container_width=True):
-        msj = f"✨ *PEDIDO D'UNIG*\n🛍️ *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total:,.2f}"
-        tel = str(tienda['whatsapp']).replace("+", "").strip()
-        st.link_button("ABRIR CHAT", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
+    ref = st.text_input("Referencia de Pago")
+    
+    if st.button("🚀 ENVIAR PEDIDO"):
+        if ref:
+            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
+            tel = str(tienda['whatsapp']).replace("+", "").strip()
+            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
+        else:
+            st.error("Por favor, ingresa la referencia de pago.")
 
 # ==========================================
 # 4. VISTAS
@@ -160,7 +156,6 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for idx, p in enumerate(prods):
-        # Video e Info
         st.markdown(f"""
             <div class="tiktok-container">
                 <video class="tiktok-video" autoplay loop muted playsinline controls>
@@ -173,7 +168,7 @@ elif st.session_state.view == 'tienda':
             </div>
         """, unsafe_allow_html=True)
         
-        # Botón Atrás (Naranja Neón)
+        # Botón Atrás (Burbuja Naranja Neón)
         if st.button("⬅ ATRÁS", key=f"back_{idx}"):
             ir_a('mall')
         
