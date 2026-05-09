@@ -31,24 +31,21 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA "FULL SCREEN" SIN MÁRGENES (CSS)
+# 2. ESTÉTICA "AUDIO FOCUS" & FULL UI (CSS)
 # ==========================================
 st.markdown("""
     <style>
-    /* ELIMINAR ESPACIO SUPERIOR Y MÁRGENES DE STREAMLIT */
+    /* ELIMINACIÓN TOTAL DE MÁRGENES (FIX PARA SCREENSHOT) */
     .main { background-color: #000000 !important; }
-    header { visibility: hidden; height: 0px; } 
+    header { visibility: hidden; height: 0px !important; } 
     footer { visibility: hidden; }
     
-    /* Forzar que el contenedor no tenga padding arriba */
     [data-testid="stAppViewBlockContainer"] {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
-        max-width: 100% !important;
+        padding: 0rem !important;
+        margin: 0rem !important;
     }
 
+    /* Scroll Snapping para control de Audio Activo */
     [data-testid="stVerticalBlock"] {
         scroll-snap-type: y mandatory;
         overflow-y: scroll;
@@ -56,16 +53,13 @@ st.markdown("""
         gap: 0rem !important;
     }
 
-    /* Secciones de video */
     .snap-section {
         scroll-snap-align: start;
         scroll-snap-stop: always;
         position: relative;
         width: 100vw;
         height: 100vh;
-        overflow: hidden;
         background: #000;
-        margin-top: 0px !important;
     }
 
     .tiktok-video {
@@ -74,63 +68,45 @@ st.markdown("""
         object-fit: cover;
     }
 
-    /* Interfaz Flotante */
-    .floating-ui {
-        position: absolute;
-        bottom: 100px;
-        left: 20px;
-        z-index: 100;
-        pointer-events: none;
-    }
-
-    .user-handle { 
-        font-weight: 800; 
-        font-size: 1.8rem; 
-        color: #D4AF37; 
-        text-shadow: 2px 2px 10px rgba(0,0,0,1);
-    }
-
-    .price-burbuja {
-        background: rgba(0, 0, 0, 0.7);
-        color: #39FF14;
-        padding: 10px 25px;
-        border-radius: 50px;
-        font-weight: 900;
-        font-size: 1.6rem;
-        border: 2px solid #39FF14;
-        display: inline-block;
-        margin-top: 10px;
-    }
-
-    /* Botón ATRÁS corregido y visible */
+    /* Botón ATRÁS (Burbuja Naranja - Visible Arriba) */
     div.stButton > button[key^="back_"] {
         position: fixed;
-        top: 15px !important; /* Pegado arriba */
-        left: 15px !important;
-        z-index: 9999 !important;
-        background: rgba(0, 0, 0, 0.6) !important;
+        top: 10px !important; 
+        left: 10px !important;
+        z-index: 1000 !important;
+        background: rgba(0, 0, 0, 0.7) !important;
         color: #FF5F1F !important; 
         border: 2px solid #FF5F1F !important;
         border-radius: 50px !important;
         font-weight: 900 !important;
-        height: 40px !important;
-        padding: 0px 15px !important;
+        height: 45px !important;
+        padding: 0px 20px !important;
     }
 
-    /* Botón COMPRAR corregido y visible */
+    /* Botón COMPRAR (Dorado - Fijo en Base) */
     div.stButton > button[key^="buy_"] {
         position: fixed;
         bottom: 0px !important;
         left: 0px !important;
-        z-index: 9998 !important;
+        z-index: 999 !important;
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        background-size: 200% 100% !important;
         color: #000 !important; 
         border-radius: 0px !important; 
         font-weight: 900 !important;
-        height: 65px !important;
+        height: 70px !important;
         border: none !important;
         width: 100% !important;
+        font-size: 1.4rem !important;
+    }
+
+    .floating-info {
+        position: absolute;
+        bottom: 90px;
+        left: 20px;
+        z-index: 100;
+        color: white;
+        text-shadow: 2px 2px 5px #000;
+        pointer-events: none;
     }
 
     ::-webkit-scrollbar { display: none; }
@@ -138,28 +114,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. LÓGICA DE PAGO
-# ==========================================
-@st.dialog("💎 PROCESAR PEDIDO")
-def ventana_pago(producto, tienda):
-    st.markdown(f"### ✨ {producto['nombre_producto']}")
-    cantidad = st.number_input("Cantidad", min_value=1, value=1)
-    total = float(producto['precio']) * cantidad
-    st.metric("TOTAL A PAGAR", f"${total:,.2f}")
-    st.divider()
-    st.info(f"💳 **MÉTODO DE PAGO:**\n{tienda.get('datos_pago', 'Acordar con el vendedor')}")
-    ref = st.text_input("Referencia de Pago")
-    
-    if st.button("🚀 ENVIAR PEDIDO", key="final_confirm"):
-        if ref:
-            msj = f"💎 *NUEVO PEDIDO D'UNIG*\n📦 *Producto:* {producto['nombre_producto']}\n🔢 *Cantidad:* {cantidad}\n💰 *Total:* ${total}\n🎫 *Ref:* {ref}"
-            tel = str(tienda['whatsapp']).replace("+", "").strip()
-            st.link_button("FINALIZAR EN WHATSAPP", f"https://wa.me/{tel}?text={urllib.parse.quote(msj)}")
-        else:
-            st.error("Por favor, ingresa la referencia de pago.")
-
-# ==========================================
-# 4. VISTAS
+# 3. LÓGICA DE TIENDA E INTERFAZ
 # ==========================================
 if st.session_state.view == 'mall':
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
@@ -178,23 +133,23 @@ elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
-    # Botón Atrás Fijo
-    if st.button("⬅ ATRÁS", key="back_fixed"):
+    # Botón Atrás Maestro
+    if st.button("⬅ ATRÁS", key="back_master"):
         ir_a('mall')
 
     for idx, p in enumerate(prods):
-        # Eliminado el "muted" para que intente sonar solo
+        # Reproducción con Audio Focus simulado: Autoplay sin mute
         st.markdown(f"""
             <div class="snap-section">
                 <video class="tiktok-video" autoplay loop playsinline>
                     <source src="{p['video_url']}" type="video/mp4">
                 </video>
-                <div class="floating-ui">
-                    <div class="user-handle">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
-                    <div class="price-burbuja">${p['precio']}</div>
+                <div class="floating-info">
+                    <div style="font-size: 1.8rem; font-weight: 800; color: #D4AF37;">@{t['nombre_comercio'].replace(" ", "").lower()}</div>
+                    <div style="color: #39FF14; font-size: 1.5rem; font-weight: 900; border: 1px solid #39FF14; padding: 5px 15px; border-radius: 20px; display: inline-block; background: rgba(0,0,0,0.5);">$ {p['precio']}</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
         
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}"):
-            ventana_pago(p, t)
+            st.toast(f"Procesando: {p['nombre_producto']}")
