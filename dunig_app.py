@@ -176,4 +176,4 @@ elif st.session_state.view == 'tienda':
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
             ventana_pago(p, t)
             
-        st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True) 
