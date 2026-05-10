@@ -38,7 +38,7 @@ st.markdown("""
     <style>
     .main { background: radial-gradient(circle, #1a1a1a 0%, #000000 100%); color: #ffffff; }
     
-    /* Botones Dorados Luxury */
+    /* Botones Dorados */
     .stButton>button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
@@ -54,58 +54,68 @@ st.markdown("""
         box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.4);
     }
 
-    /* Burbuja de Precio Flotante */
-    .price-bubble {
-        position: absolute; top: 20px; left: 20px;
-        background: rgba(0, 0, 0, 0.8); color: #39FF14; 
-        padding: 8px 18px; border-radius: 50px;
-        font-weight: 900; border: 2px solid #39FF14; z-index: 99;
-    }
-
-    /* CONTENEDOR FORMATO TIKTOK (9:16) CON ZONAS SEGURAS */
+    /* CONTENEDOR FORMATO TIKTOK (9:16) */
     .video-container {
         position: relative;
         width: 100%;
-        max-width: 450px; /* Tamaño máximo sugerido para desktop */
+        max-width: 400px;
         aspect-ratio: 9 / 16;
         margin: auto;
         background: #000;
-        border-radius: 15px;
+        border-radius: 20px;
         overflow: hidden;
         border: 2px solid #333;
     }
 
-    /* Simulación de la interfaz de TikTok para visualizar zonas seguras */
     .tiktok-overlay {
         position: absolute;
         top: 0; left: 0; width: 100%; height: 100%;
-        pointer-events: none; /* No interfiere con clicks */
+        pointer-events: none;
         z-index: 10;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
     }
 
-    /* Ajuste de márgenes según especificaciones 2026 */
+    /* Zona Segura 2026: Evita botones de TikTok */
     .safe-content-area {
-        margin-top: 15%;    /* Margen superior (Nombre/Texto) */
-        margin-bottom: 25%; /* Margen inferior (Descripción/Botones) */
-        margin-right: 15%;  /* Margen lateral derecho (Acciones) */
+        margin-top: 15%;    /* Espacio superior */
+        margin-bottom: 25%; /* Espacio para descripción/botones */
+        margin-right: 15%;  /* Espacio para botones laterales */
         margin-left: 5%;
         height: 60%;
-        border: 1px dashed rgba(255,255,255,0.1); /* Guía visual opcional */
+        border: 1px dashed rgba(255,255,255,0.05);
     }
 
-    video {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover;
+    /* Estilo del Nombre + Precio */
+    .product-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin: 15px 0;
     }
+
+    .product-title {
+        color: #D4AF37;
+        font-size: 1.4rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .price-tag {
+        background: #000;
+        color: #39FF14;
+        padding: 5px 12px;
+        border-radius: 10px;
+        font-weight: 900;
+        border: 1px solid #39FF14;
+        box-shadow: 0px 0px 8px rgba(57, 255, 20, 0.3);
+    }
+
+    video { width: 100% !important; height: 100% !important; object-fit: cover; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGO DEL CARRITO
+# 3. DIÁLOGOS Y UTILIDADES
 # ==========================================
 @st.dialog("💎 CARRITO D'UNIG LUXURY")
 def ventana_pago(producto, tienda):
@@ -124,27 +134,20 @@ def ventana_pago(producto, tienda):
         else: st.error("Por favor, ingrese la referencia de pago")
 
 # ==========================================
-# 4. LÓGICA DE VISTAS (MODIFICADA CON VIDEO TIKTOK)
+# 4. LÓGICA DE VISTAS
 # ==========================================
 es_admin = st.query_params.get("admin") == "true"
 es_registro = st.query_params.get("reg") == "true"
 
 if es_registro:
-    # (El código de registro se mantiene igual...)
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO DE NUEVO SOCIO</h1>", unsafe_allow_html=True)
-    with st.expander("💳 VER CUENTAS BANCARIAS PARA ACTIVACIÓN", expanded=True):
-        st.markdown("""
-        **Paga tu plan y pega la referencia abajo para activar tu tienda:**
-        * **Pago Móvil:** Banco (0102) - CI: 12.345.678
-        """)
-    
     with st.form("form_reg_externo", clear_on_submit=True):
         rn = st.text_input("Nombre de la Tienda")
         rm = st.text_input("Email del Propietario")
         rt = st.text_input("WhatsApp (Ej: 58412...)")
         plan_sel = st.selectbox("Plan", ["GRATUITO", "BRONCE", "PLATA", "ORO"])
         ri = st.file_uploader("Foto de Portada", type=['jpg', 'png'])
-        ref_socio = st.text_input("Referencia de Pago")
+        ref_socio = st.text_input("Referencia de Pago de Activación")
 
         if st.form_submit_button("REGISTRAR COMERCIO"):
             if rn and rm and rt and ri and ref_socio:
@@ -155,7 +158,7 @@ if es_registro:
                     "nombre_comercio": rn, "email_propietario": rm.lower(), 
                     "whatsapp": rt, "portada_url": url_i, "plan": plan_sel, "codigo_acceso": "LUXURY7"
                 }).execute()
-                st.success("¡Registro Exitoso!")
+                st.success("¡Registro Exitoso! Ya puedes entrar al Panel Admin.")
                 ir_a('mall')
 
 elif not es_admin:
@@ -178,40 +181,43 @@ elif not es_admin:
 
     elif st.session_state.view == 'tienda':
         t = st.session_state.tienda_actual
-        st.button("⬅️ VOLVER AL MALL", on_click=lambda: ir_a('mall'))
+        if st.button("⬅️ VOLVER AL MALL"): ir_a('mall')
         st.markdown(f"<h1 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h1>", unsafe_allow_html=True)
         
         prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute()
-        
         for p in prods.data:
-            # --- CONTENEDOR TIKTOK CON MEDIDAS 2026 ---
+            # Video con simulación de Safe Zone
+            st.markdown('<div class="video-container"><div class="tiktok-overlay"><div class="safe-content-area"></div></div>', unsafe_allow_html=True)
+            st.video(p['video_url'], autoplay=True, loop=True, muted=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Título y Precio alineados
             st.markdown(f"""
-                <div class="video-container">
-                    <div class="price-bubble">${p['precio']}</div>
-                    <div class="tiktok-overlay">
-                        <div class="safe-content-area"></div>
-                    </div>
+                <div class="product-header">
+                    <span class="product-title">{p['nombre_producto']}</span>
+                    <span class="price-tag">${p['precio']}</span>
                 </div>
             """, unsafe_allow_html=True)
-            
-            # El video se renderiza justo después del div para que Streamlit lo maneje
-            st.video(p['video_url'], autoplay=True, loop=True, muted=True)
-            
-            st.markdown(f"<h3 style='text-align:center;'>{p['nombre_producto']}</h3>", unsafe_allow_html=True)
-            if st.button(f"🛒 ADQUIRIR AHORA", key=f"btn_{p['id']}", use_container_width=True):
+
+            if st.button(f"🛒 COMPRAR", key=f"btn_{p['id']}", use_container_width=True):
                 ventana_pago(p, t)
             st.divider()
 
 else:
-    # (El resto del Panel Admin se mantiene igual...)
+    # --- PANEL ADMIN ---
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     if not st.session_state.logged_in:
-        m = st.text_input("Email")
-        c = st.text_input("Código", type="password")
-        if st.button("🔓 ENTRAR"):
-            res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m.lower()).execute()
-            if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c.upper():
-                st.session_state.logged_in = True; st.session_state.user_email = m; st.rerun()
+        with st.container(border=True):
+            m = st.text_input("Email")
+            c = st.text_input("Código de Acceso", type="password")
+            if st.button("🔓 ENTRAR"):
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m.lower()).execute()
+                if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c.upper():
+                    st.session_state.logged_in = True; st.session_state.user_email = m.lower(); st.rerun()
+                else: st.error("Credenciales incorrectas")
     else:
-        st.write(f"Bienvenido, {st.session_state.user_email}")
-        if st.button("🚪 CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
+        # Aquí iría la gestión de productos (Add/Delete) similar a tu código original
+        st.write(f"Sesión activa: **{st.session_state.user_email}**")
+        if st.button("🚪 CERRAR SESIÓN"):
+            st.session_state.logged_in = False
+            st.rerun()
