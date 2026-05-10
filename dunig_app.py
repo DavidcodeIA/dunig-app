@@ -122,9 +122,18 @@ def ventana_carrito():
 es_admin = st.query_params.get("admin") == "true"
 es_reg = st.query_params.get("reg") == "true"
 
-# --- VISTA: REGISTRO DE SOCIOS (CON MÉTODOS DE PAGO) ---
+# --- 1. VISTA MALL ---
+if st.session_state.view == 'mall':
+    # Aquí va todo tu código del Mall (el que ya tienes)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
+    # ... resto del código del mall ...
+
+# --- 2. VISTA REGISTRO (Aquí es donde daba el error) ---
 elif st.session_state.view == 'registro':
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>💎 REGISTRO DE SOCIOS LUXURY</h1>", unsafe_allow_html=True)
+    
+    # Asegúrate de que el bloque anterior (el del Mall) esté bien cerrado
+    # y que este 'elif' esté alineado exactamente debajo del 'if' inicial.
     
     # 1. Tabla de Planes (Visual)
     cols = st.columns(4)
