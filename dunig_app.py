@@ -153,31 +153,31 @@ elif st.session_state.view == 'registro':
         *Una vez realizado el pago, completa el formulario de abajo.*
         """)
 
-    # 3. Formulario de Registro
+# 3. Formulario de Registro
     with st.form("registro_completo"):
         st.subheader("Datos de tu Negocio")
         
-        # Categorías
+        # Estas categorías deben estar justo debajo del subheader
+        # con exactamente la misma cantidad de espacios a la izquierda.
         categorias = [
             "🍎 Fruterías", "🥩 Carnicerías", "🥖 Panaderías", "🍴 Restaurantes", "🏨 Hoteles", 
             "🚕 Servicios de transporte", "🛒 Supermercados", "🛠️ Repuestos para vehículos", 
             "🏠 Inmobiliarias", "💊 Farmacias", "👕 Ropa y Calzado", "🪅 Piñaterías", 
             "🎉 Agencia de festejos", "💈 Barberías", "✨ Otros"
         ]
-        
-        # --- FILA 1: Nombre y Categoría ---
-        c_cat, c_nom = st.columns(2)
-        with c_cat:
+
+        # Fila para Categoría y Nombre
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
             cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)
-        with c_nom:
+        with col_c2:
             rn = st.text_input("Nombre de la Tienda (Ej: Gucci Caracas)")
 
-        # --- FILA 2: Email y WhatsApp ---
-        c1, c2 = st.columns(2)
-        with c1:
-            # ELIMINÉ LOS DUPLICADOS DE EMAIL AQUÍ
+        # Fila para Email y WhatsApp
+        col_c3, col_c4 = st.columns(2)
+        with col_c3:
             re = st.text_input("Email del Propietario").lower().strip()
-        with c2:
+        with col_c4:
             rw = st.text_input("WhatsApp de Ventas (Ej: 58412...)")
             
         rp = st.selectbox("Plan a Contratar", list(PLANES.keys()))
