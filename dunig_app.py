@@ -224,46 +224,62 @@ elif es_admin:
         st.success(f"Bienvenido: {perf['nombre_comercio']} (Plan {nombre_plan})")
         st.progress(min(actual/p_data['limite'], 1.0), text=f"Cupo: {actual}/{p_data['limite']} productos")
 
+ # --- BLOQUE DE PESTAÑAS ALINEADO ---
         t1, t2, t3 = st.tabs(["📤 SUBIR", "📦 PRODUCTOS", "🖼️ PERFIL"])
         
         with t1:
             if actual < p_data['limite']:
                 with st.form("add_p"):
-                    n = st.text_input("Nombre")
+                    n = st.text_input("Nombre del Producto")
                     p = st.number_input("Precio ($)", min_value=0.0)
                     v = st.file_uploader("Video MP4", type=['mp4'])
                     if st.form_submit_button("PUBLICAR"):
                         if n and v:
                             url = subir_archivo(v, "videos")
-                            supabase.table("productos").insert({"nombre_producto":n,"precio":p,"video_url":url,"comercio_relacionado":perf['nombre_comercio']}).execute()
+                            supabase.table("productos").insert({
+                                "nombre_producto": n,
+                                "precio": p,
+                                "video_url": url,
+                                "comercio_relacionado": perf['nombre_comercio']
+                            }).execute()
                             st.rerun()
             else:
                 st.warning("Límite de plan alcanzado.")
 
         with t2:
+            st.subheader("Tus Productos")
             mis_p = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute().data
+            if not mis_p:
+                st.info("No tienes productos cargados.")
             for mp in mis_p:
                 c_n, c_b = st.columns([4,1])
-                c_n.write(f"**{mp['nombre_producto']}**")
+                c_n.write(f"**{mp['nombre_producto']}** - ${mp['precio']}")
                 if c_b.button("Borrar", key=f"del_{mp['id']}"):
                     supabase.table("productos").delete().eq("id", mp['id']).execute()
                     st.rerun()
 
- with t3: # Pestaña de Perfil
-    st.subheader("Personalización de Tienda")
-    
-    # Verificamos si la URL existe y no es solo un texto vacío
-    url_actual = perf.get('portada_url')
-    
-    if url_actual:
-        try:
-            st.image(url_actual, width=150, caption="Portada actual")
-        except Exception:
-            st.warning("No se pudo cargar la vista previa de la imagen actual.")
-    else:
-        st.info("Aún no tienes una foto de portada configurada.")
-    
-    st.divider()
+        with t3:
+            st.subheader("Personalización")
+            url_actual = perf.get('portada_url')
+            if url_actual:
+                try:
+                    st.image(url_actual, width=150, caption="Portada actual")
+                except:
+                    st.warning("Error al visualizar imagen actual.")
+            
+            nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'])
+            if st.button("Guardar Cambios de Perfil") and nueva_f:
+                u = subir_archivo(nueva_f, "portadas")
+                if u:
+                    supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
+                    st.success("¡Foto actualizada!")
+                    st.rerun()
+            
+            st.divider()
+            d_pago = st.text_area("Datos de Pago (Se verán en el carrito)", value=perf.get('datos_pago',''))
+            if st.button("Actualizar Métodos de Pago"):
+                supabase.table("perfiles_comercio").update({"datos_pago": d_pago}).eq("id", perf['id']).execute()
+                st.success("Datos guardados.")
     
     # Sección para subir nueva foto
     nueva_f = st.file_uploader("Cambiar imagen de portada", type=['jpg', 'png', 'jpeg'])
