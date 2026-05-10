@@ -123,7 +123,7 @@ es_admin = st.query_params.get("admin") == "true"
 es_reg = st.query_params.get("reg") == "true"
 
 # --- VISTA: REGISTRO DE SOCIOS (CON MÉTODOS DE PAGO) ---
-if es_reg:
+elif st.session_state.view == 'registro':
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>💎 REGISTRO DE SOCIOS LUXURY</h1>", unsafe_allow_html=True)
     
     # 1. Tabla de Planes (Visual)
@@ -142,7 +142,7 @@ if es_reg:
     
     st.divider()
 
-    # 2. Instrucciones de Pago para el Socio
+    # 2. Instrucciones de Pago
     with st.expander("💳 VER MÉTODOS DE PAGO PARA SUSCRIPCIÓN", expanded=True):
         st.markdown("""
         **Para activar tu tienda, realiza el pago a una de nuestras cuentas:**
@@ -153,70 +153,76 @@ if es_reg:
         *Una vez realizado el pago, completa el formulario de abajo.*
         """)
 
-   
- # 3. Formulario de Registro
+    # 3. Formulario de Registro
     with st.form("registro_completo"):
         st.subheader("Datos de tu Negocio")
         
-        # Lista de categorías bien alineada
+        # Categorías
         categorias = [
             "🍎 Fruterías", "🥩 Carnicerías", "🥖 Panaderías", "🍴 Restaurantes", "🏨 Hoteles", 
             "🚕 Servicios de transporte", "🛒 Supermercados", "🛠️ Repuestos para vehículos", 
             "🏠 Inmobiliarias", "💊 Farmacias", "👕 Ropa y Calzado", "🪅 Piñaterías", 
             "🎉 Agencia de festejos", "💈 Barberías", "✨ Otros"
         ]
+        
+        # --- FILA 1: Nombre y Categoría ---
+        c_cat, c_nom = st.columns(2)
+        with c_cat:
+            cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)
+        with c_nom:
+            rn = st.text_input("Nombre de la Tienda (Ej: Gucci Caracas)")
 
-        # El selector también debe estar dentro del formulario (con espacios a la izquierda)
-        cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)
-
-        # Aquí continúa tu formulario...
-        nombre_comercio = st.text_input("Nombre del Comercio")
-        email_propietario = st.text_input("Email del Propietario")      
+        # --- FILA 2: Email y WhatsApp ---
         c1, c2 = st.columns(2)
         with c1:
-            rn = st.text_input("Nombre de la Tienda (Ej: Gucci Caracas)")
+            # ELIMINÉ LOS DUPLICADOS DE EMAIL AQUÍ
             re = st.text_input("Email del Propietario").lower().strip()
         with c2:
             rw = st.text_input("WhatsApp de Ventas (Ej: 58412...)")
-            rp = st.selectbox("Plan a Contratar", list(PLANES.keys()))
+            
+        rp = st.selectbox("Plan a Contratar", list(PLANES.keys()))
             
         st.divider()
         st.subheader("Personalización y Pago")
-        rf = st.file_uploader("Foto de Portada / Logo (Vertical u Horizontal)", type=['jpg', 'png'])
+        rf = st.file_uploader("Foto de Portada / Logo", type=['jpg', 'png'])
         
-        st.info("Sube tu comprobante de pago de suscripción aquí:")
-        rc_pago = st.file_uploader("Comprobante de Pago (Captura/Foto)", type=['jpg', 'png', 'pdf'])
+        st.info("Sube tu comprobante de pago aquí:")
+        rc_pago = st.file_uploader("Comprobante de Pago", type=['jpg', 'png', 'pdf'])
         ref_n = st.text_input("Número de Referencia del Pago")
 
+        # --- LÓGICA DE ENVÍO ---
         if st.form_submit_button("🚀 ENVIAR SOLICITUD DE AFILIACIÓN"):
             if rn and re and rf and rc_pago and ref_n:
                 with st.spinner("Procesando solicitud luxury..."):
-                    # Subir Portada
+                    import random
                     url_portada = subir_archivo(rf, "portadas")
-                    # Subir Comprobante de Pago
                     url_comprobante = subir_archivo(rc_pago, "comprobantes_suscripcion")
                     
                     cod = str(random.randint(100000, 999999))
                     
-                    # Insertar en Supabase
-                    supabase.table("perfiles_comercio").insert({
-                        "nombre_comercio": rn,
-                        "email_propietario": re,
-                        "whatsapp": rw,
-                        "plan": rp,
-                        "portada_url": url_portada,
-                        "comprobante_url": url_comprobante, # Asegúrate de tener esta columna en Supabase
-                        "referencia_pago": ref_n,
-                        "codigo_acceso": cod,
-                        "activo": False # El admin lo activa manualmente tras revisar el pago
-                    }).execute()
-                    
-                    st.balloons()
-                    st.success(f"¡Solicitud enviada con éxito!")
-                    st.warning(f"⚠️ GUARDA TU CÓDIGO DE ACCESO: {cod}")
-                    st.info("Tu tienda será activada en un lapso de 2 a 12 horas tras verificar el pago.")
+                    # Insertar en Supabase (Incluyendo la CATEGORÍA)
+                    try:
+                        supabase.table("perfiles_comercio").insert({
+                            "nombre_comercio": rn,
+                            "email_propietario": re,
+                            "whatsapp": rw,
+                            "plan": rp,
+                            "categoria": cat_seleccionada, # <--- AGREGADO
+                            "portada_url": url_portada,
+                            "comprobante_url": url_comprobante,
+                            "referencia_pago": ref_n,
+                            "codigo_acceso": cod,
+                            "activo": False 
+                        }).execute()
+                        
+                        st.balloons()
+                        st.success(f"¡Solicitud enviada con éxito!")
+                        st.warning(f"⚠️ GUARDA TU CÓDIGO DE ACCESO: {cod}")
+                        st.info("Activación en un lapso de 2 a 12 horas.")
+                    except Exception as e:
+                        st.error(f"Error al guardar: {e}")
             else:
-                st.error("Por favor, completa todos los campos, incluyendo el comprobante de pago.")
+                st.error("Por favor, completa todos los campos requeridos.")
 # --- VISTA: PANEL ADMIN (ESTRUCTURA CORREGIDA) ---
 elif es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
