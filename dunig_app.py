@@ -258,34 +258,32 @@ elif es_admin:
                     supabase.table("productos").delete().eq("id", mp['id']).execute()
                     st.rerun()
 
-        with t3:
-            st.subheader("Personalización")
-            url_actual = perf.get('portada_url')
-            if url_actual:
-                try:
-                    st.image(url_actual, width=150, caption="Portada actual")
-                except:
-                    st.warning("No se pudo cargar la vista previa.")
-            
-            nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'], key="nueva_portada_admin")
-            if st.button("Guardar Cambios de Perfil") and nueva_f:
-                with st.spinner("Actualizando portada..."):
-                    u = subir_archivo(nueva_f, "portadas")
-                    if u:
-                        supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
-                        st.success("¡Foto actualizada!")
-                        st.rerun()
-            
-            st.divider()
-            d_pago = st.text_area("Datos de Pago (Se verán en el carrito)", value=perf.get('datos_pago',''))
-            if st.button("Actualizar Métodos de Pago"):
-                supabase.table("perfiles_comercio").update({"datos_pago": d_pago}).eq("id", perf['id']).execute()
-                st.success("Datos guardados.")
+import time # Asegúrate de tener esto al inicio de tu archivo
 
-        st.divider()
-        if st.button("🚪 CERRAR SESIÓN"):
-            st.session_state.logged_in = False
-            st.rerun()
+# --- DENTRO DE LA PESTAÑA PERFIL (T3) ---
+with t3:
+    st.subheader("Personalización")
+    url_actual = perf.get('portada_url')
+    
+    if url_actual:
+        # Añadimos un parámetro aleatorio a la URL para forzar a Streamlit a no usar la imagen vieja
+        st.image(f"{url_actual}?v={time.time()}", width=150, caption="Portada actual")
+    
+    nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'], key="uploader_portada")
+    
+    if st.button("🚀 GUARDAR CAMBIOS", use_container_width=True):
+        if nueva_f:
+            with st.spinner("Subiendo y actualizando..."):
+                u = subir_archivo(nueva_f, "portadas")
+                if u:
+                    # Guardamos en la base de datos
+                    supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
+                    
+                    st.success("¡Imagen guardada con éxito!")
+                    time.sleep(2)  # <--- TIEMPO DE ESPERA CRÍTICO
+                    st.rerun()
+        else:
+            st.warning("Primero selecciona una imagen.")
 
 # --- VISTA: MALL ---
 elif st.session_state.view == 'mall':
