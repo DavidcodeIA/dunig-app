@@ -6,7 +6,7 @@ import random
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
-st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="D'UNIG LUXURY", layout="wide", initial_sidebar_state="collapsed")
 
 @st.cache_resource
 def init_connection():
@@ -17,134 +17,141 @@ def init_connection():
 supabase = init_connection()
 
 if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY + NAVEGACIÓN INTEGRADA
+# 2. CSS ULTRA PRO: FULL WIDTH + CONTROL BAR
 # ==========================================
 st.markdown("""
     <style>
-    .main { background: #000; color: #fff; }
+    /* Fondo y Reset */
+    .main { background-color: #000; color: #fff; }
+    div[data-testid="stVerticalBlock"] > div:has(div.video-full) { padding: 0; }
+
+    /* VIDEO EXPANDIDO AL MÁXIMO */
+    .video-full {
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        background: #000;
+        line-height: 0;
+    }
     
-    /* Portadas del Mall Cuadradas */
-    .img-cuadrada { 
-        width: 100%; aspect-ratio: 1/1; object-fit: cover; 
-        border-radius: 5px; margin-bottom: 10px; 
-    }
-    
-    /* Contenedor de Video TikTok */
-    .video-wrapper { 
-        position: relative; width: 100%; max-width: 400px; 
-        margin: auto; border-radius: 20px; overflow: hidden; 
-        border: 1px solid #222;
-    }
-    
-    /* Capa de info dentro del video (Safe Zone) */
-    .video-overlay-tienda {
-        position: absolute; top: 15%; left: 5%;
-        color: rgba(255,255,255,0.7); font-size: 0.9rem;
-        text-shadow: 1px 1px 2px #000;
+    video { width: 100% !important; height: auto !important; max-height: 85vh; object-fit: cover; }
+
+    /* FILA DE CONTROL (FLECHA + NOMBRE + PRECIO) */
+    .control-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 15px 10px;
+        background: linear-gradient(180deg, transparent, rgba(0,0,0,0.8));
+        margin-top: -10px; /* Sube un poco para pegarse al video */
     }
 
-    /* FILA DE ACCIÓN (Flecha + Info) */
-    .action-row {
-        display: flex; align-items: center; gap: 10px;
-        width: 100%; max-width: 400px; margin: 15px auto 5px auto;
+    .back-arrow-btn {
+        background: transparent;
+        border: 2px solid #ffffff;
+        color: #ffffff;
+        border-radius: 12px;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 1.5rem;
+        font-weight: bold;
+        transition: 0.3s;
     }
 
-    .info-container {
-        flex-grow: 1; display: flex; justify-content: space-between;
-        align-items: center; background: rgba(255,255,255,0.05);
-        padding: 10px 15px; border-radius: 12px; border: 1px solid #333;
+    .product-details {
+        flex-grow: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        padding: 0 15px;
+        height: 45px;
+        border-radius: 12px;
+        border: 1px solid rgba(212, 175, 55, 0.3);
     }
 
-    .p-name { color: #D4AF37; font-weight: 700; text-transform: uppercase; font-size: 1rem; }
-    .p-price { color: #39FF14; font-weight: 900; font-size: 1.1rem; }
+    .txt-name { color: #D4AF37; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; }
+    .txt-price { color: #39FF14; font-weight: 900; font-size: 1.1rem; }
 
-    /* Botones */
+    /* BOTÓN COMPRAR DORADO */
     .stButton>button {
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #8A6E2F) !important;
-        color: #000 !important; font-weight: 800; border-radius: 12px !important;
-        border: none !important; height: 45px;
+        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
+        background-size: 200% 100% !important;
+        color: #000 !important;
+        font-weight: 800 !important;
+        border-radius: 15px !important;
+        height: 55px !important;
+        border: none !important;
+        width: 100% !important;
+        margin-bottom: 20px;
     }
 
-    /* Botón Flecha Blanca */
-    .back-btn>button {
-        background: transparent !important; color: #fff !important;
-        border: 1px solid #fff !important; width: 45px !important;
-        font-size: 1.2rem !important;
-    }
-    
-    video { width: 100% !important; height: auto !important; object-fit: cover !important; }
+    /* Mall Portadas */
+    .img-mall { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. VISTAS
+# 3. LÓGICA DE VISTAS
 # ==========================================
 
-# --- VISTA: MALL ---
 if st.session_state.view == 'mall':
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").execute().data
-    for i in range(0, len(tiendas), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(tiendas):
-                t = tiendas[i+j]
-                with cols[j]:
-                    st.markdown(f'<img src="{t["portada_url"]}" class="img-cuadrada">', unsafe_allow_html=True)
-                    if st.button(f"ENTRAR", key=f"t_{t['id']}", use_container_width=True):
-                        st.session_state.tienda_actual = t
-                        ir_a('tienda')
+    cols = st.columns(2)
+    for idx, t in enumerate(tiendas):
+        with cols[idx % 2]:
+            st.markdown(f'<img src="{t["portada_url"]}" class="img-mall">', unsafe_allow_html=True)
+            if st.button(f"ENTRAR {t['nombre_comercio'].upper()}", key=f"t_{t['id']}"):
+                st.session_state.tienda_actual = t
+                ir_a('tienda')
 
-# --- VISTA: TIENDA ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    st.markdown(f"<h2 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h2>", unsafe_allow_html=True)
-    
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # 1. Video con nombre de tienda arriba
-        st.markdown(f'''
-            <div class="video-wrapper">
-                <div class="video-overlay-tienda">@{t['nombre_comercio'].lower()}</div>
-        ''', unsafe_allow_html=True)
+        # --- VIDEO FULL SCREEN WIDTH ---
+        st.markdown('<div class="video-full">', unsafe_allow_html=True)
         st.video(p['video_url'], autoplay=True, loop=True, muted=True)
         st.markdown('</div>', unsafe_allow_html=True)
+
+        # --- FILA DE CONTROL (FLECHA + INFO) ---
+        # Usamos columnas de Streamlit con CSS inyectado para que se vean en una sola línea real
+        c_nav, c_buy = st.columns([1, 1]) # Contenedor dummy para layout
         
-        # 2. FILA DE ACCIÓN (Flecha Regresar + Nombre + Precio)
-        col_back, col_info = st.columns([1, 5])
-        
-        with col_back:
-            st.markdown('<div class="back-btn">', unsafe_allow_html=True)
-            if st.button("←", key=f"back_{p['id']}"):
-                ir_a('mall')
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with col_info:
-            st.markdown(f'''
-                <div class="info-container">
-                    <span class="p-name">{p['nombre_producto']}</span>
-                    <span class="p-price">${p['precio']}</span>
+        st.markdown(f'''
+            <div class="control-bar">
+                <div class="back-arrow-btn" onclick="window.location.reload()">←</div>
+                <div class="product-details">
+                    <span class="txt-name">{p['nombre_producto']}</span>
+                    <span class="txt-price">${p['precio']}</span>
                 </div>
-            ''', unsafe_allow_html=True)
+            </div>
+        ''', unsafe_allow_html=True)
+
+        # --- BOTÓN COMPRAR ---
+        if st.button("🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
+            msj = f"Hola {t['nombre_comercio']}, quiero comprar {p['nombre_producto']} por ${p['precio']}"
+            st.link_button("CONFIRMAR EN WHATSAPP", f"https://wa.me/{t['whatsapp']}?text={urllib.parse.quote(msj)}")
         
-        # 3. Botón Comprar
-        if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-            msj = f"¡Hola! Estoy interesado en {p['nombre_producto']} de su tienda en D'UNIG LUXURY."
-            st.link_button("IR AL WHATSAPP", f"https://wa.me/{t['whatsapp']}?text={urllib.parse.quote(msj)}")
+        # El botón de regreso funcional de Streamlit (invisible para mantener la estética pero operativo)
+        if st.button("VOLVER AL MALL", key=f"back_func_{p['id']}", use_container_width=True):
+            ir_a('mall')
         
         st.divider()
-
-# ==========================================
-# 4. PANEL ADMIN (RESUMIDO)
-# ==========================================
-elif st.query_params.get("admin") == "true":
-    st.title("⚙️ PANEL SOCIO")
-    # ... (Aquí va tu lógica de login y subida de productos)
