@@ -31,36 +31,32 @@ st.markdown("""
     <style>
     .main { background: #000000; color: #ffffff; }
     
-    /* BOTONES */
+    /* BOTÓN COMPRAR */
     .btn-comprar button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; border-radius: 12px !important;
         font-weight: 800 !important; text-transform: uppercase; border: none !important;
-        height: 55px !important; width: 100% !important; margin-top: 10px !important;
+        height: 55px !important; width: 100% !important;
     }
 
+    /* BOTÓN REGRESAR MINIMALISTA */
     .btn-regresar button {
-        background: transparent !important; color: #ffffff !important; 
-        border: 1px solid rgba(255,255,255,0.3) !important;
+        background: transparent !important; color: rgba(255,255,255,0.6) !important; 
+        border: 1px solid rgba(255,255,255,0.2) !important;
         border-radius: 8px !important; height: 30px !important;
-        width: 100% !important; font-size: 0.75rem !important;
-        text-transform: uppercase; letter-spacing: 2px; margin-top: 5px !important;
+        width: 100% !important; font-size: 0.7rem !important;
+        text-transform: uppercase; letter-spacing: 2px;
     }
 
-    /* VIDEO FULL WIDTH */
-    .video-full {
-        width: 100vw; position: relative; left: 50%; right: 50%;
-        margin-left: -50vw; margin-right: -50vw; background: #000; line-height: 0;
-    }
+    /* VIDEO Y CONTENEDORES */
+    .video-full { width: 100vw; position: relative; left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw; }
     video { width: 100% !important; height: auto !important; max-height: 80vh; object-fit: cover; }
 
-    /* INFO BAR */
     .info-luxury-box {
         display: flex; justify-content: space-between; align-items: center;
         background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
-        padding: 0 15px; height: 50px; border-radius: 12px; 
-        border: 1px solid rgba(212,175,55,0.4); margin-top: -10px;
+        padding: 0 15px; height: 50px; border-radius: 12px; border: 1px solid rgba(212,175,55,0.4);
     }
     .p-title { color: #D4AF37; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; }
     .p-price { color: #39FF14; font-weight: 900; font-size: 1.1rem; }
@@ -76,12 +72,12 @@ st.markdown("""
 es_admin = st.query_params.get("admin") == "true"
 
 if es_admin:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL SOCIO</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL PROFESIONAL</h1>", unsafe_allow_html=True)
     
     if not st.session_state.logged_in:
-        m = st.text_input("Email Registrado")
-        c = st.text_input("Código de Acceso", type="password")
-        if st.button("ACCEDER AL PANEL"):
+        m = st.text_input("Email de Socio")
+        c = st.text_input("PIN Secreto", type="password")
+        if st.button("ABRIR PANEL"):
             res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m.lower()).execute()
             if res.data and str(res.data[0]['codigo_acceso']).upper() == c.upper():
                 st.session_state.logged_in = True
@@ -89,58 +85,58 @@ if es_admin:
                 st.rerun()
     else:
         u = st.session_state.user_data
-        tab1, tab2, tab3 = st.tabs(["📦 PRODUCTOS", "🖼️ PERFIL", "💰 PAGO"])
+        tab1, tab2, tab3 = st.tabs(["📦 INVENTARIO", "🖼️ MI MARCA", "💰 PAGOS"])
 
-        # --- TAB 1: GESTIÓN DE PRODUCTOS ---
+        # --- TAB 1: PRODUCTOS (SUBIR Y BORRAR) ---
         with tab1:
-            with st.expander("➕ AGREGAR NUEVO PRODUCTO"):
+            with st.expander("➕ PUBLICAR NUEVO VIDEO"):
                 with st.form("nuevo_p", clear_on_submit=True):
                     nom = st.text_input("Nombre del Producto")
                     pre = st.number_input("Precio ($)", min_value=0.0)
-                    vid = st.file_uploader("Video MP4", type=['mp4'])
-                    if st.form_submit_button("PUBLICAR"):
+                    vid = st.file_uploader("Video (MP4)", type=['mp4'])
+                    if st.form_submit_button("SUBIR A LA TIENDA"):
                         if nom and vid:
                             v_path = f"videos/{u['nombre_comercio']}/{uuid.uuid4()}.mp4"
                             supabase.storage.from_("fotos_productos").upload(v_path, vid.getvalue())
                             v_url = supabase.storage.from_("fotos_productos").get_public_url(v_path)
                             supabase.table("productos").insert({"nombre_producto": nom, "precio": pre, "video_url": v_url, "comercio_relacionado": u['nombre_comercio']}).execute()
-                            st.success("¡Publicado!")
+                            st.success("¡Publicado con éxito!")
                             st.rerun()
 
-            st.subheader("Tus Productos actuales")
+            st.subheader("Tus Videos en Vivo")
             mis_prods = supabase.table("productos").select("*").eq("comercio_relacionado", u['nombre_comercio']).execute().data
             for mp in mis_prods:
-                c1, c2 = st.columns([4, 1])
-                c1.write(f"🔹 {mp['nombre_producto']} - ${mp['precio']}")
+                c1, c2 = st.columns([5, 1])
+                c1.info(f"🎥 {mp['nombre_producto']} - ${mp['precio']}")
                 if c2.button("🗑️", key=f"del_{mp['id']}"):
                     supabase.table("productos").delete().eq("id", mp['id']).execute()
                     st.rerun()
 
-        # --- TAB 2: PERFIL (PORTADA) ---
+        # --- TAB 2: PERFIL (CAMBIAR PORTADA) ---
         with tab2:
-            st.subheader("Imagen de Portada")
-            st.image(u['portada_url'], width=200)
-            nueva_img = st.file_uploader("Cambiar Foto de Portada", type=['jpg', 'png'])
-            if st.button("ACTUALIZAR PORTADA"):
+            st.subheader("Portada del Mall")
+            st.image(u['portada_url'], width=150)
+            nueva_img = st.file_uploader("Actualizar foto de portada", type=['jpg', 'png'])
+            if st.button("GUARDAR NUEVA PORTADA"):
                 if nueva_img:
                     p_path = f"portadas/{uuid.uuid4()}.jpg"
                     supabase.storage.from_("fotos_productos").upload(p_path, nueva_img.getvalue())
                     p_url = supabase.storage.from_("fotos_productos").get_public_url(p_path)
                     supabase.table("perfiles_comercio").update({"portada_url": p_url}).eq("id", u['id']).execute()
-                    st.success("Portada actualizada")
+                    st.success("Imagen de marca actualizada")
                     st.rerun()
 
         # --- TAB 3: DATOS DE PAGO ---
         with tab3:
-            st.subheader("Configuración de Pagos")
-            pago_actual = u.get('datos_pago', "")
-            nuevos_datos = st.text_area("Instrucciones de pago (Zelle, Pago Móvil, Bancos...)", value=pago_actual)
-            if st.button("GUARDAR DATOS DE PAGO"):
-                supabase.table("perfiles_comercio").update({"datos_pago": nuevos_datos}).eq("id", u['id']).execute()
-                st.success("Datos de pago guardados")
+            st.subheader("Métodos de Recepción")
+            pago_previo = u.get('datos_pago', "")
+            txt_pago = st.text_area("Escribe tus datos (Zelle, Pago Móvil, etc.)", value=pago_previo)
+            if st.button("ACTUALIZAR DATOS DE PAGO"):
+                supabase.table("perfiles_comercio").update({"datos_pago": txt_pago}).eq("id", u['id']).execute()
+                st.success("Datos guardados")
                 st.rerun()
         
-        if st.sidebar.button("CERRAR SESIÓN"):
+        if st.button("SALIR DEL PANEL"):
             st.session_state.logged_in = False
             st.rerun()
 
@@ -169,8 +165,8 @@ elif st.session_state.view == 'tienda':
 
         st.markdown('<div class="btn-comprar">', unsafe_allow_html=True)
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-            info_pago = t.get('datos_pago', 'Consultar con el vendedor')
-            msj = urllib.parse.quote(f"Hola {t['nombre_comercio']}, quiero comprar {p['nombre_producto']}. Instrucciones recibidas: {info_pago}")
+            pago = t.get('datos_pago', 'Consultar al privado')
+            msj = urllib.parse.quote(f"¡Hola! Quiero comprar {p['nombre_producto']}. Ya vi tus métodos de pago: {pago}")
             st.link_button("CONFIRMAR POR WHATSAPP", f"https://wa.me/{t['whatsapp']}?text={msj}")
         st.markdown('</div>', unsafe_allow_html=True)
 
