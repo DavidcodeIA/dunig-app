@@ -158,7 +158,9 @@ elif es_admin:
                 st.session_state.logged_in = True; st.session_state.user_email = e_log; st.rerun()
     else:
         perf = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute().data[0]
-        p_data = PLANES.get(perf['plan'].upper(), PLANES["GRATUITO"])
+        # Obtenemos el plan, si es None usamos 'GRATUITO' por defecto, y luego lo pasamos a mayúsculas
+nombre_plan = str(perf.get('plan') or "GRATUITO").upper().strip()
+p_data = PLANES.get(nombre_plan, PLANES["GRATUITO"])
         
         c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
         actual = c_res.count if c_res.count else 0
