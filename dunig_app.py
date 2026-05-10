@@ -1,7 +1,6 @@
 import streamlit as st
 from supabase import create_client, Client
 import urllib.parse
-import random
 import uuid
 
 # ==========================================
@@ -17,7 +16,6 @@ def init_connection():
 
 supabase = init_connection()
 
-# Configuración de límites de productos (Máximo 100)
 PLANES_INFO = {
     "GRATUITO (Hasta 3 productos)": 3,
     "BRONCE (Hasta 10 productos)": 10,
@@ -27,34 +25,40 @@ PLANES_INFO = {
 
 if 'view' not in st.session_state: st.session_state.view = 'mall'
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'user_data' not in st.session_state: st.session_state.user_data = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
     st.rerun()
 
 # ==========================================
-# 2. ESTÉTICA LUXURY ACTUALIZADA (CSS)
+# 2. ESTÉTICA LUXURY (CSS)
 # ==========================================
 st.markdown("""
     <style>
     .main { background: #000000; color: #ffffff; }
     
     /* BOTÓN COMPRAR (PRINCIPAL) */
-    .stButton>button {
+    .btn-comprar button {
         background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
         background-size: 200% 100% !important;
         color: #000 !important; border-radius: 12px !important;
         font-weight: 800 !important; text-transform: uppercase; border: none !important;
-        height: 55px !important; width: 100% !important; margin-bottom: 5px !important;
+        height: 55px !important; width: 100% !important; margin-top: 10px !important;
     }
 
-    /* BOTÓN REGRESAR (DELGADO Y LARGO) */
-    .back-bar-container button {
-        background: rgba(255,255,255,0.05) !important;
-        color: #ffffff !important; border: 1px solid #444 !important;
-        border-radius: 8px !important; height: 35px !important;
-        width: 100% !important; font-size: 0.8rem !important;
-        text-transform: uppercase; letter-spacing: 1px;
+    /* BOTÓN REGRESAR (SIN FONDO, DELGADO) */
+    .btn-regresar button {
+        background: transparent !important;
+        color: #ffffff !important; 
+        border: 1px solid rgba(255,255,255,0.3) !important;
+        border-radius: 8px !important; 
+        height: 30px !important; /* Más delgado */
+        width: 100% !important; 
+        font-size: 0.75rem !important;
+        text-transform: uppercase; 
+        letter-spacing: 2px;
+        margin-top: 5px !important;
     }
 
     /* VIDEO FULL WIDTH */
@@ -70,7 +74,7 @@ st.markdown("""
         display: flex; justify-content: space-between; align-items: center;
         background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
         padding: 0 15px; height: 50px; border-radius: 12px; 
-        border: 1px solid rgba(212,175,55,0.4); margin-bottom: 10px;
+        border: 1px solid rgba(212,175,55,0.4); margin-top: -10px;
     }
     .p-title { color: #D4AF37; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; }
     .p-price { color: #39FF14; font-weight: 900; font-size: 1.1rem; }
@@ -83,27 +87,58 @@ st.markdown("""
 # 3. LÓGICA DE VISTAS
 # ==========================================
 
-# --- REGISTRO DE SOCIO CON BENEFICIOS ---
-if st.query_params.get("reg") == "true":
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO SOCIO</h1>", unsafe_allow_html=True)
-    with st.form("reg_form"):
-        n = st.text_input("Nombre de la Tienda")
-        e = st.text_input("Email de Propietario")
-        w = st.text_input("WhatsApp (Formato: 58412...)")
-        
-        # Menú desplegable con beneficios detallados
-        plan_seleccionado = st.selectbox("Selecciona tu Plan de Expansión", list(PLANES_INFO.keys()))
-        
-        img = st.file_uploader("Subir Imagen de Portada (1:1 recomendado)", type=['jpg', 'png'])
-        ref = st.text_input("Referencia de Pago")
-        
-        if st.form_submit_button("SOLICITAR ACTIVACIÓN"):
-            if n and e and w and img:
-                # Lógica de guardado...
-                st.success(f"¡Solicitud enviada! Plan seleccionado: {plan_seleccionado}")
-                ir_a('mall')
+es_admin = st.query_params.get("admin") == "true"
+es_reg = st.query_params.get("reg") == "true"
 
-# --- VISTA: MALL ---
+# --- PANEL DE CONTROL (ADMIN) ---
+if es_admin:
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL SOCIO</h1>", unsafe_allow_html=True)
+    if not st.session_state.logged_in:
+        with st.container():
+            m = st.text_input("Email Registrado")
+            c = st.text_input("Código de Acceso", type="password")
+            if st.button("ACCEDER AL PANEL"):
+                res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", m.lower()).execute()
+                if res.data and str(res.data[0]['codigo_acceso']).upper() == c.upper():
+                    st.session_state.logged_in = True
+                    st.session_state.user_data = res.data[0]
+                    st.rerun()
+                else: st.error("Credenciales incorrectas")
+    else:
+        u = st.session_state.user_data
+        st.success(f"Tienda: {u['nombre_comercio']} | Plan: {u['plan']}")
+        if st.button("CERRAR SESIÓN"): st.session_state.logged_in = False; st.rerun()
+        
+        with st.form("subir_pro", clear_on_submit=True):
+            st.subheader("Publicar nuevo video")
+            n_p = st.text_input("Nombre del Producto")
+            p_p = st.number_input("Precio ($)", min_value=0.0)
+            v_p = st.file_uploader("Video MP4", type=['mp4'])
+            if st.form_submit_button("🚀 SUBIR PRODUCTO"):
+                if n_p and v_p:
+                    path = f"videos/{u['nombre_comercio']}/{uuid.uuid4()}.mp4"
+                    supabase.storage.from_("fotos_productos").upload(path, v_p.getvalue())
+                    url_v = supabase.storage.from_("fotos_productos").get_public_url(path)
+                    supabase.table("productos").insert({
+                        "nombre_producto": n_p, "precio": p_p, 
+                        "video_url": url_v, "comercio_relacionado": u['nombre_comercio']
+                    }).execute()
+                    st.success("¡Producto en vivo!")
+
+# --- REGISTRO ---
+elif es_reg:
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>✨ REGISTRO SOCIO</h1>", unsafe_allow_html=True)
+    with st.form("reg"):
+        n = st.text_input("Nombre Tienda")
+        e = st.text_input("Email")
+        w = st.text_input("WhatsApp")
+        plan = st.selectbox("Plan de Expansión", list(PLANES_INFO.keys()))
+        img = st.file_uploader("Portada", type=['jpg', 'png'])
+        if st.form_submit_button("REGISTRAR"):
+            # Lógica de registro aquí...
+            st.info("Solicitud recibida.")
+
+# --- MALL ---
 elif st.session_state.view == 'mall':
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").execute().data
@@ -115,34 +150,27 @@ elif st.session_state.view == 'mall':
                 st.session_state.tienda_actual = t
                 ir_a('tienda')
 
-# --- VISTA: TIENDA ---
+# --- TIENDA ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # Video Full Width
         st.markdown('<div class="video-full">', unsafe_allow_html=True)
         st.video(p['video_url'], autoplay=True, loop=True, muted=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Barra de Info (Nombre + Precio)
-        st.markdown(f"""
-            <div class="info-luxury-box">
-                <span class="p-title">{p['nombre_producto']}</span>
-                <span class="p-price">${p['precio']}</span>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="info-luxury-box"><span class="p-title">{p["nombre_producto"]}</span><span class="p-price">${p["precio"]}</span></div>', unsafe_allow_html=True)
 
-        # Botón Comprar (Principal)
+        st.markdown('<div class="btn-comprar">', unsafe_allow_html=True)
         if st.button(f"🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
-            # Aquí abre tu diálogo de pago
-            pass
-        
-        # Botón Regresar (Delgado, largo y debajo del de comprar)
-        st.markdown('<div class="back-bar-container">', unsafe_allow_html=True)
-        if st.button("⬅ REGRESAR AL MALL", key=f"back_{p['id']}", use_container_width=True):
+            # Lógica de WhatsApp
+            msj = urllib.parse.quote(f"Hola {t['nombre_comercio']}, quiero {p['nombre_producto']}")
+            st.link_button("IR AL WHATSAPP", f"https://wa.me/{t['whatsapp']}?text={msj}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="btn-regresar">', unsafe_allow_html=True)
+        if st.button("REGRESAR AL MALL", key=f"back_{p['id']}"):
             ir_a('mall')
         st.markdown('</div>', unsafe_allow_html=True)
-        
         st.divider()
