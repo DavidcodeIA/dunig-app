@@ -221,20 +221,64 @@ elif st.session_state.view == 'mall':
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
 
-# --- D. VISTA: TIENDA ---
+# --- D. VISTA: TIENDA (CON CARRITO NARANJA Y GESTIÓN EN VIVO) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    if st.button("⬅️ VOLVER AL MALL"): ir_a('mall')
-    st.title(f"💎 {t['nombre_comercio']}")
+    
+    # Header de la Tienda con Acceso Directo al Carrito
+    c_back, c_title, c_cart = st.columns([1, 4, 1])
+    with c_back:
+        if st.button("⬅️"): ir_a('mall')
+    with c_title:
+        st.markdown(f"<h2 style='text-align:center; margin:0;'>{t['nombre_comercio']}</h2>", unsafe_allow_html=True)
+    with c_cart:
+        # Acceso directo superior (Checkout)
+        cant_items = sum(item['cantidad'] for item in st.session_state.cart)
+        if st.button(f"🛒 {cant_items if cant_items > 0 else ''}"):
+            ventana_carrito()
+
+    st.divider()
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+    
+    if not prods:
+        st.info("Esta tienda aún no tiene productos en vitrina.")
+    
     for p in prods:
-        with st.container(border=True):
+        with st.container():
+            # Contenedor del Video con "Carrito Naranja" superpuesto
+            # Simulamos el overlay con columnas o contenedores de Streamlit
             st.video(p['video_url'])
-            st.subheader(f"{p['nombre_producto']} - ${p['precio']}")
-            if st.button(f"➕ AÑADIR AL CARRITO", key=f"add_{p['id']}"):
-                st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                st.toast(f"{p['nombre_producto']} añadido")
+            
+            col_info, col_accion = st.columns([3, 1])
+            
+            with col_info:
+                st.markdown(f"**{p['nombre_producto']}**")
+                st.markdown(f"<span style='color:#D4AF37; font-size:1.2em;'>${p['precio']}</span>", unsafe_allow_html=True)
+                
+                # Indicador de "Compras Activas" (Número rojo estilo vivo)
+                compras_simuladas = random.randint(1, 15)
+                st.markdown(f"🔥 <span style='color:#ff4b4b; font-weight:bold;'>{compras_simuladas} personas comprando</span>", unsafe_allow_html=True)
 
+            with col_accion:
+                # El ÍCONO DISTINTIVO (Carrito Naranja)
+                if st.button("🟠", key=f"naranja_{p['id']}", help="Añadir rápido"):
+                    # Lógica de añadir o incrementar
+                    item_existente = next((item for item in st.session_state.cart if item['id'] == p['id']), None)
+                    if item_existente:
+                        item_existente['cantidad'] += 1
+                    else:
+                        st.session_state.cart.append({
+                            "id": p['id'], 
+                            "nombre": p['nombre_producto'], 
+                            "precio": p['precio'], 
+                            "cantidad": 1
+                        })
+                    st.toast(f"¡{p['nombre_producto']} al carrito!")
+                    st.rerun()
+
+    # Botón Flotante Inferior (Opcional, para Checkout rápido)
     if st.session_state.cart:
-        if st.button("🛒 FINALIZAR PEDIDO"): ventana_carrito()
+        st.markdown("---")
+        if st.button("🛍️ PROCEDER AL PAGO (CHECKOUT)", use_container_width=True):
+            ventana_carrito()
