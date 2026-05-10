@@ -153,17 +153,25 @@ if es_reg:
         *Una vez realizado el pago, completa el formulario de abajo.*
         """)
 
-    # 3. Formulario de Registro
+   
+ # 3. Formulario de Registro
     with st.form("registro_completo"):
-        st.subheader("Datos de tu Negocio")         categorias = [
-    "Fruterías", "Carnicerías", "Panaderías", "Restaurantes", "Hoteles", 
-    "Servicios de transporte", "Supermercados", "Repuestos para vehículos", 
-    "Inmobiliarias", "Farmacias", "Ropa y Calzado", "Piñaterías", 
-    "Agencia de festejos", "Barberías", "Otros"
-]
+        st.subheader("Datos de tu Negocio")
+        
+        # Lista de categorías bien alineada
+        categorias = [
+            "🍎 Fruterías", "🥩 Carnicerías", "🥖 Panaderías", "🍴 Restaurantes", "🏨 Hoteles", 
+            "🚕 Servicios de transporte", "🛒 Supermercados", "🛠️ Repuestos para vehículos", 
+            "🏠 Inmobiliarias", "💊 Farmacias", "👕 Ropa y Calzado", "🪅 Piñaterías", 
+            "🎉 Agencia de festejos", "💈 Barberías", "✨ Otros"
+        ]
 
-# En el formulario de registro o perfil:
-cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)      
+        # El selector también debe estar dentro del formulario (con espacios a la izquierda)
+        cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)
+
+        # Aquí continúa tu formulario...
+        nombre_comercio = st.text_input("Nombre del Comercio")
+        email_propietario = st.text_input("Email del Propietario")      
         c1, c2 = st.columns(2)
         with c1:
             rn = st.text_input("Nombre de la Tienda (Ej: Gucci Caracas)")
