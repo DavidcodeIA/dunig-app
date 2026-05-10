@@ -112,9 +112,11 @@ def ventana_carrito():
 es_admin = st.query_params.get("admin") == "true"
 es_reg = st.query_params.get("reg") == "true"
 
-# --- VISTA: REGISTRO CON BENEFICIOS ---
+# --- VISTA: REGISTRO DE SOCIOS (CON MÉTODOS DE PAGO) ---
 if es_reg:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>BENEFICIOS SOCIOS LUXURY</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>💎 REGISTRO DE SOCIOS LUXURY</h1>", unsafe_allow_html=True)
+    
+    # 1. Tabla de Planes (Visual)
     cols = st.columns(4)
     for i, (nombre, info) in enumerate(PLANES.items()):
         with cols[i]:
@@ -128,23 +130,67 @@ if es_reg:
                 </div>
             """, unsafe_allow_html=True)
     
-    with st.form("registro_socio"):
-        st.subheader("Únete al Mall")
-        rn = st.text_input("Nombre Comercial")
-        re = st.text_input("Email").lower()
-        rw = st.text_input("WhatsApp (ej: 58412...)")
-        rp = st.selectbox("Elige tu Plan", list(PLANES.keys()))
-        rf = st.file_uploader("Foto de Portada (Logo)", type=['jpg', 'png'])
-        ref_p = st.text_input("Referencia de pago suscripción")
-        if st.form_submit_button("SOLICITAR AFILIACIÓN"):
-            if rn and re and rf:
-                url = subir_archivo(rf, "portadas")
-                cod = str(random.randint(100000, 999999))
-                supabase.table("perfiles_comercio").insert({
-                    "nombre_comercio":rn, "email_propietario":re, "whatsapp":rw,
-                    "plan":rp, "portada_url":url, "referencia_pago":ref_p, "codigo_acceso":cod, "activo":False
-                }).execute()
-                st.success(f"Solicitud enviada. Tu código de acceso será: {cod}")
+    st.divider()
+
+    # 2. Instrucciones de Pago para el Socio
+    with st.expander("💳 VER MÉTODOS DE PAGO PARA SUSCRIPCIÓN", expanded=True):
+        st.markdown("""
+        **Para activar tu tienda, realiza el pago a una de nuestras cuentas:**
+        *   **Pago Móvil:** Banco Mercantil | 0412-1234567 | V-12345678
+        *   **Zelle:** pagos@dunigluxury.com (A nombre de D'Unig Mall)
+        *   **Binance (USDT):** ID: 987654321
+        ---
+        *Una vez realizado el pago, completa el formulario de abajo.*
+        """)
+
+    # 3. Formulario de Registro
+    with st.form("registro_completo"):
+        st.subheader("Datos de tu Negocio")
+        c1, c2 = st.columns(2)
+        with c1:
+            rn = st.text_input("Nombre de la Tienda (Ej: Gucci Caracas)")
+            re = st.text_input("Email del Propietario").lower().strip()
+        with c2:
+            rw = st.text_input("WhatsApp de Ventas (Ej: 58412...)")
+            rp = st.selectbox("Plan a Contratar", list(PLANES.keys()))
+            
+        st.divider()
+        st.subheader("Personalización y Pago")
+        rf = st.file_uploader("Foto de Portada / Logo (Vertical u Horizontal)", type=['jpg', 'png'])
+        
+        st.info("Sube tu comprobante de pago de suscripción aquí:")
+        rc_pago = st.file_uploader("Comprobante de Pago (Captura/Foto)", type=['jpg', 'png', 'pdf'])
+        ref_n = st.text_input("Número de Referencia del Pago")
+
+        if st.form_submit_button("🚀 ENVIAR SOLICITUD DE AFILIACIÓN"):
+            if rn and re and rf and rc_pago and ref_n:
+                with st.spinner("Procesando solicitud luxury..."):
+                    # Subir Portada
+                    url_portada = subir_archivo(rf, "portadas")
+                    # Subir Comprobante de Pago
+                    url_comprobante = subir_archivo(rc_pago, "comprobantes_suscripcion")
+                    
+                    cod = str(random.randint(100000, 999999))
+                    
+                    # Insertar en Supabase
+                    supabase.table("perfiles_comercio").insert({
+                        "nombre_comercio": rn,
+                        "email_propietario": re,
+                        "whatsapp": rw,
+                        "plan": rp,
+                        "portada_url": url_portada,
+                        "comprobante_url": url_comprobante, # Asegúrate de tener esta columna en Supabase
+                        "referencia_pago": ref_n,
+                        "codigo_acceso": cod,
+                        "activo": False # El admin lo activa manualmente tras revisar el pago
+                    }).execute()
+                    
+                    st.balloons()
+                    st.success(f"¡Solicitud enviada con éxito!")
+                    st.warning(f"⚠️ GUARDA TU CÓDIGO DE ACCESO: {cod}")
+                    st.info("Tu tienda será activada en un lapso de 2 a 12 horas tras verificar el pago.")
+            else:
+                st.error("Por favor, completa todos los campos, incluyendo el comprobante de pago.")
 
 # --- VISTA: PANEL ADMIN (CORREGIDO) ---
 elif es_admin:
