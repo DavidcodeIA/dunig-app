@@ -38,8 +38,8 @@ def subir_archivo(file, folder):
     try:
         ext = file.name.split(".")[-1]
         filename = f"{folder}/{uuid.uuid4()}.{ext}"
-        supabase.storage.from_("luxury_assets").upload(filename, file.read())
-        return supabase.storage.from_("luxury_assets").get_public_url(filename)
+        supabase.storage.from_("fotos_productos").upload(filename, file.read())
+        return supabase.storage.from_("fotos_productos").get_public_url(filename)
     except Exception as e:
         st.error(f"Error al subir: {e}"); return None
 
