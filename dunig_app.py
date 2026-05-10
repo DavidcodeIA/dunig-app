@@ -146,53 +146,78 @@ if es_reg:
                 }).execute()
                 st.success(f"Solicitud enviada. Tu código de acceso será: {cod}")
 
-# --- VISTA: PANEL DE CONTROL ---
+# --- VISTA: PANEL ADMIN (CORREGIDO) ---
 elif es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
-    if not st.session_state.logged_in:
-        e_log = st.text_input("Email").lower()
+    if not st.session_state.get('logged_in', False):
+        e_log = st.text_input("Email").lower().strip()
         c_log = st.text_input("Código", type="password")
         if st.button("INGRESAR"):
             res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", e_log).execute()
-            if res.data and str(res.data[0]['codigo_acceso']).upper() == c_log.upper():
-                st.session_state.logged_in = True; st.session_state.user_email = e_log; st.rerun()
+            if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c_log.upper():
+                st.session_state.logged_in = True
+                st.session_state.user_email = e_log
+                st.rerun()
+            else:
+                st.error("Credenciales incorrectas.")
     else:
-        perf = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute().data[0]
-        # Obtenemos el plan, si es None usamos 'GRATUITO' por defecto, y luego lo pasamos a mayúsculas
-nombre_plan = str(perf.get('plan') or "GRATUITO").upper().strip()
-p_data = PLANES.get(nombre_plan, PLANES["GRATUITO"])
+        # Obtenemos datos del perfil
+        res_perf = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
+        if not res_perf.data:
+            st.error("Error al cargar perfil")
+            st.stop()
+            
+        perf = res_perf.data[0]
+        nombre_plan = str(perf.get('plan') or "GRATUITO").upper().strip()
+        p_data = PLANES.get(nombre_plan, PLANES["GRATUITO"])
         
+        # Aquí estaba tu error de indentación, ahora está alineado con el 'else':
         c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-        actual = c_res.count if c_res.count else 0
-        st.progress(min(actual/p_data['limite'], 1.0), text=f"Cupo: {actual}/{p_data['limite']} (Plan {perf['plan']})")
+        actual = c_res.count if c_res.count is not None else 0
+        
+        st.success(f"Bienvenido: {perf['nombre_comercio']} (Plan {nombre_plan})")
+        st.progress(min(actual/p_data['limite'], 1.0), text=f"Cupo: {actual}/{p_data['limite']} productos")
 
         t1, t2, t3 = st.tabs(["📤 SUBIR", "📦 PRODUCTOS", "🖼️ PERFIL"])
+        
         with t1:
             if actual < p_data['limite']:
                 with st.form("add_p"):
-                    n, p = st.text_input("Nombre"), st.number_input("Precio ($)")
+                    n = st.text_input("Nombre")
+                    p = st.number_input("Precio ($)", min_value=0.0)
                     v = st.file_uploader("Video MP4", type=['mp4'])
                     if st.form_submit_button("PUBLICAR"):
-                        url = subir_archivo(v, "videos")
-                        supabase.table("productos").insert({"nombre_producto":n,"precio":p,"video_url":url,"comercio_relacionado":perf['nombre_comercio']}).execute()
-                        st.rerun()
+                        if n and v:
+                            url = subir_archivo(v, "videos")
+                            supabase.table("productos").insert({"nombre_producto":n,"precio":p,"video_url":url,"comercio_relacionado":perf['nombre_comercio']}).execute()
+                            st.rerun()
+            else:
+                st.warning("Límite de plan alcanzado.")
+
         with t2:
             mis_p = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute().data
             for mp in mis_p:
-                c_n, c_b = st.columns([4,1]); c_n.write(f"**{mp['nombre_producto']}**")
-                if c_b.button("Borrar", key=mp['id']):
-                    supabase.table("productos").delete().eq("id", mp['id']).execute(); st.rerun()
+                c_n, c_b = st.columns([4,1])
+                c_n.write(f"**{mp['nombre_producto']}**")
+                if c_b.button("Borrar", key=f"del_{mp['id']}"):
+                    supabase.table("productos").delete().eq("id", mp['id']).execute()
+                    st.rerun()
+
         with t3:
             st.image(perf['portada_url'], width=100)
             nueva_f = st.file_uploader("Cambiar Portada", type=['jpg','png'])
             if st.button("Guardar Foto") and nueva_f:
                 u = subir_archivo(nueva_f, "portadas")
-                supabase.table("perfiles_comercio").update({"portada_url":u}).eq("id", perf['id']).execute(); st.rerun()
-            d_pago = st.text_area("Datos de Pago", value=perf.get('datos_pago',''))
+                supabase.table("perfiles_comercio").update({"portada_url":u}).eq("id", perf['id']).execute()
+                st.rerun()
+            d_pago = st.text_area("Datos de Pago (Se verán en el carrito)", value=perf.get('datos_pago',''))
             if st.button("Actualizar Datos"):
                 supabase.table("perfiles_comercio").update({"datos_pago":d_pago}).eq("id", perf['id']).execute()
+                st.success("¡Datos guardados!")
         
-        if st.button("Cerrar Sesión"): st.session_state.logged_in = False; st.rerun()
+        if st.button("Cerrar Sesión"):
+            st.session_state.logged_in = False
+            st.rerun()
 
 # --- VISTA: MALL ---
 elif st.session_state.view == 'mall':
