@@ -192,9 +192,10 @@ if es_reg:
             else:
                 st.error("Por favor, completa todos los campos, incluyendo el comprobante de pago.")
 
-# --- VISTA: PANEL ADMIN (CORREGIDO) ---
+# --- VISTA: PANEL ADMIN (CORREGIDO Y SIN DUPLICADOS) ---
 elif es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
+    
     if not st.session_state.get('logged_in', False):
         e_log = st.text_input("Email").lower().strip()
         c_log = st.text_input("Código", type="password")
@@ -207,7 +208,7 @@ elif es_admin:
             else:
                 st.error("Credenciales incorrectas.")
     else:
-        # Obtenemos datos del perfil
+        # 1. Obtener datos del perfil
         res_perf = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
         if not res_perf.data:
             st.error("Error al cargar perfil")
@@ -217,14 +218,13 @@ elif es_admin:
         nombre_plan = str(perf.get('plan') or "GRATUITO").upper().strip()
         p_data = PLANES.get(nombre_plan, PLANES["GRATUITO"])
         
-        # Aquí estaba tu error de indentación, ahora está alineado con el 'else':
         c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
         actual = c_res.count if c_res.count is not None else 0
         
         st.success(f"Bienvenido: {perf['nombre_comercio']} (Plan {nombre_plan})")
         st.progress(min(actual/p_data['limite'], 1.0), text=f"Cupo: {actual}/{p_data['limite']} productos")
 
- # --- BLOQUE DE PESTAÑAS ALINEADO ---
+        # 2. Bloque de Pestañas
         t1, t2, t3 = st.tabs(["📤 SUBIR", "📦 PRODUCTOS", "🖼️ PERFIL"])
         
         with t1:
@@ -235,14 +235,14 @@ elif es_admin:
                     v = st.file_uploader("Video MP4", type=['mp4'])
                     if st.form_submit_button("PUBLICAR"):
                         if n and v:
-                            url = subir_archivo(v, "videos")
-                            supabase.table("productos").insert({
-                                "nombre_producto": n,
-                                "precio": p,
-                                "video_url": url,
-                                "comercio_relacionado": perf['nombre_comercio']
-                            }).execute()
-                            st.rerun()
+                            with st.spinner("Subiendo video..."):
+                                url = subir_archivo(v, "videos")
+                                if url:
+                                    supabase.table("productos").insert({
+                                        "nombre_producto": n, "precio": p, 
+                                        "video_url": url, "comercio_relacionado": perf['nombre_comercio']
+                                    }).execute()
+                                    st.rerun()
             else:
                 st.warning("Límite de plan alcanzado.")
 
@@ -265,31 +265,27 @@ elif es_admin:
                 try:
                     st.image(url_actual, width=150, caption="Portada actual")
                 except:
-                    st.warning("Error al visualizar imagen actual.")
+                    st.warning("No se pudo cargar la vista previa.")
             
-            nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'])
+            nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'], key="nueva_portada_admin")
             if st.button("Guardar Cambios de Perfil") and nueva_f:
-                u = subir_archivo(nueva_f, "portadas")
-                if u:
-                    supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
-                    st.success("¡Foto actualizada!")
-                    st.rerun()
+                with st.spinner("Actualizando portada..."):
+                    u = subir_archivo(nueva_f, "portadas")
+                    if u:
+                        supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
+                        st.success("¡Foto actualizada!")
+                        st.rerun()
             
             st.divider()
             d_pago = st.text_area("Datos de Pago (Se verán en el carrito)", value=perf.get('datos_pago',''))
             if st.button("Actualizar Métodos de Pago"):
                 supabase.table("perfiles_comercio").update({"datos_pago": d_pago}).eq("id", perf['id']).execute()
                 st.success("Datos guardados.")
-    
-    # Sección para subir nueva foto
-    nueva_f = st.file_uploader("Cambiar imagen de portada", type=['jpg', 'png', 'jpeg'])
-    if st.button("Guardar Nueva Foto") and nueva_f:
-        with st.spinner("Subiendo..."):
-            u = subir_archivo(nueva_f, "portadas")
-            if u:
-                supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
-                st.success("¡Foto actualizada!")
-                st.rerun()
+
+        st.divider()
+        if st.button("🚪 CERRAR SESIÓN"):
+            st.session_state.logged_in = False
+            st.rerun()
 
 # --- VISTA: MALL ---
 elif st.session_state.view == 'mall':
@@ -297,40 +293,55 @@ elif st.session_state.view == 'mall':
     busq = st.text_input("🔍 Buscar tiendas o marcas...", "").lower()
     tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
     tiendas = [t for t in tiendas if busq in t['nombre_comercio'].lower()]
+    
     for i in range(0, len(tiendas), 2):
         cols = st.columns(2)
         for j in range(2):
             if i+j < len(tiendas):
                 t = tiendas[i+j]
                 with cols[j]:
-                    st.markdown(f'<img src="{t["portada_url"]}" class="img-redonda">', unsafe_allow_html=True)
+                    # Usamos la URL de portada si existe, si no una imagen por defecto
+                    img_url = t.get('portada_url') or "https://via.placeholder.com/180"
+                    st.markdown(f'<img src="{img_url}" class="img-redonda">', unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align:center; font-weight:bold;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
-                    if st.button("ENTRAR", key=t['id'], use_container_width=True):
-                        st.session_state.tienda_actual = t; ir_a('tienda')
+                    if st.button("ENTRAR", key=f"btn_mall_{t['id']}", use_container_width=True):
+                        st.session_state.tienda_actual = t
+                        ir_a('tienda')
 
 # --- VISTA: TIENDA ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    if st.button("⬅️ VOLVER AL MALL"): st.session_state.cart = []; ir_a('mall')
+    if st.button("⬅️ VOLVER AL MALL"): 
+        st.session_state.cart = []
+        ir_a('mall')
     
     st.markdown(f"<h2 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h2>", unsafe_allow_html=True)
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+    
+    if not prods:
+        st.info("Esta tienda aún no tiene productos.")
+    
     for p in prods:
         st.video(p['video_url'], autoplay=True, loop=True, muted=True)
         st.markdown(f'<div class="product-info">{p["nombre_producto"].upper()} <span class="price-tag">${p["precio"]}</span></div>', unsafe_allow_html=True)
         
-        # Carrito dinámico sumatorio
         cant_items = sum(item['cantidad'] for item in st.session_state.cart)
         if cant_items > 0:
             st.markdown('<div class="btn-carrito-fix">', unsafe_allow_html=True)
-            if st.button(f"🛒 VER CARRITO ({cant_items})", key=f"cart_{p['id']}"): ventana_carrito()
+            if st.button(f"🛒 VER CARRITO ({cant_items})", key=f"cart_view_{p['id']}"): 
+                ventana_carrito()
             st.markdown('</div>', unsafe_allow_html=True)
         
-        if st.button(f"➕ AÑADIR AL CARRITO", key=f"add_{p['id']}", use_container_width=True):
+        if st.button(f"➕ AÑADIR AL CARRITO", key=f"add_cart_{p['id']}", use_container_width=True):
             found = False
             for item in st.session_state.cart:
-                if item['id'] == p['id']: item['cantidad'] += 1; found = True; break
-            if not found: st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-            st.toast(f"{p['nombre_producto']} añadido 💎"); st.rerun()
+                if item['id'] == p['id']: 
+                    item['cantidad'] += 1
+                    found = True
+                    break
+            if not found: 
+                st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
+            st.toast(f"{p['nombre_producto']} añadido 💎")
+            st.rerun()
         st.divider()
