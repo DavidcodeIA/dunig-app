@@ -4,6 +4,16 @@ import urllib.parse
 import random
 import uuid
 
+categorias = [
+    "Fruterías", "Carnicerías", "Panaderías", "Restaurantes", "Hoteles", 
+    "Servicios de transporte", "Supermercados", "Repuestos para vehículos", 
+    "Inmobiliarias", "Farmacias", "Ropa y Calzado", "Piñaterías", 
+    "Agencia de festejos", "Barberías", "Otros"
+]
+
+# En el formulario de registro o perfil:
+cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)
+
 # ==========================================
 # 1. CONFIGURACIÓN Y CONEXIÓN
 # ==========================================
@@ -145,7 +155,15 @@ if es_reg:
 
     # 3. Formulario de Registro
     with st.form("registro_completo"):
-        st.subheader("Datos de tu Negocio")
+        st.subheader("Datos de tu Negocio")         categorias = [
+    "Fruterías", "Carnicerías", "Panaderías", "Restaurantes", "Hoteles", 
+    "Servicios de transporte", "Supermercados", "Repuestos para vehículos", 
+    "Inmobiliarias", "Farmacias", "Ropa y Calzado", "Piñaterías", 
+    "Agencia de festejos", "Barberías", "Otros"
+]
+
+# En el formulario de registro o perfil:
+cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)      
         c1, c2 = st.columns(2)
         with c1:
             rn = st.text_input("Nombre de la Tienda (Ej: Gucci Caracas)")
