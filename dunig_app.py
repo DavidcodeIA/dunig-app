@@ -191,8 +191,7 @@ if es_reg:
                     st.info("Tu tienda será activada en un lapso de 2 a 12 horas tras verificar el pago.")
             else:
                 st.error("Por favor, completa todos los campos, incluyendo el comprobante de pago.")
-
-# --- VISTA: PANEL ADMIN (CORREGIDO Y SIN DUPLICADOS) ---
+# --- VISTA: PANEL ADMIN (ESTRUCTURA CORREGIDA) ---
 elif es_admin:
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
     
@@ -258,32 +257,34 @@ elif es_admin:
                     supabase.table("productos").delete().eq("id", mp['id']).execute()
                     st.rerun()
 
-import time # Asegúrate de tener esto al inicio de tu archivo
+        with t3:
+            st.subheader("Personalización")
+            url_actual = perf.get('portada_url')
+            if url_actual:
+                # Usamos un truco de tiempo para que la imagen se refresque siempre
+                st.image(f"{url_actual}?v={uuid.uuid4()}", width=150, caption="Portada actual")
+            
+            nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'], key="nueva_portada_admin")
+            if st.button("Guardar Cambios de Perfil") and nueva_f:
+                with st.spinner("Actualizando portada..."):
+                    u = subir_archivo(nueva_f, "portadas")
+                    if u:
+                        supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
+                        st.success("¡Foto actualizada!")
+                        import time
+                        time.sleep(2)
+                        st.rerun()
+            
+            st.divider()
+            d_pago = st.text_area("Datos de Pago (Se verán en el carrito)", value=perf.get('datos_pago',''))
+            if st.button("Actualizar Métodos de Pago"):
+                supabase.table("perfiles_comercio").update({"datos_pago": d_pago}).eq("id", perf['id']).execute()
+                st.success("Datos guardados.")
 
-# --- DENTRO DE LA PESTAÑA PERFIL (T3) ---
-with t3:
-    st.subheader("Personalización")
-    url_actual = perf.get('portada_url')
-    
-    if url_actual:
-        # Añadimos un parámetro aleatorio a la URL para forzar a Streamlit a no usar la imagen vieja
-        st.image(f"{url_actual}?v={time.time()}", width=150, caption="Portada actual")
-    
-    nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'], key="uploader_portada")
-    
-    if st.button("🚀 GUARDAR CAMBIOS", use_container_width=True):
-        if nueva_f:
-            with st.spinner("Subiendo y actualizando..."):
-                u = subir_archivo(nueva_f, "portadas")
-                if u:
-                    # Guardamos en la base de datos
-                    supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
-                    
-                    st.success("¡Imagen guardada con éxito!")
-                    time.sleep(2)  # <--- TIEMPO DE ESPERA CRÍTICO
-                    st.rerun()
-        else:
-            st.warning("Primero selecciona una imagen.")
+        st.divider()
+        if st.button("🚪 CERRAR SESIÓN"):
+            st.session_state.logged_in = False
+            st.rerun()
 
 # --- VISTA: MALL ---
 elif st.session_state.view == 'mall':
