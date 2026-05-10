@@ -24,15 +24,13 @@ def ir_a(pagina):
     st.rerun()
 
 # ==========================================
-# 2. CSS ULTRA PRO: FULL WIDTH + CONTROL BAR
+# 2. CSS ULTRA PRO: FULL WIDTH + NAV BAR
 # ==========================================
 st.markdown("""
     <style>
-    /* Fondo y Reset */
     .main { background-color: #000; color: #fff; }
-    div[data-testid="stVerticalBlock"] > div:has(div.video-full) { padding: 0; }
-
-    /* VIDEO EXPANDIDO AL MÁXIMO */
+    
+    /* VIDEO FULL SCREEN WIDTH */
     .video-full {
         width: 100vw;
         position: relative;
@@ -44,32 +42,31 @@ st.markdown("""
         line-height: 0;
     }
     
-    video { width: 100% !important; height: auto !important; max-height: 85vh; object-fit: cover; }
+    video { width: 100% !important; height: auto !important; max-height: 80vh; object-fit: cover; }
 
-    /* FILA DE CONTROL (FLECHA + NOMBRE + PRECIO) */
+    /* FILA DE CONTROL (FLECHA + INFO) */
     .control-bar {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 15px 10px;
-        background: linear-gradient(180deg, transparent, rgba(0,0,0,0.8));
-        margin-top: -10px; /* Sube un poco para pegarse al video */
+        width: 100%;
+        max-width: 500px;
+        margin: -5px auto 10px auto;
+        padding: 0 10px;
     }
 
-    .back-arrow-btn {
-        background: transparent;
-        border: 2px solid #ffffff;
-        color: #ffffff;
-        border-radius: 12px;
-        width: 45px;
-        height: 45px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 1.5rem;
-        font-weight: bold;
-        transition: 0.3s;
+    /* Estilo para el botón de flecha blanca (hackeando el botón de Streamlit) */
+    div[data-testid="column"]:nth-child(1) button {
+        background: transparent !important;
+        border: 2px solid #ffffff !important;
+        color: #ffffff !important;
+        border-radius: 12px !important;
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 20px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     .product-details {
@@ -80,9 +77,9 @@ st.markdown("""
         background: rgba(255,255,255,0.1);
         backdrop-filter: blur(10px);
         padding: 0 15px;
-        height: 45px;
+        height: 50px;
         border-radius: 12px;
-        border: 1px solid rgba(212, 175, 55, 0.3);
+        border: 1px solid rgba(212, 175, 55, 0.4);
     }
 
     .txt-name { color: #D4AF37; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; }
@@ -97,12 +94,11 @@ st.markdown("""
         border-radius: 15px !important;
         height: 55px !important;
         border: none !important;
-        width: 100% !important;
-        margin-bottom: 20px;
+        transition: 0.3s;
     }
-
-    /* Mall Portadas */
-    .img-mall { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 10px; }
+    
+    /* Portadas del Mall */
+    .img-mall { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 10px; margin-bottom: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -113,11 +109,12 @@ st.markdown("""
 if st.session_state.view == 'mall':
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
     tiendas = supabase.table("perfiles_comercio").select("*").execute().data
+    
     cols = st.columns(2)
     for idx, t in enumerate(tiendas):
         with cols[idx % 2]:
             st.markdown(f'<img src="{t["portada_url"]}" class="img-mall">', unsafe_allow_html=True)
-            if st.button(f"ENTRAR {t['nombre_comercio'].upper()}", key=f"t_{t['id']}"):
+            if st.button(f"ENTRAR {t['nombre_comercio'].upper()}", key=f"t_{t['id']}", use_container_width=True):
                 st.session_state.tienda_actual = t
                 ir_a('tienda')
 
@@ -126,32 +123,31 @@ elif st.session_state.view == 'tienda':
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # --- VIDEO FULL SCREEN WIDTH ---
+        # --- VIDEO FULL WIDTH ---
         st.markdown('<div class="video-full">', unsafe_allow_html=True)
         st.video(p['video_url'], autoplay=True, loop=True, muted=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- FILA DE CONTROL (FLECHA + INFO) ---
-        # Usamos columnas de Streamlit con CSS inyectado para que se vean en una sola línea real
-        c_nav, c_buy = st.columns([1, 1]) # Contenedor dummy para layout
+        # --- FILA ÚNICA: FLECHA + INFO ---
+        # Usamos dos columnas muy pegadas para simular la barra de control
+        c1, c2 = st.columns([1, 5])
         
-        st.markdown(f'''
-            <div class="control-bar">
-                <div class="back-arrow-btn" onclick="window.location.reload()">←</div>
+        with c1:
+            # Esta es la flecha blanca que ahora SÍ funciona para volver
+            if st.button("←", key=f"back_{p['id']}"):
+                ir_a('mall')
+        
+        with c2:
+            st.markdown(f'''
                 <div class="product-details">
                     <span class="txt-name">{p['nombre_producto']}</span>
                     <span class="txt-price">${p['precio']}</span>
                 </div>
-            </div>
-        ''', unsafe_allow_html=True)
+            ''', unsafe_allow_html=True)
 
         # --- BOTÓN COMPRAR ---
         if st.button("🛒 COMPRAR AHORA", key=f"buy_{p['id']}", use_container_width=True):
             msj = f"Hola {t['nombre_comercio']}, quiero comprar {p['nombre_producto']} por ${p['precio']}"
             st.link_button("CONFIRMAR EN WHATSAPP", f"https://wa.me/{t['whatsapp']}?text={urllib.parse.quote(msj)}")
-        
-        # El botón de regreso funcional de Streamlit (invisible para mantener la estética pero operativo)
-        if st.button("VOLVER AL MALL", key=f"back_func_{p['id']}", use_container_width=True):
-            ir_a('mall')
         
         st.divider()
