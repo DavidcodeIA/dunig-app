@@ -219,25 +219,51 @@ elif st.session_state.view == 'mall':
                         st.session_state.tienda_actual = ti
                         ir_a('tienda')
 
-# --- D. VISTA: TIENDA ---
+# --- D. VISTA: TIENDA (BOTONES EN FILA DENTRO DEL VIDEO) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    if st.button("⬅️ VOLVER"): ir_a('mall')
-    st.markdown(f"<h2 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h2>", unsafe_allow_html=True)
+    if st.button("⬅️ VOLVER AL MALL"): ir_a('mall')
+    
+    st.markdown(f"<h2 style='text-align:center; color:#D4AF37;'>💎 {t['nombre_comercio']}</h2>", unsafe_allow_html=True)
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
+    
     for p in prods:
         with st.container(border=True):
+            # 1. El Video del producto
             st.video(p['video_url'])
-            col_d, col_a = st.columns([3, 1])
-            with col_d:
-                st.write(f"**{p['nombre_producto']}**")
-                st.write(f"Precio: ${p['precio']}")
-                # Efecto "En Vivo" (Número rojo)
-                st.markdown(f"<span style='color:red; font-size:0.8em;'>🔴 {random.randint(2,20)} viendo ahora</span>", unsafe_allow_html=True)
-            with col_a:
-                # El Carrito Naranja individual 🟧
-                if st.button("🟠", key=f"buy_{p['id']}"):
-                    st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                    st.toast("¡Añadido!")
+            
+            # 2. Fila de información y controles (Izquierda a Derecha)
+            # Creamos muchas columnas pequeñas para que todo quepa en una línea
+            col_info, col_fuego, col_reg, col_adm, col_car, col_pay = st.columns([3, 1.5, 1, 1, 1, 1])
+            
+            with col_info:
+                st.markdown(f"**{p['nombre_producto']}**  \n${p['precio']}")
+
+            with col_fuego:
+                # El botón rojo de fuego / Compras activas
+                st.markdown(f"<span style='color:#ff4b4b; font-weight:bold; font-size:1.2em;'>🔥 {random.randint(5,25)}</span>", unsafe_allow_html=True)
+
+            with col_reg:
+                # Botón Registro ➕ al lado del fuego
+                if st.button("➕", key=f"reg_vid_{p['id']}", help="Unirse"):
+                    ir_a('registro')
+
+            with col_adm:
+                # Botón Control ⚙️ al lado del registro
+                if st.button("⚙️", key=f"adm_vid_{p['id']}", help="Admin"):
+                    st.query_params["admin"] = "true"
                     st.rerun()
+
+            with col_car:
+                # Botón Carrito Naranja 🟠 que suma al carrito
+                if st.button("🟠", key=f"car_vid_{p['id']}", help="Añadir"):
+                    st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
+                    st.toast(f"🛒 {p['nombre_producto']} añadido")
+
+            with col_pay:
+                # Botón Checkout/Pago 💳 al final de la fila
+                if st.button("💳", key=f"pay_vid_{p['id']}", help="Pagar ya"):
+                    if not any(item['id'] == p['id'] for item in st.session_state.cart):
+                        st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
+                    ventana_carrito()
