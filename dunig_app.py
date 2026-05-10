@@ -3,22 +3,31 @@ from supabase import create_client, Client
 import urllib.parse
 import random
 import uuid
-
-categorias = [
-    "Fruterías", "Carnicerías", "Panaderías", "Restaurantes", "Hoteles", 
-    "Servicios de transporte", "Supermercados", "Repuestos para vehículos", 
-    "Inmobiliarias", "Farmacias", "Ropa y Calzado", "Piñaterías", 
-    "Agencia de festejos", "Barberías", "Otros"
-]
-
-# En el formulario de registro o perfil:
-cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)
+import time
 
 # ==========================================
-# 1. CONFIGURACIÓN Y CONEXIÓN
+# 1. CONFIGURACIÓN Y CONSTANTES
 # ==========================================
 st.set_page_config(page_title="D'UNIG LUXURY", layout="centered", initial_sidebar_state="collapsed")
 
+# Lista Maestra de Categorías
+CATEGORIAS = [
+    "🍎 Fruterías", "🥩 Carnicerías", "🥖 Panaderías", "🍴 Restaurantes", "🏨 Hoteles", 
+    "🚕 Servicios de transporte", "🛒 Supermercados", "🛠️ Repuestos para vehículos", 
+    "🏠 Inmobiliarias", "💊 Farmacias", "👕 Ropa y Calzado", "🪅 Piñaterías", 
+    "🎉 Agencia de festejos", "💈 Barberías", "✨ Otros"
+]
+
+PLANES = {
+    "GRATUITO": {"limite": 3, "precio": "0", "color": "#C0C0C0", "beneficios": ["3 Productos", "Video Reels", "Panel Básico"]},
+    "BRONCE": {"limite": 10, "precio": "5", "color": "#CD7F32", "beneficios": ["10 Productos", "Video Reels", "Panel Pro"]},
+    "PLATA": {"limite": 25, "precio": "15", "color": "#E5E4E2", "beneficios": ["25 Productos", "Video Reels", "Estadísticas"]},
+    "ORO": {"limite": 100, "precio": "30", "color": "#D4AF37", "beneficios": ["100 Productos", "Video Reels", "Prioridad VIP"]}
+}
+
+# ==========================================
+# 2. CONEXIÓN Y FUNCIONES DE APOYO
+# ==========================================
 @st.cache_resource
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
@@ -26,19 +35,6 @@ def init_connection():
     return create_client(url, key)
 
 supabase = init_connection()
-
-# Configuración de planes y beneficios
-PLANES = {
-    "GRATUITO": {"limite": 3, "precio": "0", "color": "#C0C0C0", "beneficios": ["3 Productos", "Video Reels", "Panel Básico", "Soporte Email"]},
-    "BRONCE": {"limite": 10, "precio": "5", "color": "#CD7F32", "beneficios": ["10 Productos", "Video Reels", "Panel Pro", "Soporte WhatsApp"]},
-    "PLATA": {"limite": 25, "precio": "15", "color": "#E5E4E2", "beneficios": ["25 Productos", "Video Reels", "Estadísticas", "Destacado"]},
-    "ORO": {"limite": 100, "precio": "30", "color": "#D4AF37", "beneficios": ["100 Productos", "Video Reels", "Prioridad VIP", "Soporte 24/7"]}
-}
-
-if 'view' not in st.session_state: st.session_state.view = 'mall'
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-if 'cart' not in st.session_state: st.session_state.cart = []
-if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
 
 def ir_a(pagina):
     st.session_state.view = pagina
@@ -53,371 +49,165 @@ def subir_archivo(file, folder):
     except Exception as e:
         st.error(f"Error al subir: {e}"); return None
 
+# Inicialización de Estados
+if 'view' not in st.session_state: st.session_state.view = 'mall'
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'cart' not in st.session_state: st.session_state.cart = []
+if 'tienda_actual' not in st.session_state: st.session_state.tienda_actual = None
+
 # ==========================================
-# 2. ESTÉTICA LUXURY (CSS)
+# 3. ESTÉTICA LUXURY (CSS)
 # ==========================================
 st.markdown("""
     <style>
     .main { background: #000; color: #fff; }
     .img-redonda {
-        width: 180px; height: 180px; border-radius: 50%;
+        width: 160px; height: 160px; border-radius: 50%;
         object-fit: cover; border: 2px solid #D4AF37;
-        margin: 0 auto 15px auto; display: block;
-        box-shadow: 0px 8px 20px rgba(212, 175, 55, 0.3);
+        margin: 0 auto 10px auto; display: block;
+        box-shadow: 0px 5px 15px rgba(212, 175, 55, 0.3);
     }
     .stButton>button {
-        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #F9F295, #D4AF37, #8A6E2F) !important;
-        background-size: 200% 100% !important;
-        color: #000 !important; border-radius: 10px !important;
-        font-weight: 800 !important; height: 48px !important; width: 100% !important;
-        border: none !important;
+        background: linear-gradient(90deg, #8A6E2F, #D4AF37, #8A6E2F) !important;
+        color: #000 !important; border-radius: 8px !important;
+        font-weight: bold !important; width: 100% !important;
     }
-    .btn-carrito-fix > button {
-        background: rgba(255,255,255,0.05) !important;
-        color: #D4AF37 !important; border: 1px solid #D4AF37 !important;
-        margin-bottom: 8px !important; height: 38px !important;
-    }
-    .product-info { text-align: center; margin: 10px 0; font-size: 1.4rem; font-weight: bold; }
-    .price-tag { color: #39FF14; margin-left: 10px; font-weight: 900; }
     .plan-card {
-        border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 15px; 
-        padding: 20px; text-align: center; background: #0a0a0a; min-height: 380px;
-        margin-bottom: 20px;
+        border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 10px; 
+        padding: 15px; text-align: center; background: #0a0a0a; margin-bottom: 10px;
     }
-    .plan-card ul { list-style: none; padding: 0; font-size: 0.85rem; color: #bbb; }
-    .plan-card li { margin: 8px 0; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DIÁLOGO DEL CARRITO
+# 4. DIÁLOGO DEL CARRITO
 # ==========================================
-@st.dialog("🛒 RESUMEN DE COMPRA")
+@st.dialog("🛒 TU PEDIDO LUXURY")
 def ventana_carrito():
     if not st.session_state.cart:
-        st.write("Tu carrito está vacío.")
+        st.write("El carrito está vacío.")
         return
     total = sum(item['precio'] * item['cantidad'] for item in st.session_state.cart)
     for i, item in enumerate(st.session_state.cart):
         c1, c2, c3 = st.columns([3, 1, 1])
-        c1.write(f"**{item['nombre']}**")
+        c1.write(item['nombre'])
         c2.write(f"x{item['cantidad']}")
-        c3.write(f"${item['precio']*item['cantidad']:,.2f}")
-        if st.button("🗑️", key=f"del_{i}"):
-            st.session_state.cart.pop(i); st.rerun()
+        c3.write(f"${item['precio']*item['cantidad']}")
     st.divider()
-    st.subheader(f"Total: ${total:,.2f}")
     t = st.session_state.tienda_actual
-    st.info(f"Pagar a: {t.get('datos_pago', 'Consultar por WhatsApp')}")
     ref = st.text_input("Referencia de Pago")
-    if st.button("💎 CONFIRMAR PEDIDO") and ref:
-        prods_txt = "\n".join([f"• {x['nombre']} (x{x['cantidad']})" for x in st.session_state.cart])
-        msj = f"✨ *NUEVO PEDIDO*\n\n🏪 {t['nombre_comercio']}\n📦 *Productos:*\n{prods_txt}\n\n💰 *Total:* ${total:,.2f}\n🎫 *Ref:* {ref}"
-        st.session_state.cart = []
-        st.link_button("ENVIAR WHATSAPP", f"https://wa.me/{str(t['whatsapp']).strip()}?text={urllib.parse.quote(msj)}")
+    if st.button("💎 CONFIRMAR Y ENVIAR"):
+        msj = f"NUEVO PEDIDO: {t['nombre_comercio']}\nTotal: ${total}\nRef: {ref}"
+        st.link_button("WHATSAPP", f"https://wa.me/{t['whatsapp']}?text={urllib.parse.quote(msj)}")
 
 # ==========================================
-# 4. RUTAS Y VISTAS
+# 5. CONTROLADOR DE VISTAS (LÓGICA ÚNICA)
 # ==========================================
-es_admin = st.query_params.get("admin") == "true"
-es_reg = st.query_params.get("reg") == "true"
+es_admin_url = st.query_params.get("admin") == "true"
 
-# --- 1. VISTA MALL ---
-if st.session_state.view == 'mall':
-    # Aquí va todo tu código del Mall (el que ya tienes)
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
-    # ... resto del código del mall ...
-
-# --- 2. VISTA REGISTRO (Aquí es donde daba el error) ---
-elif st.session_state.view == 'registro':
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>💎 REGISTRO DE SOCIOS LUXURY</h1>", unsafe_allow_html=True)
-    
-    # Asegúrate de que el bloque anterior (el del Mall) esté bien cerrado
-    # y que este 'elif' esté alineado exactamente debajo del 'if' inicial.
-    
-    # 1. Tabla de Planes (Visual)
-    cols = st.columns(4)
-    for i, (nombre, info) in enumerate(PLANES.items()):
-        with cols[i]:
-            benef_html = "".join([f"<li>✅ {b}</li>" for b in info['beneficios']])
-            st.markdown(f"""
-                <div class="plan-card">
-                    <h3 style="color:{info['color']};">{nombre}</h3>
-                    <h2>${info['precio']}</h2>
-                    <hr style="opacity:0.1;">
-                    <ul>{benef_html}</ul>
-                </div>
-            """, unsafe_allow_html=True)
-    
-    st.divider()
-
-    # 2. Instrucciones de Pago
-    with st.expander("💳 VER MÉTODOS DE PAGO PARA SUSCRIPCIÓN", expanded=True):
-        st.markdown("""
-        **Para activar tu tienda, realiza el pago a una de nuestras cuentas:**
-        *   **Pago Móvil:** Banco Mercantil | 0412-1234567 | V-12345678
-        *   **Zelle:** pagos@dunigluxury.com (A nombre de D'Unig Mall)
-        *   **Binance (USDT):** ID: 987654321
-        ---
-        *Una vez realizado el pago, completa el formulario de abajo.*
-        """)
-
-# 3. Formulario de Registro
-    with st.form("registro_completo"):
-        st.subheader("Datos de tu Negocio")
-        
-        # Estas categorías deben estar justo debajo del subheader
-        # con exactamente la misma cantidad de espacios a la izquierda.
-        categorias = [
-            "🍎 Fruterías", "🥩 Carnicerías", "🥖 Panaderías", "🍴 Restaurantes", "🏨 Hoteles", 
-            "🚕 Servicios de transporte", "🛒 Supermercados", "🛠️ Repuestos para vehículos", 
-            "🏠 Inmobiliarias", "💊 Farmacias", "👕 Ropa y Calzado", "🪅 Piñaterías", 
-            "🎉 Agencia de festejos", "💈 Barberías", "✨ Otros"
-        ]
-
-        # Fila para Categoría y Nombre
-        col_c1, col_c2 = st.columns(2)
-        with col_c1:
-            cat_seleccionada = st.selectbox("Categoría de tu Negocio", categorias)
-        with col_c2:
-            rn = st.text_input("Nombre de la Tienda (Ej: Gucci Caracas)")
-
-        # Fila para Email y WhatsApp
-        col_c3, col_c4 = st.columns(2)
-        with col_c3:
-            re = st.text_input("Email del Propietario").lower().strip()
-        with col_c4:
-            rw = st.text_input("WhatsApp de Ventas (Ej: 58412...)")
-            
-        rp = st.selectbox("Plan a Contratar", list(PLANES.keys()))
-            
-        st.divider()
-        st.subheader("Personalización y Pago")
-        rf = st.file_uploader("Foto de Portada / Logo", type=['jpg', 'png'])
-        
-        st.info("Sube tu comprobante de pago aquí:")
-        rc_pago = st.file_uploader("Comprobante de Pago", type=['jpg', 'png', 'pdf'])
-        ref_n = st.text_input("Número de Referencia del Pago")
-
-        # --- LÓGICA DE ENVÍO ---
-        if st.form_submit_button("🚀 ENVIAR SOLICITUD DE AFILIACIÓN"):
-            if rn and re and rf and rc_pago and ref_n:
-                with st.spinner("Procesando solicitud luxury..."):
-                    import random
-                    url_portada = subir_archivo(rf, "portadas")
-                    url_comprobante = subir_archivo(rc_pago, "comprobantes_suscripcion")
-                    
-                    cod = str(random.randint(100000, 999999))
-                    
-                    # Insertar en Supabase (Incluyendo la CATEGORÍA)
-                    try:
-                        supabase.table("perfiles_comercio").insert({
-                            "nombre_comercio": rn,
-                            "email_propietario": re,
-                            "whatsapp": rw,
-                            "plan": rp,
-                            "categoria": cat_seleccionada, # <--- AGREGADO
-                            "portada_url": url_portada,
-                            "comprobante_url": url_comprobante,
-                            "referencia_pago": ref_n,
-                            "codigo_acceso": cod,
-                            "activo": False 
-                        }).execute()
-                        
-                        st.balloons()
-                        st.success(f"¡Solicitud enviada con éxito!")
-                        st.warning(f"⚠️ GUARDA TU CÓDIGO DE ACCESO: {cod}")
-                        st.info("Activación en un lapso de 2 a 12 horas.")
-                    except Exception as e:
-                        st.error(f"Error al guardar: {e}")
-            else:
-                st.error("Por favor, completa todos los campos requeridos.")
-# --- VISTA: PANEL ADMIN (ESTRUCTURA CORREGIDA) ---
-elif es_admin:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
-    
-    if not st.session_state.get('logged_in', False):
+# --- A. VISTA: ADMIN ---
+if es_admin_url:
+    st.markdown("<h1 style='text-align:center;'>⚙️ PANEL DE CONTROL</h1>", unsafe_allow_html=True)
+    if not st.session_state.logged_in:
         e_log = st.text_input("Email").lower().strip()
         c_log = st.text_input("Código", type="password")
         if st.button("INGRESAR"):
             res = supabase.table("perfiles_comercio").select("*").eq("email_propietario", e_log).execute()
-            if res.data and str(res.data[0].get('codigo_acceso', '')).upper() == c_log.upper():
+            if res.data and str(res.data[0]['codigo_acceso']) == c_log:
                 st.session_state.logged_in = True
                 st.session_state.user_email = e_log
                 st.rerun()
-            else:
-                st.error("Credenciales incorrectas.")
     else:
-        # 1. Obtener datos del perfil
-        res_perf = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute()
-        if not res_perf.data:
-            st.error("Error al cargar perfil")
-            st.stop()
-            
-        perf = res_perf.data[0]
-        nombre_plan = str(perf.get('plan') or "GRATUITO").upper().strip()
-        p_data = PLANES.get(nombre_plan, PLANES["GRATUITO"])
+        perf = supabase.table("perfiles_comercio").select("*").eq("email_propietario", st.session_state.user_email).execute().data[0]
+        tab1, tab2, tab3 = st.tabs(["📤 SUBIR", "📦 PRODUCTOS", "🖼️ PERFIL"])
         
-        c_res = supabase.table("productos").select("id", count="exact").eq("comercio_relacionado", perf['nombre_comercio']).execute()
-        actual = c_res.count if c_res.count is not None else 0
+        with tab1:
+            with st.form("subir_p"):
+                n = st.text_input("Nombre Producto")
+                p = st.number_input("Precio ($)", min_value=0.0)
+                v = st.file_uploader("Video", type=['mp4'])
+                if st.form_submit_button("PUBLICAR"):
+                    url = subir_archivo(v, "videos")
+                    supabase.table("productos").insert({"nombre_producto":n, "precio":p, "video_url":url, "comercio_relacionado":perf['nombre_comercio']}).execute()
+                    st.success("Publicado!"); time.sleep(1); st.rerun()
         
-        st.success(f"Bienvenido: {perf['nombre_comercio']} (Plan {nombre_plan})")
-        st.progress(min(actual/p_data['limite'], 1.0), text=f"Cupo: {actual}/{p_data['limite']} productos")
-
-        # 2. Bloque de Pestañas
-        t1, t2, t3 = st.tabs(["📤 SUBIR", "📦 PRODUCTOS", "🖼️ PERFIL"])
+        with tab3:
+            st.write(f"Categoría actual: {perf.get('categoria', 'No definida')}")
+            nueva_cat = st.selectbox("Cambiar Categoría", CATEGORIAS)
+            if st.button("Actualizar"):
+                supabase.table("perfiles_comercio").update({"categoria": nueva_cat}).eq("id", perf['id']).execute()
+                st.rerun()
         
-        with t1:
-            if actual < p_data['limite']:
-                with st.form("add_p"):
-                    n = st.text_input("Nombre del Producto")
-                    p = st.number_input("Precio ($)", min_value=0.0)
-                    v = st.file_uploader("Video MP4", type=['mp4'])
-                    if st.form_submit_button("PUBLICAR"):
-                        if n and v:
-                            with st.spinner("Subiendo video..."):
-                                url = subir_archivo(v, "videos")
-                                if url:
-                                    supabase.table("productos").insert({
-                                        "nombre_producto": n, "precio": p, 
-                                        "video_url": url, "comercio_relacionado": perf['nombre_comercio']
-                                    }).execute()
-                                    st.rerun()
-            else:
-                st.warning("Límite de plan alcanzado.")
-
-        with t2:
-            st.subheader("Tus Productos")
-            mis_p = supabase.table("productos").select("*").eq("comercio_relacionado", perf['nombre_comercio']).execute().data
-            if not mis_p:
-                st.info("No tienes productos cargados.")
-            for mp in mis_p:
-                c_n, c_b = st.columns([4,1])
-                c_n.write(f"**{mp['nombre_producto']}** - ${mp['precio']}")
-                if c_b.button("Borrar", key=f"del_{mp['id']}"):
-                    supabase.table("productos").delete().eq("id", mp['id']).execute()
-                    st.rerun()
-
-        with t3:
-            st.subheader("Personalización")
-            url_actual = perf.get('portada_url')
-            if url_actual:
-                # Usamos un truco de tiempo para que la imagen se refresque siempre
-                st.image(f"{url_actual}?v={uuid.uuid4()}", width=150, caption="Portada actual")
-            
-            nueva_f = st.file_uploader("Cambiar Foto de Portada", type=['jpg','png'], key="nueva_portada_admin")
-            if st.button("Guardar Cambios de Perfil") and nueva_f:
-                with st.spinner("Actualizando portada..."):
-                    u = subir_archivo(nueva_f, "portadas")
-                    if u:
-                        supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
-                        st.success("¡Foto actualizada!")
-                        import time
-                        time.sleep(2)
-                        st.rerun()
-            
-            st.divider()
-            d_pago = st.text_area("Datos de Pago (Se verán en el carrito)", value=perf.get('datos_pago',''))
-            if st.button("Actualizar Métodos de Pago"):
-                supabase.table("perfiles_comercio").update({"datos_pago": d_pago}).eq("id", perf['id']).execute()
-                st.success("Datos guardados.")
-
-        st.divider()
-        if st.button("🚪 CERRAR SESIÓN"):
+        if st.button("CERRAR SESIÓN"):
             st.session_state.logged_in = False
             st.rerun()
 
-# --- VISTA: MALL ---
+# --- B. VISTA: REGISTRO ---
+elif st.session_state.view == 'registro':
+    st.markdown("<h1 style='text-align:center;'>💎 REGISTRO</h1>", unsafe_allow_html=True)
+    with st.form("registro_socio"):
+        cat_reg = st.selectbox("Categoría", CATEGORIAS)
+        rn = st.text_input("Nombre Negocio")
+        re = st.text_input("Email").lower().strip()
+        rw = st.text_input("WhatsApp (Ej: 58412...)")
+        rp = st.selectbox("Plan", list(PLANES.keys()))
+        rf = st.file_uploader("Logo/Portada", type=['jpg','png'])
+        ref_pago = st.text_input("Referencia Pago")
+        
+        if st.form_submit_button("🚀 ENVIAR SOLICITUD"):
+            portada = subir_archivo(rf, "portadas")
+            cod = str(random.randint(100000, 999999))
+            supabase.table("perfiles_comercio").insert({
+                "nombre_comercio": rn, "email_propietario": re, "whatsapp": rw,
+                "plan": rp, "categoria": cat_reg, "portada_url": portada,
+                "codigo_acceso": cod, "activo": False, "referencia_pago": ref_pago
+            }).execute()
+            st.success(f"¡Solicitud Enviada! TU CÓDIGO: {cod}")
+
+    if st.button("VOLVER"): ir_a('mall')
+
+# --- C. VISTA: MALL ---
 elif st.session_state.view == 'mall':
     st.markdown("<h1 style='text-align:center; color:#D4AF37;'>🏙️ D'UNIG LUXURY MALL</h1>", unsafe_allow_html=True)
-    busq = st.text_input("🔍 Buscar tiendas o marcas...", "").lower()
-    tiendas = supabase.table("perfiles_comercio").select("*").eq("activo", True).execute().data
-    tiendas = [t for t in tiendas if busq in t['nombre_comercio'].lower()]
     
+    col1, col2 = st.columns([2, 1])
+    with col1: busq = st.text_input("🔍 Buscar...", "").lower()
+    with col2: cat_f = st.selectbox("Filtrar", ["Todas"] + CATEGORIAS)
+
+    query = supabase.table("perfiles_comercio").select("*").eq("activo", True)
+    if cat_f != "Todas": query = query.eq("categoria", cat_f)
+    tiendas = query.execute().data
+    tiendas = [t for t in tiendas if busq in t['nombre_comercio'].lower()]
+
     for i in range(0, len(tiendas), 2):
         cols = st.columns(2)
         for j in range(2):
             if i+j < len(tiendas):
                 t = tiendas[i+j]
                 with cols[j]:
-                    # Usamos la URL de portada si existe, si no una imagen por defecto
-                    img_url = t.get('portada_url') or "https://via.placeholder.com/180"
-                    st.markdown(f'<img src="{img_url}" class="img-redonda">', unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align:center; font-weight:bold;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
-                    if st.button("ENTRAR", key=f"btn_mall_{t['id']}", use_container_width=True):
+                    st.markdown(f'<img src="{t.get("portada_url")}" class="img-redonda">', unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align:center;'>{t['nombre_comercio'].upper()}</p>", unsafe_allow_html=True)
+                    if st.button("ENTRAR", key=f"mall_{t['id']}"):
                         st.session_state.tienda_actual = t
                         ir_a('tienda')
+    
+    st.divider()
+    if st.button("💎 REGISTRAR MI NEGOCIO"): ir_a('registro')
 
-# --- VISTA: TIENDA ---
+# --- D. VISTA: TIENDA ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
-    if st.button("⬅️ VOLVER AL MALL"): 
-        st.session_state.cart = []
-        ir_a('mall')
+    if st.button("⬅️ VOLVER"): ir_a('mall')
     
-    st.markdown(f"<h2 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h2>", unsafe_allow_html=True)
-    
+    st.title(t['nombre_comercio'])
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
-    if not prods:
-        st.info("Esta tienda aún no tiene productos.")
-    
     for p in prods:
-        st.video(p['video_url'], autoplay=True, loop=True, muted=True)
-        st.markdown(f'<div class="product-info">{p["nombre_producto"].upper()} <span class="price-tag">${p["precio"]}</span></div>', unsafe_allow_html=True)
-        
-        cant_items = sum(item['cantidad'] for item in st.session_state.cart)
-        if cant_items > 0:
-            st.markdown('<div class="btn-carrito-fix">', unsafe_allow_html=True)
-            if st.button(f"🛒 VER CARRITO ({cant_items})", key=f"cart_view_{p['id']}"): 
-                ventana_carrito()
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        if st.button(f"➕ AÑADIR AL CARRITO", key=f"add_cart_{p['id']}", use_container_width=True):
-            found = False
-            for item in st.session_state.cart:
-                if item['id'] == p['id']: 
-                    item['cantidad'] += 1
-                    found = True
-                    break
-            if not found: 
-                st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-            st.toast(f"{p['nombre_producto']} añadido 💎")
-            st.rerun()
-        st.divider()
+        st.video(p['video_url'])
+        st.subheader(f"{p['nombre_producto']} - ${p['precio']}")
+        if st.button(f"➕ AÑADIR", key=f"add_{p['id']}"):
+            st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
+            st.toast("Añadido!")
 
-# ==========================================
-# LÓGICA PRINCIPAL DE NAVEGACIÓN (AL FINAL)
-# ==========================================
-
-# 1. Aseguramos que la sesión tenga una vista inicial
-if 'view' not in st.session_state:
-    st.session_state.view = 'mall'
-
-# 2. Detectamos si es administrador
-query_params = st.query_params
-es_admin = query_params.get("admin") == "true"
-
-# 3. El Switch de Vistas (Alineación perfecta)
-if es_admin:
-    # --- AQUÍ PEGA TU CÓDIGO DE PANEL DE CONTROL ---
-    st.markdown("### ⚙️ Panel de Administración")
-    # (El código que te pasé antes para el elif es_admin)
-
-elif st.session_state.view == 'registro':
-    # --- AQUÍ PEGA TU CÓDIGO DE REGISTRO ---
-    # (El código largo con el formulario y las categorías)
-
-elif st.session_state.view == 'mall':
-    # --- AQUÍ PEGA TU CÓDIGO DEL MALL ---
-    # (El código de las tiendas y la barra de búsqueda)
-
-elif st.session_state.view == 'tienda':
-    # --- AQUÍ PEGA LA VISTA DE TIENDA INDIVIDUAL ---
-    if 'tienda_actual' in st.session_state:
-        t = st.session_state.tienda_actual
-        st.subheader(f"Bienvenido a {t['nombre_comercio']}")
-        # (Aquí va el código para mostrar los videos del socio)
-        if st.button("⬅️ Volver al Mall"):
-            st.session_state.view = 'mall'
-            st.rerun()
+    if st.session_state.cart:
+        if st.button("🛒 VER MI CARRITO"): ventana_carrito()
