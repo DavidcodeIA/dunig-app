@@ -249,21 +249,31 @@ elif es_admin:
                     supabase.table("productos").delete().eq("id", mp['id']).execute()
                     st.rerun()
 
-        with t3:
-            st.image(perf['portada_url'], width=100)
-            nueva_f = st.file_uploader("Cambiar Portada", type=['jpg','png'])
-            if st.button("Guardar Foto") and nueva_f:
-                u = subir_archivo(nueva_f, "portadas")
-                supabase.table("perfiles_comercio").update({"portada_url":u}).eq("id", perf['id']).execute()
+ with t3: # Pestaña de Perfil
+    st.subheader("Personalización de Tienda")
+    
+    # Verificamos si la URL existe y no es solo un texto vacío
+    url_actual = perf.get('portada_url')
+    
+    if url_actual:
+        try:
+            st.image(url_actual, width=150, caption="Portada actual")
+        except Exception:
+            st.warning("No se pudo cargar la vista previa de la imagen actual.")
+    else:
+        st.info("Aún no tienes una foto de portada configurada.")
+    
+    st.divider()
+    
+    # Sección para subir nueva foto
+    nueva_f = st.file_uploader("Cambiar imagen de portada", type=['jpg', 'png', 'jpeg'])
+    if st.button("Guardar Nueva Foto") and nueva_f:
+        with st.spinner("Subiendo..."):
+            u = subir_archivo(nueva_f, "portadas")
+            if u:
+                supabase.table("perfiles_comercio").update({"portada_url": u}).eq("id", perf['id']).execute()
+                st.success("¡Foto actualizada!")
                 st.rerun()
-            d_pago = st.text_area("Datos de Pago (Se verán en el carrito)", value=perf.get('datos_pago',''))
-            if st.button("Actualizar Datos"):
-                supabase.table("perfiles_comercio").update({"datos_pago":d_pago}).eq("id", perf['id']).execute()
-                st.success("¡Datos guardados!")
-        
-        if st.button("Cerrar Sesión"):
-            st.session_state.logged_in = False
-            st.rerun()
 
 # --- VISTA: MALL ---
 elif st.session_state.view == 'mall':
