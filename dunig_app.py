@@ -385,3 +385,39 @@ elif st.session_state.view == 'tienda':
             st.toast(f"{p['nombre_producto']} añadido 💎")
             st.rerun()
         st.divider()
+
+# ==========================================
+# LÓGICA PRINCIPAL DE NAVEGACIÓN (AL FINAL)
+# ==========================================
+
+# 1. Aseguramos que la sesión tenga una vista inicial
+if 'view' not in st.session_state:
+    st.session_state.view = 'mall'
+
+# 2. Detectamos si es administrador
+query_params = st.query_params
+es_admin = query_params.get("admin") == "true"
+
+# 3. El Switch de Vistas (Alineación perfecta)
+if es_admin:
+    # --- AQUÍ PEGA TU CÓDIGO DE PANEL DE CONTROL ---
+    st.markdown("### ⚙️ Panel de Administración")
+    # (El código que te pasé antes para el elif es_admin)
+
+elif st.session_state.view == 'registro':
+    # --- AQUÍ PEGA TU CÓDIGO DE REGISTRO ---
+    # (El código largo con el formulario y las categorías)
+
+elif st.session_state.view == 'mall':
+    # --- AQUÍ PEGA TU CÓDIGO DEL MALL ---
+    # (El código de las tiendas y la barra de búsqueda)
+
+elif st.session_state.view == 'tienda':
+    # --- AQUÍ PEGA LA VISTA DE TIENDA INDIVIDUAL ---
+    if 'tienda_actual' in st.session_state:
+        t = st.session_state.tienda_actual
+        st.subheader(f"Bienvenido a {t['nombre_comercio']}")
+        # (Aquí va el código para mostrar los videos del socio)
+        if st.button("⬅️ Volver al Mall"):
+            st.session_state.view = 'mall'
+            st.rerun()
