@@ -219,105 +219,101 @@ elif st.session_state.view == 'mall':
                         st.session_state.tienda_actual = ti
                         ir_a('tienda')
 
-# ==========================================
-# BLOQUE EXCLUSIVO: VISTA DE VIDEO (TIKTOK STYLE)
-# ==========================================
+# --- BLOQUE DE VISTA: VIDEO CON BOTONES ENCIMA (ESTILO TIKTOK) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     
-    # 1. Botón minimalista para salir de la tienda
-    if st.button("⬅️ VOLVER AL MALL", key="back_btn"):
-        ir_a('mall')
-
-    # 2. CSS para forzar el OVERLAY (Botones sobre el video)
+    # CSS para crear el "Stack" (Capas superpuestas)
     st.markdown("""
         <style>
-            /* Ajuste del contenedor de video */
-            .stVideo {
-                border-radius: 20px;
-                box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+            /* El contenedor del video es la base */
+            .video-stack {
+                position: relative;
+                width: 100%;
+                height: 700px; /* Ajusta a tu pantalla móvil */
+                background-color: black;
+                border-radius: 25px;
+                overflow: hidden;
+                margin-bottom: 20px;
             }
             
-            /* Contenedor de botones flotantes */
-            .floating-sidebar {
+            /* Los botones flotan a la derecha */
+            .side-controls {
+                position: absolute;
+                right: 15px;
+                top: 40%; /* Ajustado para que caigan a la mitad derecha */
                 display: flex;
                 flex-direction: column;
                 gap: 20px;
-                align-items: center;
-                margin-top: -380px; /* Esto sube los botones SOBRE el video */
-                position: relative;
-                z-index: 999;
-                padding-right: 10px;
+                z-index: 100;
             }
 
-            /* Estilo Luxury para los botones circulares */
+            /* La info flota abajo a la izquierda */
+            .bottom-info {
+                position: absolute;
+                left: 20px;
+                bottom: 30px;
+                color: white;
+                text-shadow: 2px 2px 4px #000;
+                z-index: 90;
+            }
+
+            /* Botones estilo burbuja de lujo */
             .stButton button {
-                background: linear-gradient(145deg, #222, #444) !important;
-                border: 1px solid #D4AF37 !important;
+                background: rgba(255, 255, 255, 0.2) !important;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(212, 175, 55, 0.5) !important;
                 border-radius: 50% !important;
                 width: 55px !important;
                 height: 55px !important;
-                color: white !important;
-                font-size: 1.5rem !important;
-                box-shadow: 2px 2px 10px rgba(0,0,0,0.8) !important;
-            }
-            
-            /* Info del producto superpuesta en la base del video */
-            .video-info-tag {
-                margin-top: -80px;
-                margin-left: 20px;
-                position: relative;
-                z-index: 998;
-                color: white;
-                text-shadow: 2px 2px 4px #000;
+                font-size: 1.4rem !important;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # 3. Bucle de productos (Cuerpo del Video)
+    # Volver minimalista
+    if st.button("⬅️", key="back_nav"): ir_a('mall')
+
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # Columna principal para el video y lateral para botones
-        c_main, c_side = st.columns([8.5, 1.5])
+        # Abrimos el "Stack"
+        st.markdown('<div class="video-stack">', unsafe_allow_html=True)
         
-        with c_main:
-            # Video
-            st.video(p['video_url'])
-            # Texto informativo sobre el video
-            st.markdown(f"""
-                <div class="video-info-tag">
-                    <b style='font-size:1.3em;'>@{t['nombre_comercio']}</b><br>
-                    {p['nombre_producto']} — <b>${p['precio']}</b><br>
-                    <span style='color:#ff4b4b;'>🔥 {random.randint(10,60)} compras hoy</span>
-                </div>
-            """, unsafe_allow_html=True)
+        # 1. El Video (Fondo)
+        st.video(p['video_url'])
+        
+        # 2. La Info (Capa inferior)
+        st.markdown(f"""
+            <div class="bottom-info">
+                <b style='font-size:1.3em;'>@{t['nombre_comercio']}</b><br>
+                <span style='font-size:1.1em;'>{p['nombre_producto']}</span><br>
+                <span style='font-size:1.5em; font-weight:bold;'>${p['precio']}</span><br>
+                <span style='color:#ff4b4b;'>🔥 15 compras</span>
+            </div>
+        """, unsafe_allow_html=True)
 
-        with c_side:
-            # Contenedor de botones que suben con el margen negativo
-            st.markdown('<div class="floating-sidebar">', unsafe_allow_html=True)
-            
-            # Icono 1: Registro ➕
-            if st.button("➕", key=f"v_reg_{p['id']}"):
-                ir_a('registro')
-            
-            # Icono 2: Admin ⚙️
-            if st.button("⚙️", key=f"v_adm_{p['id']}"):
-                st.query_params["admin"] = "true"
-                st.rerun()
-            
-            # Icono 3: Carrito Naranja 🟠
-            if st.button("🟠", key=f"v_car_{p['id']}"):
-                st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                st.toast(f"🛒 {p['nombre_producto']} añadido")
-            
-            # Icono 4: Checkout 💳
-            if st.button("💳", key=f"v_pay_{p['id']}"):
-                if not any(item['id'] == p['id'] for item in st.session_state.cart):
+        # 3. Los Controles (Capa superior derecha)
+        # Usamos columnas para que Streamlit renderice los botones dentro del área del stack
+        with st.container():
+            col_v, col_btn = st.columns([8, 2])
+            with col_btn:
+                st.write("") # Empujamos los botones hacia abajo para centrarlos verticalmente
+                st.write("")
+                st.write("")
+                st.write("")
+                if st.button("➕", key=f"stack_reg_{p['id']}"): ir_a('registro')
+                if st.button("⚙️", key=f"stack_adm_{p['id']}"): 
+                    st.query_params["admin"] = "true"
+                    st.rerun()
+                if st.button("🟠", key=f"stack_car_{p['id']}"):
                     st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                ventana_carrito()
-                
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.write(" ") # Espacio entre videos para no amontonar
+                    st.toast("Añadido 🛒")
+                if st.button("💳", key=f"stack_pay_{p['id']}"):
+                    if not any(item['id'] == p['id'] for item in st.session_state.cart):
+                        st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
+                    ventana_carrito()
+
+        # Cerramos el "Stack"
+        st.markdown('</div>', unsafe_allow_html=True)
         st.divider()
