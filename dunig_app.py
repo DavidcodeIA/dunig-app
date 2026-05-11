@@ -219,73 +219,92 @@ elif st.session_state.view == 'mall':
                         st.session_state.tienda_actual = ti
                         ir_a('tienda')
 
-# --- D. VISTA: TIENDA (DISEÑO INTEGRADO SIN ESPACIOS) ---
+# --- D. VISTA: TIENDA (INTERFAZ TIKTOK REAL - OVERLAY) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     
-    # CSS AVANZADO PARA ELIMINAR "EL HORROR" DE LOS ESPACIOS
+    # CSS MAESTRO PARA CAPA SOBRE CAPA (OVERLAY)
     st.markdown("""
         <style>
-            /* Elimina márgenes internos del contenedor de Streamlit */
-            .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
-            
-            /* Fuerza a las columnas a estar pegadas sin huecos */
-            [data-testid="stHorizontalBlock"] {
-                gap: 0px !important;
-                flex-direction: row !important;
-                display: flex !important;
-                align-items: flex-end !important; /* Alinea botones abajo con el texto */
+            .video-container {
+                position: relative;
+                width: 100%;
+                max-width: 400px;
+                margin: auto;
+                border-radius: 20px;
+                overflow: hidden;
             }
-            
-            /* Ajusta el tamaño de los botones para que no se vean gigantes */
+            .sidebar-overlay {
+                position: absolute;
+                right: 10px;
+                bottom: 15%;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                z-index: 100;
+            }
+            .info-overlay {
+                position: absolute;
+                left: 15px;
+                bottom: 20px;
+                color: white;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+                z-index: 99;
+            }
+            /* Estilo para que los botones de Streamlit sean invisibles o circulares */
             .stButton button {
-                width: 45px !important;
-                height: 45px !important;
-                padding: 0px !important;
-                margin-bottom: 5px !important;
-                border-radius: 10px !important;
+                background-color: rgba(255, 255, 255, 0.2) !important;
+                border: 1px solid rgba(255, 255, 255, 0.5) !important;
+                backdrop-filter: blur(5px);
+                border-radius: 50% !important;
+                width: 50px !important;
+                height: 50px !important;
+                color: white !important;
             }
-
-            /* Quita el espacio extra que Streamlit pone entre elementos */
-            [data-testid="column"] { padding: 0px !important; }
-            
-            /* Estilo para el video para que ocupe el máximo espacio */
-            video { border-radius: 15px; width: 100% !important; }
         </style>
     """, unsafe_allow_html=True)
 
-    # Botón de volver arriba pequeño
-    if st.button("⬅️", key="back_nav"): ir_a('mall')
+    if st.button("⬅️", key="back_final"): ir_a('mall')
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # Usamos una proporción 9:1 para que el video sea el rey y los botones un detalle lateral
-        c_video, c_side = st.columns([8.8, 1.2])
+        # Iniciamos el contenedor relativo
+        st.markdown(f'<div class="video-container">', unsafe_allow_html=True)
         
-        with c_video:
-            st.video(p['video_url'])
-            # Información superpuesta visualmente (estilo TikTok)
-            st.markdown(f"""
-                <div style='margin-top:-60px; margin-left:15px; color:white; text-shadow: 2px 2px 4px #000;'>
-                    <b style='font-size:1.2em;'>@{t['nombre_comercio']}</b><br>
-                    {p['nombre_producto']} — ${p['precio']}<br>
-                    <span style='color:#ff4b4b;'>🔥 {random.randint(10,50)} compras</span>
-                </div><br>
-            """, unsafe_allow_html=True)
-
-        with c_side:
-            # Botones en fila vertical pegados al video
-            if st.button("➕", key=f"tk_r_{p['id']}"): ir_a('registro')
-            if st.button("⚙️", key=f"tk_a_{p['id']}"): 
-                st.query_params["admin"] = "true"
-                st.rerun()
-            if st.button("🟠", key=f"tk_c_{p['id']}"):
-                st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                st.toast("Añadido")
-            if st.button("💳", key=f"tk_p_{p['id']}"):
-                if not any(item['id'] == p['id'] for item in st.session_state.cart):
+        # 1. El Video de fondo
+        st.video(p['video_url'])
+        
+        # 2. Capa de Información (Abajo a la izquierda)
+        st.markdown(f"""
+            <div class="info-overlay">
+                <b style='font-size:1.2em;'>@{t['nombre_comercio']}</b><br>
+                {p['nombre_producto']}<br>
+                <span style='font-size:1.3em; font-weight:bold;'>${p['precio']}</span><br>
+                <span style='color:#ff4b4b;'>🔥 {random.randint(5,40)} compras</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # 3. Capa de Botones (Derecha - Usamos columnas de Streamlit dentro del overlay)
+        # Nota: Streamlit no permite botones dentro de HTML puro, 
+        # así que usamos este truco de columnas muy juntas para simular el flotado
+        with st.container():
+            col_v, col_s = st.columns([8, 2])
+            with col_s:
+                st.write("") # Espaciado vertical para bajar los botones
+                st.write("")
+                st.write("")
+                if st.button("➕", key=f"f_r_{p['id']}"): ir_a('registro')
+                if st.button("⚙️", key=f"f_a_{p['id']}"): 
+                    st.query_params["admin"] = "true"
+                    st.rerun()
+                if st.button("🟠", key=f"f_c_{p['id']}"):
                     st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                ventana_carrito()
+                    st.toast("¡Añadido!")
+                if st.button("💳", key=f"f_p_{p['id']}"):
+                    if not any(item['id'] == p['id'] for item in st.session_state.cart):
+                        st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
+                    ventana_carrito()
         
-        st.write(" ") # Pequeño respiro entre videos
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.divider()
