@@ -219,59 +219,72 @@ elif st.session_state.view == 'mall':
                         st.session_state.tienda_actual = ti
                         ir_a('tienda')
 
-# --- D. VISTA: TIENDA (ESTILO TIKTOK SHOP - SIDEBAR VERTICAL) ---
+# --- D. VISTA: TIENDA (ESTILO TIKTOK FORZADO LADO A LADO) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     
-    # Botón de retroceso minimalista
-    if st.button("⬅️", key="back_mall"): ir_a('mall')
-    
+    # CSS PARA FORZAR COLUMNAS LADO A LADO EN MÓVIL
+    st.markdown("""
+        <style>
+            [data-testid="column"] {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            /* Esto evita que las columnas se amontonen abajo en el celular */
+            [data-testid="stHorizontalBlock"] {
+                flex-direction: row !important;
+                display: flex !important;
+                flex-wrap: nowrap !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    if st.button("⬅️ VOLVER"): ir_a('mall')
     st.markdown(f"<h3 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h3>", unsafe_allow_html=True)
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # Contenedor principal del "Reel"
         with st.container():
-            # Creamos el layout: [Video Principal, Espacio vacío, Columna de Botones]
-            # El ratio 8:1:1 nos permite pegar los botones al borde derecho del video
-            col_vid, col_gap, col_side = st.columns([8, 0.5, 1.5])
+            # Usamos columnas muy desiguales: 85% para video, 15% para botones
+            col_vid, col_side = st.columns([8.5, 1.5])
             
             with col_vid:
+                # Video principal
                 st.video(p['video_url'])
-                # Info del producto debajo del video (estilo pie de post)
+                # Info pegada al video
                 st.markdown(f"**@{t['nombre_comercio']}**")
                 st.write(f"{p['nombre_producto']} — ${p['precio']}")
                 st.markdown(f"<span style='color:#ff4b4b;'>🔥 {random.randint(10,50)} compras</span>", unsafe_allow_html=True)
 
             with col_side:
-                # Simulamos la barra lateral de TikTok
-                st.write(" ") # Espaciador para bajar los botones
-                st.write(" ")
+                # SIDEBAR VERTICAL REAL
+                # Metemos un poco de espacio para centrar los iconos con el video
+                st.write("") 
+                st.write("")
                 
-                # 1. Registro (Avatar de socio) ➕
-                if st.button("➕", key=f"tk_reg_{p['id']}", help="Socio"):
+                # Iconos sin texto largo para que no ocupen espacio
+                if st.button("➕", key=f"tk_reg_{p['id']}"):
                     ir_a('registro')
-                st.caption("Socio")
-
-                # 2. Control (Configuración) ⚙️
-                if st.button("⚙️", key=f"tk_adm_{p['id']}", help="Panel"):
+                
+                st.write("") # Espacio entre botones
+                
+                if st.button("⚙️", key=f"tk_adm_{p['id']}"):
                     st.query_params["admin"] = "true"
                     st.rerun()
-                st.caption("Admin")
-
-                # 3. Carrito Naranja (Añadir) 🟠
-                if st.button("🟠", key=f"tk_car_{p['id']}", help="Añadir"):
+                
+                st.write("")
+                
+                if st.button("🟠", key=f"tk_car_{p['id']}"):
                     st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                    st.toast("¡A la bolsa!")
-                st.caption("Añadir")
-
-                # 4. Checkout (Pagar) 💳
-                if st.button("💳", key=f"tk_pay_{p['id']}", help="Checkout"):
-                    # Si no está en el carrito, lo agregamos primero para ir directo a pagar
+                    st.toast("¡Añadido!")
+                
+                st.write("")
+                
+                if st.button("💳", key=f"tk_pay_{p['id']}"):
                     if not any(item['id'] == p['id'] for item in st.session_state.cart):
                         st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
                     ventana_carrito()
-                st.caption("Pagar")
 
-        st.markdown("---") # Separador entre reels
+        st.divider()
