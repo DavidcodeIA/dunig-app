@@ -219,72 +219,73 @@ elif st.session_state.view == 'mall':
                         st.session_state.tienda_actual = ti
                         ir_a('tienda')
 
-# --- D. VISTA: TIENDA (ESTILO TIKTOK FORZADO LADO A LADO) ---
+# --- D. VISTA: TIENDA (DISEÑO INTEGRADO SIN ESPACIOS) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     
-    # CSS PARA FORZAR COLUMNAS LADO A LADO EN MÓVIL
+    # CSS AVANZADO PARA ELIMINAR "EL HORROR" DE LOS ESPACIOS
     st.markdown("""
         <style>
-            [data-testid="column"] {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
-            /* Esto evita que las columnas se amontonen abajo en el celular */
+            /* Elimina márgenes internos del contenedor de Streamlit */
+            .block-container { padding-top: 1rem !important; padding-bottom: 0rem !important; }
+            
+            /* Fuerza a las columnas a estar pegadas sin huecos */
             [data-testid="stHorizontalBlock"] {
+                gap: 0px !important;
                 flex-direction: row !important;
                 display: flex !important;
-                flex-wrap: nowrap !important;
+                align-items: flex-end !important; /* Alinea botones abajo con el texto */
             }
+            
+            /* Ajusta el tamaño de los botones para que no se vean gigantes */
+            .stButton button {
+                width: 45px !important;
+                height: 45px !important;
+                padding: 0px !important;
+                margin-bottom: 5px !important;
+                border-radius: 10px !important;
+            }
+
+            /* Quita el espacio extra que Streamlit pone entre elementos */
+            [data-testid="column"] { padding: 0px !important; }
+            
+            /* Estilo para el video para que ocupe el máximo espacio */
+            video { border-radius: 15px; width: 100% !important; }
         </style>
     """, unsafe_allow_html=True)
 
-    if st.button("⬅️ VOLVER"): ir_a('mall')
-    st.markdown(f"<h3 style='text-align:center; color:#D4AF37;'>{t['nombre_comercio']}</h3>", unsafe_allow_html=True)
+    # Botón de volver arriba pequeño
+    if st.button("⬅️", key="back_nav"): ir_a('mall')
     
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        with st.container():
-            # Usamos columnas muy desiguales: 85% para video, 15% para botones
-            col_vid, col_side = st.columns([8.5, 1.5])
-            
-            with col_vid:
-                # Video principal
-                st.video(p['video_url'])
-                # Info pegada al video
-                st.markdown(f"**@{t['nombre_comercio']}**")
-                st.write(f"{p['nombre_producto']} — ${p['precio']}")
-                st.markdown(f"<span style='color:#ff4b4b;'>🔥 {random.randint(10,50)} compras</span>", unsafe_allow_html=True)
+        # Usamos una proporción 9:1 para que el video sea el rey y los botones un detalle lateral
+        c_video, c_side = st.columns([8.8, 1.2])
+        
+        with c_video:
+            st.video(p['video_url'])
+            # Información superpuesta visualmente (estilo TikTok)
+            st.markdown(f"""
+                <div style='margin-top:-60px; margin-left:15px; color:white; text-shadow: 2px 2px 4px #000;'>
+                    <b style='font-size:1.2em;'>@{t['nombre_comercio']}</b><br>
+                    {p['nombre_producto']} — ${p['precio']}<br>
+                    <span style='color:#ff4b4b;'>🔥 {random.randint(10,50)} compras</span>
+                </div><br>
+            """, unsafe_allow_html=True)
 
-            with col_side:
-                # SIDEBAR VERTICAL REAL
-                # Metemos un poco de espacio para centrar los iconos con el video
-                st.write("") 
-                st.write("")
-                
-                # Iconos sin texto largo para que no ocupen espacio
-                if st.button("➕", key=f"tk_reg_{p['id']}"):
-                    ir_a('registro')
-                
-                st.write("") # Espacio entre botones
-                
-                if st.button("⚙️", key=f"tk_adm_{p['id']}"):
-                    st.query_params["admin"] = "true"
-                    st.rerun()
-                
-                st.write("")
-                
-                if st.button("🟠", key=f"tk_car_{p['id']}"):
+        with c_side:
+            # Botones en fila vertical pegados al video
+            if st.button("➕", key=f"tk_r_{p['id']}"): ir_a('registro')
+            if st.button("⚙️", key=f"tk_a_{p['id']}"): 
+                st.query_params["admin"] = "true"
+                st.rerun()
+            if st.button("🟠", key=f"tk_c_{p['id']}"):
+                st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
+                st.toast("Añadido")
+            if st.button("💳", key=f"tk_p_{p['id']}"):
+                if not any(item['id'] == p['id'] for item in st.session_state.cart):
                     st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                    st.toast("¡Añadido!")
-                
-                st.write("")
-                
-                if st.button("💳", key=f"tk_pay_{p['id']}"):
-                    if not any(item['id'] == p['id'] for item in st.session_state.cart):
-                        st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                    ventana_carrito()
-
-        st.divider()
+                ventana_carrito()
+        
+        st.write(" ") # Pequeño respiro entre videos
