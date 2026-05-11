@@ -219,101 +219,108 @@ elif st.session_state.view == 'mall':
                         st.session_state.tienda_actual = ti
                         ir_a('tienda')
 
-# --- BLOQUE DE VISTA: VIDEO CON BOTONES ENCIMA (ESTILO TIKTOK) ---
+# --- BLOQUE DE VISTA: FEED DE VIDEOS UNIDOS (CONTINUOUS SCROLL) ---
 elif st.session_state.view == 'tienda':
     t = st.session_state.tienda_actual
     
-    # CSS para crear el "Stack" (Capas superpuestas)
+    # CSS para unir los videos y el overlay
     st.markdown("""
         <style>
-            /* El contenedor del video es la base */
+            /* Elimina el espacio que Streamlit pone entre bloques por defecto */
+            [data-testid="stVerticalBlock"] > div {
+                gap: 0px !important;
+                padding-bottom: 0px !important;
+                margin-bottom: 0px !important;
+            }
+
             .video-stack {
                 position: relative;
                 width: 100%;
-                height: 700px; /* Ajusta a tu pantalla móvil */
+                /* Ajuste de altura para que casi llene la pantalla del móvil */
+                height: 85vh; 
                 background-color: black;
-                border-radius: 25px;
                 overflow: hidden;
-                margin-bottom: 20px;
+                /* Sin margen inferior para que se peguen */
+                margin: 0px !important;
+                padding: 0px !important;
+                border-bottom: 1px solid #222; /* Una línea casi invisible solo para distinguir */
             }
             
-            /* Los botones flotan a la derecha */
+            video {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover; /* Importante para que el video llene el área sin dejar bandas negras */
+            }
+
             .side-controls {
                 position: absolute;
                 right: 15px;
-                top: 40%; /* Ajustado para que caigan a la mitad derecha */
-                display: flex;
-                flex-direction: column;
-                gap: 20px;
+                bottom: 100px;
                 z-index: 100;
             }
 
-            /* La info flota abajo a la izquierda */
             .bottom-info {
                 position: absolute;
-                left: 20px;
-                bottom: 30px;
+                left: 15px;
+                bottom: 25px;
                 color: white;
-                text-shadow: 2px 2px 4px #000;
+                text-shadow: 2px 2px 5px rgba(0,0,0,0.9);
                 z-index: 90;
             }
 
-            /* Botones estilo burbuja de lujo */
+            /* Botones flotantes minimalistas */
             .stButton button {
-                background: rgba(255, 255, 255, 0.2) !important;
-                backdrop-filter: blur(10px);
-                border: 1px solid rgba(212, 175, 55, 0.5) !important;
+                background: rgba(0, 0, 0, 0.4) !important;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(212, 175, 55, 0.6) !important;
                 border-radius: 50% !important;
-                width: 55px !important;
-                height: 55px !important;
-                font-size: 1.4rem !important;
+                width: 50px !important;
+                height: 50px !important;
+                margin-bottom: 10px !important;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # Volver minimalista
+    # Botón volver flotante (puedes ponerlo también como overlay si prefieres)
     if st.button("⬅️", key="back_nav"): ir_a('mall')
 
     prods = supabase.table("productos").select("*").eq("comercio_relacionado", t['nombre_comercio']).execute().data
     
     for p in prods:
-        # Abrimos el "Stack"
-        st.markdown('<div class="video-stack">', unsafe_allow_html=True)
+        # Contenedor Stack sin separadores intermedios
+        st.markdown(f'<div class="video-stack">', unsafe_allow_html=True)
         
-        # 1. El Video (Fondo)
+        # 1. El Video de fondo (con autoplay y loop para el efecto reel)
         st.video(p['video_url'])
         
-        # 2. La Info (Capa inferior)
+        # 2. La Info pegada abajo
         st.markdown(f"""
             <div class="bottom-info">
-                <b style='font-size:1.3em;'>@{t['nombre_comercio']}</b><br>
-                <span style='font-size:1.1em;'>{p['nombre_producto']}</span><br>
-                <span style='font-size:1.5em; font-weight:bold;'>${p['precio']}</span><br>
-                <span style='color:#ff4b4b;'>🔥 15 compras</span>
+                <b style='font-size:1.2em; color:#D4AF37;'>@{t['nombre_comercio']}</b><br>
+                <span style='font-size:1em;'>{p['nombre_producto']}</span><br>
+                <span style='font-size:1.4em; font-weight:bold;'>${p['precio']}</span>
             </div>
         """, unsafe_allow_html=True)
 
-        # 3. Los Controles (Capa superior derecha)
-        # Usamos columnas para que Streamlit renderice los botones dentro del área del stack
+        # 3. Los Botones flotantes (Stack lateral)
         with st.container():
-            col_v, col_btn = st.columns([8, 2])
-            with col_btn:
-                st.write("") # Empujamos los botones hacia abajo para centrarlos verticalmente
-                st.write("")
-                st.write("")
-                st.write("")
-                if st.button("➕", key=f"stack_reg_{p['id']}"): ir_a('registro')
-                if st.button("⚙️", key=f"stack_adm_{p['id']}"): 
+            # Usamos columnas para posicionar los botones a la derecha del video
+            c_v, c_btns = st.columns([8.2, 1.8])
+            with c_btns:
+                # El truco del margen negativo para subirlos sobre el video
+                st.markdown('<div style="margin-top: -320px;">', unsafe_allow_html=True)
+                if st.button("➕", key=f"f_reg_{p['id']}"): ir_a('registro')
+                if st.button("⚙️", key=f"f_adm_{p['id']}"): 
                     st.query_params["admin"] = "true"
                     st.rerun()
-                if st.button("🟠", key=f"stack_car_{p['id']}"):
+                if st.button("🟠", key=f"f_car_{p['id']}"):
                     st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
-                    st.toast("Añadido 🛒")
-                if st.button("💳", key=f"stack_pay_{p['id']}"):
+                    st.toast("Añadido")
+                if st.button("💳", key=f"f_pay_{p['id']}"):
                     if not any(item['id'] == p['id'] for item in st.session_state.cart):
                         st.session_state.cart.append({"id":p['id'], "nombre":p['nombre_producto'], "precio":p['precio'], "cantidad":1})
                     ventana_carrito()
+                st.markdown('</div>', unsafe_allow_html=True)
 
-        # Cerramos el "Stack"
         st.markdown('</div>', unsafe_allow_html=True)
-        st.divider()
+        # NOTA: Aquí ya NO hay dividers ni espacios. El bucle pega el siguiente div al anterior.
